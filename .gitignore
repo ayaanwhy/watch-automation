@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+output/
+
+# Generated watch exports
+*;frontImage*.png
+
+# Cache
+.npm-cache/
+
+# Mac junk
+.DS_Store
+**/.DS_Store
+
+# Environment
+.env
+.env.local
+
+# VS Code
+.vscode/
+
+# Logs
+*.log
+
+#Extras
+.idea/
+*;frontImage*.png
