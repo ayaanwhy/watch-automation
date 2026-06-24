@@ -1,8 +1,13 @@
 import { useState } from 'react'
 import type { BatchValidationResult, BatchLoadResult, MatchSummary, OpenFileOptions } from '../types/ipc'
+import type { BatchState } from '../types/annotation'
 import styles from './BatchSetup.module.css'
 
-export default function BatchSetup() {
+interface BatchSetupProps {
+  onBeginAnnotation(batch: BatchState): void
+}
+
+export default function BatchSetup({ onBeginAnnotation }: BatchSetupProps) {
   const [inputFolder, setInputFolder] = useState('')
   const [spreadsheetPath, setSpreadsheetPath] = useState('')
   const [outputFolder, setOutputFolder] = useState('')
@@ -108,6 +113,23 @@ export default function BatchSetup() {
 
         {pathResult !== null && <ValidationResults result={pathResult} />}
         {loadResult !== null && <BatchSummary result={loadResult} />}
+
+        {loadResult?.ok && loadResult.match && loadResult.match.matched.length > 0 && (
+          <div className={styles.actions}>
+            <button
+              className={styles.beginButton}
+              onClick={() =>
+                onBeginAnnotation({
+                  inputFolder,
+                  outputFolder,
+                  match: loadResult.match!
+                })
+              }
+            >
+              Begin Annotation ({loadResult.match.matched.length} SKUs)
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

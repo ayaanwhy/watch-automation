@@ -1,0 +1,10 @@
+.workspace {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px;
+  min-height: 100vh;
+  box-sizing: border-box;
+  background: #0a0a0a;
+}

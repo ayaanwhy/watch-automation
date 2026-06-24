@@ -239,3 +239,21 @@
   color: #333;
   line-height: 1.6;
 }
+
+.beginButton {
+  width: 100%;
+  padding: 12px 24px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  background: #1a1a1a;
+  border: none;
+  border-radius: 7px;
+  cursor: pointer;
+  letter-spacing: 0.01em;
+  transition: background 0.15s;
+}
+
+.beginButton:hover {
+  background: #333;
+}
