@@ -5,6 +5,7 @@ node_modules/
 dist/
 build/
 output/
+out/
 
 # Generated watch exports
 *;frontImage*.png

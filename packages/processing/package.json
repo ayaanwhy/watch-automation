@@ -3,11 +3,26 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "main": "./src/index.ts",
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
   "types": "./src/index.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./processing/*": "./src/processing/*",
-    "./types": "./src/types/processing.ts"
+    ".": {
+      "types": "./src/index.ts",
+      "require": "./dist/index.cjs"
+    },
+    "./data": {
+      "types": "./src/data/index.ts",
+      "require": "./dist/data.cjs"
+    }
+  },
+  "scripts": {
+    "build": "tsup"
+  },
+  "dependencies": {
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0"
   }
 }

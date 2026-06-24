@@ -4,12 +4,14 @@
   "private": true,
   "type": "module",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "apps/*"
   ],
   "scripts": {
     "process:watch": "tsx src/cli/processWatch.ts",
     "test": "vitest run",
-    "build": "tsc --noEmit"
+    "build": "tsc --noEmit",
+    "build:packages": "npm run build --workspace=@wpa/processing"
   },
   "dependencies": {
     "commander": "^12.1.0",
