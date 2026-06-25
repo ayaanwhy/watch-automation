@@ -257,3 +257,61 @@
 .beginButton:hover {
   background: #333;
 }
+
+.resumePrompt {
+  margin-top: 20px;
+  padding: 16px;
+  background: #f0f7ff;
+  border: 1px solid #b8d4f0;
+  border-radius: 7px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.resumeInfo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.resumeLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.resumeCount {
+  font-size: 13px;
+  color: #2d8a2d;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.resumeActions {
+  display: flex;
+  gap: 10px;
+}
+
+.resumeActions .beginButton {
+  flex: 1;
+}
+
+.startFreshButton {
+  flex: 1;
+  padding: 12px 24px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #555;
+  background: transparent;
+  border: 1px solid #ccc;
+  border-radius: 7px;
+  cursor: pointer;
+  letter-spacing: 0.01em;
+  transition: background 0.15s, color 0.15s;
+}
+
+.startFreshButton:hover {
+  background: #f0f0f0;
+  color: #1a1a1a;
+}

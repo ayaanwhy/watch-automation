@@ -2,6 +2,9 @@ import { app, BrowserWindow } from 'electron'
 import { join } from 'path'
 import { registerBatchHandlers } from './ipc/batchHandlers'
 import { registerDataHandlers } from './ipc/dataHandlers'
+import { registerSessionHandlers } from './ipc/sessionHandlers'
+import { registerPrefsHandlers } from './ipc/prefsHandlers'
+import { registerProcessHandlers } from './ipc/processHandlers'
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -30,6 +33,9 @@ function createWindow(): void {
 app.whenReady().then(() => {
   registerBatchHandlers()
   registerDataHandlers()
+  registerSessionHandlers()
+  registerPrefsHandlers()
+  registerProcessHandlers()
   createWindow()
 
   app.on('activate', () => {

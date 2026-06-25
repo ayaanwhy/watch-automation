@@ -1,7 +1,8 @@
 import { createContext, useContext, useState, type ReactNode } from 'react'
 import { MIN_GUIDE_SEPARATION } from '../types/annotation'
-import type { BatchState, GuideMode, WatchAnnotation } from '../types/annotation'
+import type { BatchState, GuideMode, ProcessingStatus, WatchAnnotation } from '../types/annotation'
 import type { SpreadsheetRowData } from '../types/ipc'
+import type { SessionFile } from '../types/session'
 
 interface AnnotationContextValue {
   batch: BatchState
@@ -11,7 +12,9 @@ interface AnnotationContextValue {
   currentAnnotation: WatchAnnotation
   currentRow: SpreadsheetRowData
   annotatedCount: number
-  submitAnnotation(left: number, right: number): void
+  beginProcessing(left: number, right: number): { safeLeft: number; safeRight: number }
+  setProcessingResult(sku: string, status: ProcessingStatus, error: string | null): void
+  advance(): void
   navigate(delta: -1 | 1): void
   setMode(mode: GuideMode): void
 }
@@ -26,22 +29,40 @@ export function useAnnotation(): AnnotationContextValue {
 
 interface AnnotationProviderProps {
   batch: BatchState
+  initialSession?: SessionFile | null
   children: ReactNode
 }
 
-export function AnnotationProvider({ batch, children }: AnnotationProviderProps) {
-  const [annotations, setAnnotations] = useState<WatchAnnotation[]>(() =>
-    batch.match.matched.map(sku => ({ sku, boundaries: null, status: 'unannotated' as const }))
-  )
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [mode, setMode] = useState<GuideMode>('uniform')
+export function AnnotationProvider({ batch, initialSession, children }: AnnotationProviderProps) {
+  const [annotations, setAnnotations] = useState<WatchAnnotation[]>(() => {
+    const saved = new Map(
+      (initialSession?.annotations ?? []).map(a => [a.sku, a])
+    )
+    return batch.match.matched.map(sku => {
+      const s = saved.get(sku)
+      if (s) {
+        // 'pending' means processing was in-flight when the session was saved — treat as not started.
+        const pStatus = s.processingStatus === 'pending' ? null : (s.processingStatus ?? null)
+        const pError = s.processingStatus === 'pending' ? null : (s.processingError ?? null)
+        return { sku: s.sku, status: s.status, boundaries: s.boundaries, processingStatus: pStatus, processingError: pError }
+      }
+      return { sku, boundaries: null, status: 'unannotated' as const, processingStatus: null, processingError: null }
+    })
+  })
+
+  const [currentIndex, setCurrentIndex] = useState(() => {
+    if (!initialSession) return 0
+    return Math.min(initialSession.currentIndex, batch.match.matched.length - 1)
+  })
+
+  const [mode, setMode] = useState<GuideMode>(() => initialSession?.guideMode ?? 'uniform')
 
   const total = annotations.length
   const currentAnnotation = annotations[currentIndex]
   const currentRow = batch.match.rows[currentAnnotation.sku]
   const annotatedCount = annotations.filter(a => a.status === 'annotated').length
 
-  function submitAnnotation(left: number, right: number) {
+  function beginProcessing(left: number, right: number): { safeLeft: number; safeRight: number } {
     const safeLeft = Math.round(Math.min(left, right - MIN_GUIDE_SEPARATION))
     const safeRight = Math.round(Math.max(right, left + MIN_GUIDE_SEPARATION))
     setAnnotations(prev =>
@@ -50,11 +71,25 @@ export function AnnotationProvider({ batch, children }: AnnotationProviderProps)
           ? {
               ...a,
               status: 'annotated',
-              boundaries: { leftBoundary: safeLeft, rightBoundary: safeRight, source: 'manual', confidence: null }
+              boundaries: { leftBoundary: safeLeft, rightBoundary: safeRight, source: 'manual', confidence: null },
+              processingStatus: 'pending',
+              processingError: null,
             }
           : a
       )
     )
+    return { safeLeft, safeRight }
+  }
+
+  function setProcessingResult(sku: string, status: ProcessingStatus, error: string | null): void {
+    setAnnotations(prev =>
+      prev.map(a =>
+        a.sku === sku ? { ...a, processingStatus: status, processingError: error } : a
+      )
+    )
+  }
+
+  function advance(): void {
     setCurrentIndex(prev => Math.min(prev + 1, total - 1))
   }
 
@@ -70,7 +105,9 @@ export function AnnotationProvider({ batch, children }: AnnotationProviderProps)
     currentAnnotation,
     currentRow,
     annotatedCount,
-    submitAnnotation,
+    beginProcessing,
+    setProcessingResult,
+    advance,
     navigate,
     setMode,
   }

@@ -4,9 +4,10 @@ import styles from './InfoPanel.module.css'
 interface InfoPanelProps {
   onSubmit(): void
   onBack(): void
+  isSubmitting: boolean
 }
 
-export function InfoPanel({ onSubmit, onBack }: InfoPanelProps) {
+export function InfoPanel({ onSubmit, onBack, isSubmitting }: InfoPanelProps) {
   const { batch, annotations, currentIndex, mode, currentAnnotation, currentRow, annotatedCount, navigate, setMode } =
     useAnnotation()
 
@@ -28,6 +29,16 @@ export function InfoPanel({ onSubmit, onBack }: InfoPanelProps) {
         <div className={styles.statusBadge} data-status={currentAnnotation.status}>
           {currentAnnotation.status === 'annotated' ? 'Annotated' : 'Unannotated'}
         </div>
+        {currentAnnotation.processingStatus !== null && (
+          <div className={styles.processingBadge} data-pstatus={currentAnnotation.processingStatus}>
+            {currentAnnotation.processingStatus === 'pending' && 'Processing…'}
+            {currentAnnotation.processingStatus === 'complete' && 'Exported'}
+            {currentAnnotation.processingStatus === 'failed' && 'Export failed'}
+          </div>
+        )}
+        {currentAnnotation.processingStatus === 'failed' && currentAnnotation.processingError !== null && (
+          <div className={styles.processingError}>{currentAnnotation.processingError}</div>
+        )}
       </section>
 
       <section className={styles.section}>
@@ -98,8 +109,8 @@ export function InfoPanel({ onSubmit, onBack }: InfoPanelProps) {
           </button>
         </div>
 
-        <button className={styles.submitButton} onClick={onSubmit}>
-          Submit
+        <button className={styles.submitButton} onClick={onSubmit} disabled={isSubmitting}>
+          {isSubmitting ? 'Processing…' : 'Submit'}
         </button>
       </div>
     </div>

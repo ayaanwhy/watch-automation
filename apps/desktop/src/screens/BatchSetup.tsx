@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { BatchValidationResult, BatchLoadResult, MatchSummary, OpenFileOptions } from '../types/ipc'
 import type { BatchState } from '../types/annotation'
+import type { SessionFile } from '../types/session'
 import styles from './BatchSetup.module.css'
 
 interface BatchSetupProps {
-  onBeginAnnotation(batch: BatchState): void
+  onBeginAnnotation(batch: BatchState, initialSession: SessionFile | null): void
 }
 
 export default function BatchSetup({ onBeginAnnotation }: BatchSetupProps) {
@@ -14,6 +15,8 @@ export default function BatchSetup({ onBeginAnnotation }: BatchSetupProps) {
   const [loadingMsg, setLoadingMsg] = useState<string | null>(null)
   const [pathResult, setPathResult] = useState<BatchValidationResult | null>(null)
   const [loadResult, setLoadResult] = useState<BatchLoadResult | null>(null)
+  const [existingSession, setExistingSession] = useState<SessionFile | null>(null)
+  const [sessionChecked, setSessionChecked] = useState(false)
 
   const canValidate = inputFolder !== '' && spreadsheetPath !== '' && outputFolder !== ''
   const isLoading = loadingMsg !== null
@@ -21,6 +24,8 @@ export default function BatchSetup({ onBeginAnnotation }: BatchSetupProps) {
   function clearResults() {
     setPathResult(null)
     setLoadResult(null)
+    setExistingSession(null)
+    setSessionChecked(false)
   }
 
   async function pickInputFolder() {
@@ -50,30 +55,82 @@ export default function BatchSetup({ onBeginAnnotation }: BatchSetupProps) {
     }
   }
 
-  async function handleValidate() {
-    if (!canValidate || isLoading) return
-
-    setPathResult(null)
-    setLoadResult(null)
+  // Core validation pipeline — accepts explicit paths so it can be called
+  // both from the user-facing button and from the auto-restore effect on mount.
+  async function runValidate(f: string, s: string, o: string) {
+    if (isLoading) return
     setLoadingMsg('Validating…')
 
     try {
       const validation = await window.api.invoke('batch:validate', {
-        inputFolder,
-        spreadsheetPath,
-        outputFolder
+        inputFolder: f,
+        spreadsheetPath: s,
+        outputFolder: o,
       })
       setPathResult(validation)
 
       if (validation.ok) {
         setLoadingMsg('Analyzing batch…')
-        const load = await window.api.invoke('batch:load', { inputFolder, spreadsheetPath })
+        const load = await window.api.invoke('batch:load', { inputFolder: f, spreadsheetPath: s })
         setLoadResult(load)
+
+        if (load.ok) {
+          // Persist paths so next launch can restore them.
+          void window.api.invoke('prefs:save-last-batch', {
+            inputFolder: f,
+            spreadsheetPath: s,
+            outputFolder: o,
+          })
+
+          setLoadingMsg('Checking for saved session…')
+          const sessionResult = await window.api.invoke('session:load', {
+            inputFolder: f,
+            outputFolder: o,
+            spreadsheetPath: s,
+          })
+          setExistingSession(sessionResult.session)
+          setSessionChecked(true)
+        }
       }
     } finally {
       setLoadingMsg(null)
     }
   }
+
+  async function handleValidate() {
+    if (!canValidate || isLoading) return
+    clearResults()
+    await runValidate(inputFolder, spreadsheetPath, outputFolder)
+  }
+
+  // On mount: restore the last-used paths, then auto-validate if all three exist.
+  useEffect(() => {
+    async function restoreLastBatch() {
+      const prefs = await window.api.invoke('prefs:load-last-batch')
+
+      if (prefs.inputFolder)     setInputFolder(prefs.inputFolder)
+      if (prefs.spreadsheetPath) setSpreadsheetPath(prefs.spreadsheetPath)
+      if (prefs.outputFolder)    setOutputFolder(prefs.outputFolder)
+
+      if (prefs.inputFolder && prefs.spreadsheetPath && prefs.outputFolder) {
+        await runValidate(prefs.inputFolder, prefs.spreadsheetPath, prefs.outputFolder)
+      }
+    }
+    restoreLastBatch()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  function buildBatch(): BatchState {
+    return {
+      inputFolder,
+      outputFolder,
+      spreadsheetPath,
+      match: loadResult!.match!,
+    }
+  }
+
+  const showActions =
+    loadResult?.ok && loadResult.match && loadResult.match.matched.length > 0 && sessionChecked
 
   return (
     <div className={styles.page}>
@@ -114,26 +171,31 @@ export default function BatchSetup({ onBeginAnnotation }: BatchSetupProps) {
         {pathResult !== null && <ValidationResults result={pathResult} />}
         {loadResult !== null && <BatchSummary result={loadResult} />}
 
-        {loadResult?.ok && loadResult.match && loadResult.match.matched.length > 0 && (
-          <div className={styles.actions}>
-            <button
-              className={styles.beginButton}
-              onClick={() =>
-                onBeginAnnotation({
-                  inputFolder,
-                  outputFolder,
-                  match: loadResult.match!
-                })
-              }
-            >
-              Begin Annotation ({loadResult.match.matched.length} SKUs)
-            </button>
-          </div>
+        {showActions && (
+          existingSession !== null ? (
+            <ResumePrompt
+              session={existingSession}
+              total={loadResult!.match!.matched.length}
+              onResume={() => onBeginAnnotation(buildBatch(), existingSession)}
+              onFresh={() => onBeginAnnotation(buildBatch(), null)}
+            />
+          ) : (
+            <div className={styles.actions}>
+              <button
+                className={styles.beginButton}
+                onClick={() => onBeginAnnotation(buildBatch(), null)}
+              >
+                Begin Annotation ({loadResult!.match!.matched.length} SKUs)
+              </button>
+            </div>
+          )
         )}
       </div>
     </div>
   )
 }
+
+// ── Sub-components ────────────────────────────────────────────────────────────
 
 interface PathFieldProps {
   label: string
@@ -250,6 +312,33 @@ function BatchSummary({ result }: { result: BatchLoadResult }) {
       {m.duplicateImageSkus.length > 0 && (
         <SkuList title="Duplicate Image SKUs" skus={m.duplicateImageSkus} />
       )}
+    </div>
+  )
+}
+
+interface ResumePromptProps {
+  session: SessionFile
+  total: number
+  onResume(): void
+  onFresh(): void
+}
+
+function ResumePrompt({ session, total, onResume, onFresh }: ResumePromptProps) {
+  const annotated = session.annotations.filter(a => a.status === 'annotated').length
+  return (
+    <div className={styles.resumePrompt}>
+      <div className={styles.resumeInfo}>
+        <span className={styles.resumeLabel}>Saved session found</span>
+        <span className={styles.resumeCount}>{annotated} of {total} annotated</span>
+      </div>
+      <div className={styles.resumeActions}>
+        <button className={styles.beginButton} onClick={onResume}>
+          Resume
+        </button>
+        <button className={styles.startFreshButton} onClick={onFresh}>
+          Start fresh
+        </button>
+      </div>
     </div>
   )
 }

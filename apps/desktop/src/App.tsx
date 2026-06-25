@@ -2,23 +2,35 @@ import { useState } from 'react'
 import BatchSetup from './screens/BatchSetup'
 import { AnnotationWorkspace } from './screens/AnnotationWorkspace'
 import type { BatchState } from './types/annotation'
+import type { SessionFile } from './types/session'
+
+interface AnnotationEntry {
+  batch: BatchState
+  initialSession: SessionFile | null
+}
 
 export default function App() {
   const [screen, setScreen] = useState<'setup' | 'annotation'>('setup')
-  const [batch, setBatch] = useState<BatchState | null>(null)
+  const [entry, setEntry] = useState<AnnotationEntry | null>(null)
 
-  function handleBeginAnnotation(b: BatchState) {
-    setBatch(b)
+  function handleBeginAnnotation(batch: BatchState, initialSession: SessionFile | null) {
+    setEntry({ batch, initialSession })
     setScreen('annotation')
   }
 
   function handleBack() {
     setScreen('setup')
-    setBatch(null)
+    setEntry(null)
   }
 
-  if (screen === 'annotation' && batch !== null) {
-    return <AnnotationWorkspace batch={batch} onBack={handleBack} />
+  if (screen === 'annotation' && entry !== null) {
+    return (
+      <AnnotationWorkspace
+        batch={entry.batch}
+        initialSession={entry.initialSession}
+        onBack={handleBack}
+      />
+    )
   }
 
   return <BatchSetup onBeginAnnotation={handleBeginAnnotation} />
