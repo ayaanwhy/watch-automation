@@ -19,6 +19,7 @@ interface AnnotationContextValue {
     scale: SimpleBoundary | null
   ): { safeSplice: BoundaryData; safeScale: BoundaryData | null }
   navigate(delta: -1 | 1): void
+  jumpTo(index: number): void
   setMode(mode: GuideMode): void
 }
 
@@ -95,6 +96,10 @@ export function AnnotationProvider({ batch, initialSession, children }: Annotati
     setCurrentIndex(prev => Math.max(0, Math.min(prev + delta, total - 1)))
   }
 
+  function jumpTo(index: number): void {
+    setCurrentIndex(Math.max(0, Math.min(index, total - 1)))
+  }
+
   const value: AnnotationContextValue = {
     batch,
     annotations,
@@ -105,6 +110,7 @@ export function AnnotationProvider({ batch, initialSession, children }: Annotati
     annotatedCount,
     submitAnnotation,
     navigate,
+    jumpTo,
     setMode,
   }
 

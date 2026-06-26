@@ -13,9 +13,10 @@ const QUEUE_STATUS_LABELS: Record<string, string> = {
 interface InfoPanelProps {
   onSubmit(): void
   onBack(): void
+  onShowDashboard(): void
 }
 
-export function InfoPanel({ onSubmit, onBack }: InfoPanelProps) {
+export function InfoPanel({ onSubmit, onBack, onShowDashboard }: InfoPanelProps) {
   const { batch, annotations, currentIndex, mode, currentAnnotation, currentRow, annotatedCount, navigate, setMode } =
     useAnnotation()
   const { items: queueItems } = useQueue()
@@ -33,6 +34,9 @@ export function InfoPanel({ onSubmit, onBack }: InfoPanelProps) {
           ← Back
         </button>
         <span className={styles.batchLabel}>Batch</span>
+        <button className={styles.overviewButton} onClick={onShowDashboard}>
+          Overview
+        </button>
       </div>
 
       <section className={styles.section}>

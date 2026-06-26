@@ -1,10 +1,11 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { AnnotationProvider, useAnnotation } from '../context/AnnotationContext'
 import { QueueProvider, useQueue } from '../context/QueueContext'
 import { AnnotationCanvas } from '../components/AnnotationCanvas'
 import { InfoPanel } from '../components/InfoPanel'
 import { ProcessingQueue } from '../components/ProcessingQueue'
 import { useSessionAutosave } from '../hooks/useSessionAutosave'
+import { BatchDashboard } from './BatchDashboard'
 import type { AnnotationCanvasHandle } from '../components/AnnotationCanvas'
 import type { BatchState } from '../types/annotation'
 import type { SessionFile } from '../types/session'
@@ -19,7 +20,7 @@ function joinPath(dir: string, file: string): string {
 
 // ── Inner component — accesses both annotation and queue contexts ─────────────
 
-function AnnotationContent({ createdAt, onBack }: { createdAt: string; onBack(): void }) {
+function AnnotationContent({ createdAt, onBack, onShowDashboard }: { createdAt: string; onBack(): void; onShowDashboard(): void }) {
   const ctx = useAnnotation()
   const queue = useQueue()
   const { currentAnnotation, currentIndex, mode, batch } = ctx
@@ -69,7 +70,8 @@ function AnnotationContent({ createdAt, onBack }: { createdAt: string; onBack():
         measureBy={measureBy}
         mode={mode}
       />
-      <InfoPanel onSubmit={handleSubmit} onBack={onBack} />
+      <InfoPanel onSubmit={handleSubmit} onBack={onBack} onShowDashboard={onShowDashboard} />
+      <ProcessingQueue />
     </div>
   )
 }
@@ -84,12 +86,20 @@ interface AnnotationWorkspaceProps {
 
 export function AnnotationWorkspace({ batch, initialSession, onBack }: AnnotationWorkspaceProps) {
   const createdAt = useRef(initialSession?.createdAt ?? new Date().toISOString()).current
+  const [view, setView] = useState<'annotation' | 'dashboard'>('annotation')
 
   return (
     <QueueProvider batch={batch} initialSession={initialSession}>
       <AnnotationProvider batch={batch} initialSession={initialSession}>
-        <AnnotationContent createdAt={createdAt} onBack={onBack} />
-        <ProcessingQueue />
+        {view === 'dashboard' ? (
+          <BatchDashboard onBack={() => setView('annotation')} />
+        ) : (
+          <AnnotationContent
+            createdAt={createdAt}
+            onBack={onBack}
+            onShowDashboard={() => setView('dashboard')}
+          />
+        )}
       </AnnotationProvider>
     </QueueProvider>
   )
