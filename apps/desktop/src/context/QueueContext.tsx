@@ -37,23 +37,22 @@ export function QueueProvider({ batch, initialSession, children }: QueueProvider
   const [pendingItems, setPendingItems] = useState<QueueItemPublic[]>([])
 
   useEffect(() => {
-    void (window.api.invoke('queue:get') as Promise<QueueItemPublic[]>).then(items => {
-      setMainItems(items)
-    })
-
+    // Subscribe before invoking so the queue:update notification from restore
+    // is never missed.
     const unsubscribe = window.api.on('queue:update', (items) => {
       const incoming = items as QueueItemPublic[]
       setMainItems(incoming)
       setPendingItems(prev => prev.filter(p => !incoming.some(m => m.sku === p.sku)))
     })
 
-    if (initialSession?.processingQueue && initialSession.processingQueue.length > 0) {
-      void window.api.invoke('queue:restore', {
-        items: initialSession.processingQueue as SessionQueueItem[],
-        inputFolder: batch.inputFolder,
-        outputFolder: batch.outputFolder,
-      })
-    }
+    // Always restore (even with an empty list when there is no session) so the
+    // main-process queue is reset before this batch begins. This prevents stale
+    // queue state from a previous batch appearing in the renderer.
+    void window.api.invoke('queue:restore', {
+      items: (initialSession?.processingQueue ?? []) as SessionQueueItem[],
+      inputFolder: batch.inputFolder,
+      outputFolder: batch.outputFolder,
+    })
 
     return () => { unsubscribe() }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps

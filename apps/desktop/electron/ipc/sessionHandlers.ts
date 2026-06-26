@@ -1,9 +1,9 @@
-import { ipcMain } from 'electron'
+import { ipcMain, app } from 'electron'
 import { createHash } from 'node:crypto'
-import { readFile, writeFile, rename } from 'node:fs/promises'
+import { readFile, writeFile, rename, mkdir, access } from 'node:fs/promises'
 import { join } from 'node:path'
 import { SESSION_VERSION } from '../../src/types/session'
-import type { SessionFile } from '../../src/types/session'
+import type { SessionFile, SessionQueueItem } from '../../src/types/session'
 import type { SessionSavePayload, SessionSaveResult, SessionLoadPayload, SessionLoadResult } from '../../src/types/ipc'
 
 function sessionFileName(inputFolder: string, spreadsheetPath: string): string {
@@ -14,15 +14,28 @@ function sessionFileName(inputFolder: string, spreadsheetPath: string): string {
   return `wpa-session-${hash}.json`
 }
 
-function sessionFilePath(outputFolder: string, inputFolder: string, spreadsheetPath: string): string {
-  return join(outputFolder, sessionFileName(inputFolder, spreadsheetPath))
+function sessionsDir(): string {
+  return join(app.getPath('userData'), 'sessions')
+}
+
+function sessionFilePath(inputFolder: string, spreadsheetPath: string): string {
+  return join(sessionsDir(), sessionFileName(inputFolder, spreadsheetPath))
+}
+
+async function fileExists(path: string): Promise<boolean> {
+  try {
+    await access(path)
+    return true
+  } catch {
+    return false
+  }
 }
 
 export function registerSessionHandlers(): void {
   ipcMain.handle('session:save', async (_event, payload: SessionSavePayload): Promise<SessionSaveResult> => {
     try {
+      await mkdir(sessionsDir(), { recursive: true })
       const filePath = sessionFilePath(
-        payload.outputFolder,
         payload.session.inputFolder,
         payload.session.spreadsheetPath
       )
@@ -36,7 +49,7 @@ export function registerSessionHandlers(): void {
   })
 
   ipcMain.handle('session:load', async (_event, payload: SessionLoadPayload): Promise<SessionLoadResult> => {
-    const filePath = sessionFilePath(payload.outputFolder, payload.inputFolder, payload.spreadsheetPath)
+    const filePath = sessionFilePath(payload.inputFolder, payload.spreadsheetPath)
     const tmpPath = filePath + '.tmp'
 
     let raw: string | null = null
@@ -105,6 +118,21 @@ export function registerSessionHandlers(): void {
       if (parsed.version !== SESSION_VERSION) return { ok: true, session: null }
       if (parsed.inputFolder !== payload.inputFolder) return { ok: true, session: null }
       if (parsed.spreadsheetPath !== payload.spreadsheetPath) return { ok: true, session: null }
+
+      // ── Output file verification ──────────────────────────────────────────────
+      // Items saved as 'complete' are only trustworthy if the exported file still
+      // exists. If missing, reset to 'queued' so the item is reprocessed.
+      if (Array.isArray(parsed.processingQueue)) {
+        parsed.processingQueue = await Promise.all(
+          parsed.processingQueue.map(async (q: SessionQueueItem) => {
+            if (q.status !== 'complete') return q
+            const exportedPath = join(payload.outputFolder, `${q.sku};frontImage.png`)
+            const exists = await fileExists(exportedPath)
+            if (exists) return q
+            return { ...q, status: 'queued' as const, completedAt: null }
+          })
+        )
+      }
 
       return { ok: true, session: parsed as SessionFile }
     } catch {
