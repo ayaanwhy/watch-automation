@@ -1,19 +1,30 @@
 import { useAnnotation } from '../context/AnnotationContext'
+import { useQueue } from '../context/QueueContext'
 import styles from './InfoPanel.module.css'
+
+const QUEUE_STATUS_LABELS: Record<string, string> = {
+  pending: 'Queuing…',
+  queued: 'Queued',
+  processing: 'Processing…',
+  complete: 'Exported',
+  failed: 'Export failed',
+}
 
 interface InfoPanelProps {
   onSubmit(): void
   onBack(): void
-  isSubmitting: boolean
 }
 
-export function InfoPanel({ onSubmit, onBack, isSubmitting }: InfoPanelProps) {
+export function InfoPanel({ onSubmit, onBack }: InfoPanelProps) {
   const { batch, annotations, currentIndex, mode, currentAnnotation, currentRow, annotatedCount, navigate, setMode } =
     useAnnotation()
+  const { items: queueItems } = useQueue()
 
   const total = annotations.length
   const isFirst = currentIndex === 0
   const isLast = currentIndex === total - 1
+
+  const queueItem = queueItems.find(item => item.sku === currentAnnotation.sku)
 
   return (
     <div className={styles.panel}>
@@ -29,15 +40,13 @@ export function InfoPanel({ onSubmit, onBack, isSubmitting }: InfoPanelProps) {
         <div className={styles.statusBadge} data-status={currentAnnotation.status}>
           {currentAnnotation.status === 'annotated' ? 'Annotated' : 'Unannotated'}
         </div>
-        {currentAnnotation.processingStatus !== null && (
-          <div className={styles.processingBadge} data-pstatus={currentAnnotation.processingStatus}>
-            {currentAnnotation.processingStatus === 'pending' && 'Processing…'}
-            {currentAnnotation.processingStatus === 'complete' && 'Exported'}
-            {currentAnnotation.processingStatus === 'failed' && 'Export failed'}
+        {queueItem && (
+          <div className={styles.processingBadge} data-pstatus={queueItem.status}>
+            {QUEUE_STATUS_LABELS[queueItem.status] ?? queueItem.status}
           </div>
         )}
-        {currentAnnotation.processingStatus === 'failed' && currentAnnotation.processingError !== null && (
-          <div className={styles.processingError}>{currentAnnotation.processingError}</div>
+        {queueItem?.status === 'failed' && queueItem.error && (
+          <div className={styles.processingError}>{queueItem.error}</div>
         )}
       </section>
 
@@ -109,8 +118,8 @@ export function InfoPanel({ onSubmit, onBack, isSubmitting }: InfoPanelProps) {
           </button>
         </div>
 
-        <button className={styles.submitButton} onClick={onSubmit} disabled={isSubmitting}>
-          {isSubmitting ? 'Processing…' : 'Submit'}
+        <button className={styles.submitButton} onClick={onSubmit}>
+          Submit
         </button>
       </div>
     </div>

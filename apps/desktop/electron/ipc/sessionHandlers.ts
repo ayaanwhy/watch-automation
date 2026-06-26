@@ -51,16 +51,31 @@ export function registerSessionHandlers(): void {
     }
 
     try {
-      const session = JSON.parse(raw) as SessionFile
-      // Migrate v1 → v2: processingStatus/processingError fields were added in v2.
-      // v1 annotations simply won't have them; context initializer defaults them to null.
-      if (session.version === 1) {
-        session.version = SESSION_VERSION
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const parsed = JSON.parse(raw) as any
+
+      // Migrate v1 → v3: no processing fields existed at all.
+      // Migrate v2 → v3: processingStatus/processingError were on each annotation — drop them,
+      //                   start with an empty processingQueue (queue-per-annotation model abandoned).
+      if (parsed.version === 1 || parsed.version === 2) {
+        parsed.version = SESSION_VERSION
+        if (!parsed.processingQueue) {
+          parsed.processingQueue = []
+        }
+        if (Array.isArray(parsed.annotations)) {
+          parsed.annotations = parsed.annotations.map((a: any) => ({
+            sku: a.sku,
+            status: a.status,
+            boundaries: a.boundaries ?? null,
+          }))
+        }
       }
-      if (session.version !== SESSION_VERSION) return { ok: true, session: null }
-      if (session.inputFolder !== payload.inputFolder) return { ok: true, session: null }
-      if (session.spreadsheetPath !== payload.spreadsheetPath) return { ok: true, session: null }
-      return { ok: true, session }
+
+      if (parsed.version !== SESSION_VERSION) return { ok: true, session: null }
+      if (parsed.inputFolder !== payload.inputFolder) return { ok: true, session: null }
+      if (parsed.spreadsheetPath !== payload.spreadsheetPath) return { ok: true, session: null }
+
+      return { ok: true, session: parsed as SessionFile }
     } catch {
       return { ok: true, session: null, error: 'Session file could not be parsed' }
     }

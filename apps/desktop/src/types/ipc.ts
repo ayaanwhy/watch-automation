@@ -86,3 +86,32 @@ export interface ProcessWatchResult {
   outputPath?: string
   error?: string
 }
+
+export type QueueStatus = 'pending' | 'queued' | 'processing' | 'complete' | 'failed'
+
+export interface QueueItemPublic {
+  id: string
+  sku: string
+  status: QueueStatus
+  error: string | null
+  enqueuedAt: string
+  completedAt: string | null
+  leftBoundary: number
+  rightBoundary: number
+  widthMm: number
+}
+
+export interface QueueAddPayload {
+  sku: string
+  inputFolder: string
+  outputFolder: string
+  leftBoundary: number
+  rightBoundary: number
+  widthMm: number
+}
+
+export interface QueueRestorePayload {
+  items: import('./session').SessionQueueItem[]
+  inputFolder: string
+  outputFolder: string
+}

@@ -1,4 +1,16 @@
-export const SESSION_VERSION = 2
+export const SESSION_VERSION = 3
+
+export interface SessionQueueItem {
+  id: string
+  sku: string
+  leftBoundary: number
+  rightBoundary: number
+  widthMm: number
+  status: 'queued' | 'complete' | 'failed'
+  error: string | null
+  enqueuedAt: string
+  completedAt: string | null
+}
 
 export interface SessionAnnotation {
   sku: string
@@ -9,8 +21,6 @@ export interface SessionAnnotation {
     source: 'manual' | 'ai'
     confidence: number | null
   } | null
-  processingStatus?: 'pending' | 'complete' | 'failed' | null
-  processingError?: string | null
 }
 
 export interface SessionFile {
@@ -23,5 +33,6 @@ export interface SessionFile {
   guideMode: 'uniform' | 'free'
   currentIndex: number
   annotations: SessionAnnotation[]
+  processingQueue: SessionQueueItem[]
   metadata: Record<string, unknown>
 }

@@ -11,14 +11,10 @@ export interface BoundaryData {
 
 export type AnnotationStatus = 'unannotated' | 'annotated'
 
-export type ProcessingStatus = 'pending' | 'complete' | 'failed'
-
 export interface WatchAnnotation {
   sku: string
   boundaries: BoundaryData | null
   status: AnnotationStatus
-  processingStatus: ProcessingStatus | null
-  processingError: string | null
 }
 
 export type GuideMode = 'uniform' | 'free'

@@ -5,6 +5,7 @@ import { registerDataHandlers } from './ipc/dataHandlers'
 import { registerSessionHandlers } from './ipc/sessionHandlers'
 import { registerPrefsHandlers } from './ipc/prefsHandlers'
 import { registerProcessHandlers } from './ipc/processHandlers'
+import { registerQueueHandlers } from './ipc/queueHandlers'
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -36,6 +37,7 @@ app.whenReady().then(() => {
   registerSessionHandlers()
   registerPrefsHandlers()
   registerProcessHandlers()
+  registerQueueHandlers()
   createWindow()
 
   app.on('activate', () => {

@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, type ReactNode } from 'react'
 import { MIN_GUIDE_SEPARATION } from '../types/annotation'
-import type { BatchState, GuideMode, ProcessingStatus, WatchAnnotation } from '../types/annotation'
+import type { BatchState, GuideMode, WatchAnnotation } from '../types/annotation'
 import type { SpreadsheetRowData } from '../types/ipc'
 import type { SessionFile } from '../types/session'
 
@@ -12,9 +12,7 @@ interface AnnotationContextValue {
   currentAnnotation: WatchAnnotation
   currentRow: SpreadsheetRowData
   annotatedCount: number
-  beginProcessing(left: number, right: number): { safeLeft: number; safeRight: number }
-  setProcessingResult(sku: string, status: ProcessingStatus, error: string | null): void
-  advance(): void
+  submitAnnotation(left: number, right: number): { safeLeft: number; safeRight: number }
   navigate(delta: -1 | 1): void
   setMode(mode: GuideMode): void
 }
@@ -41,12 +39,9 @@ export function AnnotationProvider({ batch, initialSession, children }: Annotati
     return batch.match.matched.map(sku => {
       const s = saved.get(sku)
       if (s) {
-        // 'pending' means processing was in-flight when the session was saved — treat as not started.
-        const pStatus = s.processingStatus === 'pending' ? null : (s.processingStatus ?? null)
-        const pError = s.processingStatus === 'pending' ? null : (s.processingError ?? null)
-        return { sku: s.sku, status: s.status, boundaries: s.boundaries, processingStatus: pStatus, processingError: pError }
+        return { sku: s.sku, status: s.status, boundaries: s.boundaries }
       }
-      return { sku, boundaries: null, status: 'unannotated' as const, processingStatus: null, processingError: null }
+      return { sku, boundaries: null, status: 'unannotated' as const }
     })
   })
 
@@ -62,7 +57,7 @@ export function AnnotationProvider({ batch, initialSession, children }: Annotati
   const currentRow = batch.match.rows[currentAnnotation.sku]
   const annotatedCount = annotations.filter(a => a.status === 'annotated').length
 
-  function beginProcessing(left: number, right: number): { safeLeft: number; safeRight: number } {
+  function submitAnnotation(left: number, right: number): { safeLeft: number; safeRight: number } {
     const safeLeft = Math.round(Math.min(left, right - MIN_GUIDE_SEPARATION))
     const safeRight = Math.round(Math.max(right, left + MIN_GUIDE_SEPARATION))
     setAnnotations(prev =>
@@ -72,25 +67,12 @@ export function AnnotationProvider({ batch, initialSession, children }: Annotati
               ...a,
               status: 'annotated',
               boundaries: { leftBoundary: safeLeft, rightBoundary: safeRight, source: 'manual', confidence: null },
-              processingStatus: 'pending',
-              processingError: null,
             }
           : a
       )
     )
-    return { safeLeft, safeRight }
-  }
-
-  function setProcessingResult(sku: string, status: ProcessingStatus, error: string | null): void {
-    setAnnotations(prev =>
-      prev.map(a =>
-        a.sku === sku ? { ...a, processingStatus: status, processingError: error } : a
-      )
-    )
-  }
-
-  function advance(): void {
     setCurrentIndex(prev => Math.min(prev + 1, total - 1))
+    return { safeLeft, safeRight }
   }
 
   function navigate(delta: -1 | 1) {
@@ -105,9 +87,7 @@ export function AnnotationProvider({ batch, initialSession, children }: Annotati
     currentAnnotation,
     currentRow,
     annotatedCount,
-    beginProcessing,
-    setProcessingResult,
-    advance,
+    submitAnnotation,
     navigate,
     setMode,
   }
