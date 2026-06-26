@@ -1,10 +1,16 @@
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { QueueItemPublic } from '../types/ipc'
 import type { SessionFile, SessionQueueItem } from '../types/session'
 
+interface AddOptimisticParams {
+  spliceBoundaries: { leftBoundary: number; rightBoundary: number }
+  scaleBoundaries: { leftBoundary: number; rightBoundary: number } | null
+  widthMm: number
+}
+
 interface QueueContextValue {
   items: QueueItemPublic[]
-  addOptimistic(sku: string, params: { leftBoundary: number; rightBoundary: number; widthMm: number }): void
+  addOptimistic(sku: string, params: AddOptimisticParams): void
   retryItem(id: string): void
 }
 
@@ -23,30 +29,24 @@ interface QueueProviderProps {
 }
 
 export function QueueProvider({ batch, initialSession, children }: QueueProviderProps) {
-  // Items confirmed by the main process (received via queue:get or queue:update).
+  // Items confirmed by the main process.
   const [mainItems, setMainItems] = useState<QueueItemPublic[]>([])
 
-  // Optimistic renderer-side items: added immediately on Submit before the main process acknowledges.
-  // Keyed by SKU; removed when the same SKU appears in mainItems.
+  // Optimistic renderer-side items: added immediately on Submit before the main process
+  // acknowledges. Removed when the same SKU appears in mainItems.
   const [pendingItems, setPendingItems] = useState<QueueItemPublic[]>([])
 
-  const autoExpandedRef = useRef(false)
-
   useEffect(() => {
-    // Load current queue snapshot (handles hot reload / navigation back to workspace).
     void (window.api.invoke('queue:get') as Promise<QueueItemPublic[]>).then(items => {
       setMainItems(items)
     })
 
-    // Subscribe to push updates from the main process.
     const unsubscribe = window.api.on('queue:update', (items) => {
       const incoming = items as QueueItemPublic[]
       setMainItems(incoming)
-      // Drop optimistic pending entries whose SKU the main process now acknowledges.
       setPendingItems(prev => prev.filter(p => !incoming.some(m => m.sku === p.sku)))
     })
 
-    // Restore queue from a prior session.
     if (initialSession?.processingQueue && initialSession.processingQueue.length > 0) {
       void window.api.invoke('queue:restore', {
         items: initialSession.processingQueue as SessionQueueItem[],
@@ -58,18 +58,14 @@ export function QueueProvider({ batch, initialSession, children }: QueueProvider
     return () => { unsubscribe() }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Pending items are shown only for SKUs not yet in the main queue.
+  // Pending items shown only for SKUs not yet in the confirmed queue.
   const activePending = pendingItems.filter(p => !mainItems.some(m => m.sku === p.sku))
 
-  // Main items first (submission order), then unacknowledged pending items at the end.
+  // Confirmed items first (submission order), then unacknowledged pending at the end.
   const items: QueueItemPublic[] = [...mainItems, ...activePending]
 
-  function addOptimistic(
-    sku: string,
-    params: { leftBoundary: number; rightBoundary: number; widthMm: number }
-  ): void {
+  function addOptimistic(sku: string, params: AddOptimisticParams): void {
     setPendingItems(prev => {
-      // Skip if already pending for this SKU.
       if (prev.some(p => p.sku === sku)) return prev
       const optimistic: QueueItemPublic = {
         id: `pending-${Date.now()}`,
@@ -78,8 +74,8 @@ export function QueueProvider({ batch, initialSession, children }: QueueProvider
         error: null,
         enqueuedAt: new Date().toISOString(),
         completedAt: null,
-        leftBoundary: params.leftBoundary,
-        rightBoundary: params.rightBoundary,
+        spliceBoundaries: params.spliceBoundaries,
+        scaleBoundaries: params.scaleBoundaries,
         widthMm: params.widthMm,
       }
       return [...prev, optimistic]
@@ -88,12 +84,6 @@ export function QueueProvider({ batch, initialSession, children }: QueueProvider
 
   function retryItem(id: string): void {
     void window.api.invoke('queue:retry', { id })
-  }
-
-  // Auto-expand the queue panel when the first item arrives.
-  // Stored in a ref so it only fires once per provider lifetime.
-  if (items.length > 0 && !autoExpandedRef.current) {
-    autoExpandedRef.current = true
   }
 
   return (

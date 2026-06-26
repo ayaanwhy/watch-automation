@@ -18,10 +18,10 @@ export function useSessionAutosave(createdAt: string): void {
         .map(item => ({
           id: item.id,
           sku: item.sku,
-          leftBoundary: item.leftBoundary,
-          rightBoundary: item.rightBoundary,
+          spliceBoundaries: item.spliceBoundaries,
+          scaleBoundaries: item.scaleBoundaries,
           widthMm: item.widthMm,
-          // 'processing' means it was in-flight; on restore it will be re-queued.
+          // Items still processing will be re-queued on restore.
           status: item.status === 'processing' ? 'queued' : (item.status as 'queued' | 'complete' | 'failed'),
           error: item.error,
           enqueuedAt: item.enqueuedAt,
@@ -40,7 +40,8 @@ export function useSessionAutosave(createdAt: string): void {
         annotations: annotations.map(a => ({
           sku: a.sku,
           status: a.status,
-          boundaries: a.boundaries,
+          spliceBoundaries: a.spliceBoundaries,
+          scaleBoundaries: a.scaleBoundaries,
         })),
         processingQueue,
         metadata: {},

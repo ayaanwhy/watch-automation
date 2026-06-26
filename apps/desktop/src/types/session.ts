@@ -1,10 +1,10 @@
-export const SESSION_VERSION = 3
+export const SESSION_VERSION = 4
 
 export interface SessionQueueItem {
   id: string
   sku: string
-  leftBoundary: number
-  rightBoundary: number
+  spliceBoundaries: { leftBoundary: number; rightBoundary: number }
+  scaleBoundaries: { leftBoundary: number; rightBoundary: number } | null
   widthMm: number
   status: 'queued' | 'complete' | 'failed'
   error: string | null
@@ -15,7 +15,13 @@ export interface SessionQueueItem {
 export interface SessionAnnotation {
   sku: string
   status: 'unannotated' | 'annotated'
-  boundaries: {
+  spliceBoundaries: {
+    leftBoundary: number
+    rightBoundary: number
+    source: 'manual' | 'ai'
+    confidence: number | null
+  } | null
+  scaleBoundaries: {
     leftBoundary: number
     rightBoundary: number
     source: 'manual' | 'ai'

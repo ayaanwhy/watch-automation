@@ -4,22 +4,28 @@ import { processWatch } from '@wpa/processing'
 import type { ProcessWatchPayload, ProcessWatchResult } from '../../src/types/ipc'
 
 export async function runProcessWatch(payload: ProcessWatchPayload): Promise<ProcessWatchResult> {
-  if (payload.leftBoundary >= payload.rightBoundary) {
-    return { ok: false, sku: payload.sku, error: 'Left boundary must be less than right boundary' }
+  const { spliceBoundaries, scaleBoundaries, sku, inputFolder, outputFolder, widthMm } = payload
+
+  if (spliceBoundaries.leftBoundary >= spliceBoundaries.rightBoundary) {
+    return { ok: false, sku, error: 'Splice left boundary must be less than right boundary' }
   }
-  const inputPath = join(payload.inputFolder, `${payload.sku}.png`)
-  const outputPath = join(payload.outputFolder, `${payload.sku};frontImage.png`)
+
+  const inputPath = join(inputFolder, `${sku}.png`)
+  const outputPath = join(outputFolder, `${sku};frontImage.png`)
+
   try {
     const result = await processWatch({
       inputPath,
       outputPath,
-      widthMm: payload.widthMm,
-      leftBoundary: payload.leftBoundary,
-      rightBoundary: payload.rightBoundary,
+      widthMm,
+      leftBoundary: spliceBoundaries.leftBoundary,
+      rightBoundary: spliceBoundaries.rightBoundary,
+      scaleLeft: scaleBoundaries?.leftBoundary,
+      scaleRight: scaleBoundaries?.rightBoundary,
     })
-    return { ok: true, sku: payload.sku, outputPath: result.outputPath }
+    return { ok: true, sku, outputPath: result.outputPath }
   } catch (err) {
-    return { ok: false, sku: payload.sku, error: String(err) }
+    return { ok: false, sku, error: String(err) }
   }
 }
 

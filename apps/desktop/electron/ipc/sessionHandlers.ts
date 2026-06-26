@@ -54,19 +54,50 @@ export function registerSessionHandlers(): void {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const parsed = JSON.parse(raw) as any
 
-      // Migrate v1 → v3: no processing fields existed at all.
-      // Migrate v2 → v3: processingStatus/processingError were on each annotation — drop them,
-      //                   start with an empty processingQueue (queue-per-annotation model abandoned).
+      // ── Migrations ────────────────────────────────────────────────────────────
+      //
+      // v1 → v4: no processing fields; no queue. Add empty queue and null boundaries.
+      // v2 → v4: per-annotation processingStatus/processingError; same null-boundary treatment.
+      // v3 → v4: Phase 5 queue schema. Annotations had `boundaries` (rename → spliceBoundaries,
+      //          add scaleBoundaries: null). Queue items had flat leftBoundary/rightBoundary
+      //          (restructure → spliceBoundaries object, add scaleBoundaries: null).
       if (parsed.version === 1 || parsed.version === 2) {
         parsed.version = SESSION_VERSION
-        if (!parsed.processingQueue) {
-          parsed.processingQueue = []
-        }
+        parsed.processingQueue = []
         if (Array.isArray(parsed.annotations)) {
           parsed.annotations = parsed.annotations.map((a: any) => ({
             sku: a.sku,
             status: a.status,
-            boundaries: a.boundaries ?? null,
+            spliceBoundaries: null,
+            scaleBoundaries: null,
+          }))
+        }
+      }
+
+      if (parsed.version === 3) {
+        parsed.version = SESSION_VERSION
+        if (Array.isArray(parsed.annotations)) {
+          parsed.annotations = parsed.annotations.map((a: any) => ({
+            sku: a.sku,
+            status: a.status,
+            spliceBoundaries: a.boundaries ?? a.spliceBoundaries ?? null,
+            scaleBoundaries: null,
+          }))
+        }
+        if (Array.isArray(parsed.processingQueue)) {
+          parsed.processingQueue = parsed.processingQueue.map((q: any) => ({
+            id: q.id,
+            sku: q.sku,
+            spliceBoundaries: q.spliceBoundaries ?? {
+              leftBoundary: q.leftBoundary ?? 0,
+              rightBoundary: q.rightBoundary ?? 0,
+            },
+            scaleBoundaries: q.scaleBoundaries ?? null,
+            widthMm: q.widthMm ?? 0,
+            status: q.status,
+            error: q.error ?? null,
+            enqueuedAt: q.enqueuedAt,
+            completedAt: q.completedAt ?? null,
           }))
         }
       }

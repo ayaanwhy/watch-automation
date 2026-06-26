@@ -51,16 +51,28 @@ interface GuideGroupProps {
   x: number
   height: number
   isActive: boolean
+  variant: 'splice' | 'scale'
   dragBoundFunc(pos: { x: number; y: number }): { x: number; y: number }
   onDragMove(e: Konva.KonvaEventObject<MouseEvent>): void
   onDragEnd(e: Konva.KonvaEventObject<MouseEvent>): void
   onClickGuide(): void
 }
 
-function GuideGroup({ x, height, isActive, dragBoundFunc, onDragMove, onDragEnd, onClickGuide }: GuideGroupProps) {
-  const stroke = isActive ? 'rgba(255,255,255,1.0)' : 'rgba(255,255,255,0.72)'
-  const blur = isActive ? 14 : 6
-  const opacity = isActive ? 0.95 : 0.55
+function GuideGroup({ x, height, isActive, variant, dragBoundFunc, onDragMove, onDragEnd, onClickGuide }: GuideGroupProps) {
+  const isSplice = variant === 'splice'
+  const stroke = isSplice
+    ? (isActive ? 'rgba(255,255,255,1.0)' : 'rgba(255,255,255,0.72)')
+    : (isActive ? 'rgba(255,102,0,1.0)' : 'rgba(255,102,0,0.72)')
+  const shadowColor = isSplice ? 'white' : '#FF6600'
+  // Orange is perceptually dimmer than white; boost blur and opacity for scale
+  // guides so both variants have comparable visual weight on dark watch images.
+  const blur = isSplice
+    ? (isActive ? 14 : 6)
+    : (isActive ? 20 : 10)
+  const opacity = isSplice
+    ? (isActive ? 0.95 : 0.55)
+    : (isActive ? 1.0 : 0.75)
+  const dash = isSplice ? undefined : [10, 6]
 
   function handleMouseEnter(e: Konva.KonvaEventObject<MouseEvent>) {
     const stage = e.target.getStage()
@@ -91,11 +103,12 @@ function GuideGroup({ x, height, isActive, dragBoundFunc, onDragMove, onDragEnd,
         points={[0, 0, 0, height]}
         stroke={stroke}
         strokeWidth={1.5}
-        shadowColor="white"
+        shadowColor={shadowColor}
         shadowBlur={blur}
         shadowOpacity={opacity}
         shadowOffsetX={0}
         shadowOffsetY={0}
+        dash={dash}
         listening={false}
       />
     </Group>
@@ -105,50 +118,79 @@ function GuideGroup({ x, height, isActive, dragBoundFunc, onDragMove, onDragEnd,
 // ── AnnotationCanvas ──────────────────────────────────────────────────────────
 
 export interface AnnotationCanvasHandle {
-  getGuides(): { left: number; right: number } | null
+  getGuides(): {
+    spliceLeft: number
+    spliceRight: number
+    scaleLeft: number | null
+    scaleRight: number | null
+  } | null
 }
 
 interface AnnotationCanvasProps {
   watchKey: string
   filePath: string
-  savedBoundaries: BoundaryData | null
+  savedSpliceBoundaries: BoundaryData | null
+  savedScaleBoundaries: BoundaryData | null
+  measureBy: string
   mode: GuideMode
 }
 
 export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCanvasProps>(
-  function AnnotationCanvas({ watchKey, filePath, savedBoundaries, mode }, ref) {
+  function AnnotationCanvas(
+    { watchKey, filePath, savedSpliceBoundaries, savedScaleBoundaries, measureBy, mode },
+    ref
+  ) {
+    // showScaleGuides is true for Dial watches; comparison is case-insensitive.
+    const showScaleGuides = measureBy.toLowerCase() === 'dial'
+
     const containerRef = useRef<HTMLDivElement>(null)
     const [containerSize, setContainerSize] = useState(0)
 
-    const [leftPx, setLeftPxState] = useState<number | null>(null)
-    const [rightPx, setRightPxState] = useState<number | null>(null)
-    const [activeGuide, setActiveGuide] = useState<'left' | 'right'>('left')
+    // Splice guide state (replaces old left/right)
+    const [spliceLeftPx, setSpliceLeftPxState] = useState<number | null>(null)
+    const [spliceRightPx, setSpliceRightPxState] = useState<number | null>(null)
+    // Scale guide state (null when not a Dial watch or not yet initialised)
+    const [scaleLeftPx, setScaleLeftPxState] = useState<number | null>(null)
+    const [scaleRightPx, setScaleRightPxState] = useState<number | null>(null)
+
+    const [activeGuide, setActiveGuide] = useState<'spliceLeft' | 'spliceRight' | 'scaleLeft' | 'scaleRight'>('spliceLeft')
 
     const { element: imgElement, naturalWidth, naturalHeight, loaded: imgLoaded, error: imgError } =
       useWatchImage(filePath)
 
-    // ── Refs for stable event handlers ──────────────────────────────────────
+    // ── Refs for stable event handlers ───────────────────────────────────────
     const fitRef = useRef<ImageFit | null>(null)
-    const leftPxRef = useRef<number | null>(null)
-    const rightPxRef = useRef<number | null>(null)
+    const spliceLeftPxRef = useRef<number | null>(null)
+    const spliceRightPxRef = useRef<number | null>(null)
+    const scaleLeftPxRef = useRef<number | null>(null)
+    const scaleRightPxRef = useRef<number | null>(null)
     const modeRef = useRef<GuideMode>(mode)
     const naturalWidthRef = useRef(0)
-    const activeGuideRef = useRef<'left' | 'right'>('left')
-    const savedBoundariesRef = useRef(savedBoundaries)
+    const activeGuideRef = useRef<'spliceLeft' | 'spliceRight' | 'scaleLeft' | 'scaleRight'>('spliceLeft')
+    const showScaleGuidesRef = useRef(showScaleGuides)
+    const savedSpliceBoundariesRef = useRef(savedSpliceBoundaries)
+    const savedScaleBoundariesRef = useRef(savedScaleBoundaries)
 
-    function setLeftPx(v: number | null) { leftPxRef.current = v; setLeftPxState(v) }
-    function setRightPx(v: number | null) { rightPxRef.current = v; setRightPxState(v) }
+    // Paired setters: update both the ref (synchronously) and the state (async render).
+    function setSpliceLeftPx(v: number | null) { spliceLeftPxRef.current = v; setSpliceLeftPxState(v) }
+    function setSpliceRightPx(v: number | null) { spliceRightPxRef.current = v; setSpliceRightPxState(v) }
+    function setScaleLeftPx(v: number | null) { scaleLeftPxRef.current = v; setScaleLeftPxState(v) }
+    function setScaleRightPx(v: number | null) { scaleRightPxRef.current = v; setScaleRightPxState(v) }
 
     useEffect(() => { modeRef.current = mode }, [mode])
     useEffect(() => { naturalWidthRef.current = naturalWidth }, [naturalWidth])
     useEffect(() => { activeGuideRef.current = activeGuide }, [activeGuide])
-    useEffect(() => { savedBoundariesRef.current = savedBoundaries }, [savedBoundaries])
+    useEffect(() => { showScaleGuidesRef.current = showScaleGuides }, [showScaleGuides])
+    useEffect(() => { savedSpliceBoundariesRef.current = savedSpliceBoundaries }, [savedSpliceBoundaries])
+    useEffect(() => { savedScaleBoundariesRef.current = savedScaleBoundaries }, [savedScaleBoundaries])
 
-    // ── Reset guides on SKU change ───────────────────────────────────────────
+    // ── Reset all guides on watch change ─────────────────────────────────────
     useEffect(() => {
-      setLeftPx(null)
-      setRightPx(null)
-      setActiveGuide('left')
+      setSpliceLeftPx(null)
+      setSpliceRightPx(null)
+      setScaleLeftPx(null)
+      setScaleRightPx(null)
+      setActiveGuide('spliceLeft')
     }, [watchKey])
 
     // ── Measure container ────────────────────────────────────────────────────
@@ -171,31 +213,50 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
 
     useEffect(() => { fitRef.current = fit }, [fit])
 
-    // ── Initialize guides when image is ready and guides are null ────────────
+    // ── Initialise splice guides when image is ready ─────────────────────────
     useEffect(() => {
-      if (!fit || leftPx !== null) return
-      const saved = savedBoundariesRef.current
+      if (!fit || spliceLeftPx !== null) return
+      const saved = savedSpliceBoundariesRef.current
       if (saved) {
-        setLeftPx(saved.leftBoundary)
-        setRightPx(saved.rightBoundary)
+        setSpliceLeftPx(saved.leftBoundary)
+        setSpliceRightPx(saved.rightBoundary)
       } else {
-        setLeftPx(Math.round(naturalWidth * 0.20))
-        setRightPx(Math.round(naturalWidth * 0.80))
+        setSpliceLeftPx(Math.round(naturalWidth * 0.20))
+        setSpliceRightPx(Math.round(naturalWidth * 0.80))
       }
-    }, [fit, leftPx, naturalWidth])
+    }, [fit, spliceLeftPx, naturalWidth])
 
-    // ── Expose guide values to parent ────────────────────────────────────────
+    // ── Initialise scale guides after splice guides are set ──────────────────
+    useEffect(() => {
+      if (!showScaleGuides || !fit || spliceLeftPx === null || spliceRightPx === null || scaleLeftPx !== null) return
+      const saved = savedScaleBoundariesRef.current
+      if (saved) {
+        setScaleLeftPx(saved.leftBoundary)
+        setScaleRightPx(saved.rightBoundary)
+      } else {
+        const inset = Math.round((spliceRightPx - spliceLeftPx) * 0.15)
+        setScaleLeftPx(spliceLeftPx + inset)
+        setScaleRightPx(spliceRightPx - inset)
+      }
+    }, [fit, showScaleGuides, spliceLeftPx, spliceRightPx, scaleLeftPx])
+
+    // ── Expose guide values to parent ─────────────────────────────────────────
     useImperativeHandle(ref, () => ({
       getGuides() {
-        if (leftPxRef.current === null || rightPxRef.current === null) return null
-        return { left: leftPxRef.current, right: rightPxRef.current }
+        if (spliceLeftPxRef.current === null || spliceRightPxRef.current === null) return null
+        return {
+          spliceLeft: spliceLeftPxRef.current,
+          spliceRight: spliceRightPxRef.current,
+          scaleLeft: scaleLeftPxRef.current,
+          scaleRight: scaleRightPxRef.current,
+        }
       },
     }))
 
-    // ── Drag constraint functions (stable, read from refs) ───────────────────
-    const leftDragBound = useCallback((pos: { x: number; y: number }) => {
+    // ── Splice guide drag bound functions ─────────────────────────────────────
+    const spliceLeftDragBound = useCallback((pos: { x: number; y: number }) => {
       const f = fitRef.current
-      const r = rightPxRef.current
+      const r = spliceRightPxRef.current
       if (!f || r === null || naturalWidthRef.current === 0) return pos
       const minX = f.offsetX
       let maxX: number
@@ -208,9 +269,9 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
       return { x: Math.max(minX, Math.min(maxX, pos.x)), y: 0 }
     }, [])
 
-    const rightDragBound = useCallback((pos: { x: number; y: number }) => {
+    const spliceRightDragBound = useCallback((pos: { x: number; y: number }) => {
       const f = fitRef.current
-      const l = leftPxRef.current
+      const l = spliceLeftPxRef.current
       if (!f || l === null || naturalWidthRef.current === 0) return pos
       const maxX = f.offsetX + f.displayW
       let minX: number
@@ -223,17 +284,38 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
       return { x: Math.max(minX, Math.min(maxX, pos.x)), y: 0 }
     }, [])
 
-    // ── Left guide drag ──────────────────────────────────────────────────────
-    const handleLeftDragMove = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
+    // ── Scale guide drag bound functions ──────────────────────────────────────
+    const scaleLeftDragBound = useCallback((pos: { x: number; y: number }) => {
+      const f = fitRef.current
+      const sL = spliceLeftPxRef.current
+      const scR = scaleRightPxRef.current
+      if (!f || sL === null || scR === null) return pos
+      const minX = toDisplay(sL + MIN_GUIDE_SEPARATION, f)
+      const maxX = toDisplay(scR - MIN_GUIDE_SEPARATION, f)
+      return { x: Math.max(minX, Math.min(maxX, pos.x)), y: 0 }
+    }, [])
+
+    const scaleRightDragBound = useCallback((pos: { x: number; y: number }) => {
+      const f = fitRef.current
+      const sR = spliceRightPxRef.current
+      const scL = scaleLeftPxRef.current
+      if (!f || sR === null || scL === null) return pos
+      const minX = toDisplay(scL + MIN_GUIDE_SEPARATION, f)
+      const maxX = toDisplay(sR - MIN_GUIDE_SEPARATION, f)
+      return { x: Math.max(minX, Math.min(maxX, pos.x)), y: 0 }
+    }, [])
+
+    // ── Splice left drag ──────────────────────────────────────────────────────
+    const handleSpliceLeftDragMove = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
       const f = fitRef.current
       if (!f || naturalWidthRef.current === 0 || modeRef.current !== 'uniform') return
       const newLeft = toOriginal(e.target.x(), f)
       const center = naturalWidthRef.current / 2
       const dist = Math.max(MIN_GUIDE_SEPARATION / 2, center - newLeft)
-      setRightPx(Math.min(naturalWidthRef.current, Math.round(center + dist)))
+      setSpliceRightPx(Math.min(naturalWidthRef.current, Math.round(center + dist)))
     }, [])
 
-    const handleLeftDragEnd = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
+    const handleSpliceLeftDragEnd = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
       const f = fitRef.current
       if (!f || naturalWidthRef.current === 0) return
       let newLeft = Math.round(toOriginal(e.target.x(), f))
@@ -241,26 +323,27 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
         const center = naturalWidthRef.current / 2
         const dist = Math.max(MIN_GUIDE_SEPARATION / 2, center - newLeft)
         newLeft = Math.max(0, Math.round(center - dist))
-        setLeftPx(newLeft)
-        setRightPx(Math.min(naturalWidthRef.current, Math.round(center + dist)))
+        setSpliceLeftPx(newLeft)
+        setSpliceRightPx(Math.min(naturalWidthRef.current, Math.round(center + dist)))
       } else {
-        const r = rightPxRef.current ?? 0
-        setLeftPx(Math.max(0, Math.min(r - MIN_GUIDE_SEPARATION, newLeft)))
+        const r = spliceRightPxRef.current ?? 0
+        setSpliceLeftPx(Math.max(0, Math.min(r - MIN_GUIDE_SEPARATION, newLeft)))
       }
-      setActiveGuide('left')
+      setActiveGuide('spliceLeft')
+      clampScaleGuidesIfNeeded()
     }, [])
 
-    // ── Right guide drag ─────────────────────────────────────────────────────
-    const handleRightDragMove = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
+    // ── Splice right drag ─────────────────────────────────────────────────────
+    const handleSpliceRightDragMove = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
       const f = fitRef.current
       if (!f || naturalWidthRef.current === 0 || modeRef.current !== 'uniform') return
       const newRight = toOriginal(e.target.x(), f)
       const center = naturalWidthRef.current / 2
       const dist = Math.max(MIN_GUIDE_SEPARATION / 2, newRight - center)
-      setLeftPx(Math.max(0, Math.round(center - dist)))
+      setSpliceLeftPx(Math.max(0, Math.round(center - dist)))
     }, [])
 
-    const handleRightDragEnd = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
+    const handleSpliceRightDragEnd = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
       const f = fitRef.current
       if (!f || naturalWidthRef.current === 0) return
       let newRight = Math.round(toOriginal(e.target.x(), f))
@@ -268,55 +351,130 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
         const center = naturalWidthRef.current / 2
         const dist = Math.max(MIN_GUIDE_SEPARATION / 2, newRight - center)
         newRight = Math.min(naturalWidthRef.current, Math.round(center + dist))
-        setRightPx(newRight)
-        setLeftPx(Math.max(0, Math.round(center - dist)))
+        setSpliceRightPx(newRight)
+        setSpliceLeftPx(Math.max(0, Math.round(center - dist)))
       } else {
-        const l = leftPxRef.current ?? 0
-        setRightPx(Math.min(naturalWidthRef.current, Math.max(l + MIN_GUIDE_SEPARATION, newRight)))
+        const l = spliceLeftPxRef.current ?? 0
+        setSpliceRightPx(Math.min(naturalWidthRef.current, Math.max(l + MIN_GUIDE_SEPARATION, newRight)))
       }
-      setActiveGuide('right')
+      setActiveGuide('spliceRight')
+      clampScaleGuidesIfNeeded()
     }, [])
 
-    // ── Keyboard nudging ─────────────────────────────────────────────────────
+    // ── Scale guide drags (always free, constrained within splice) ────────────
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const handleScaleLeftDragMove = useCallback((_e: Konva.KonvaEventObject<MouseEvent>) => {
+      // Scale guides are always free; no symmetric coupling needed.
+    }, [])
+
+    const handleScaleLeftDragEnd = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
+      const f = fitRef.current
+      if (!f) return
+      const sL = spliceLeftPxRef.current ?? 0
+      const scR = scaleRightPxRef.current ?? naturalWidthRef.current
+      const newLeft = Math.round(toOriginal(e.target.x(), f))
+      setScaleLeftPx(Math.max(sL + MIN_GUIDE_SEPARATION, Math.min(scR - MIN_GUIDE_SEPARATION, newLeft)))
+      setActiveGuide('scaleLeft')
+    }, [])
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const handleScaleRightDragMove = useCallback((_e: Konva.KonvaEventObject<MouseEvent>) => {
+      // Scale guides are always free; no symmetric coupling needed.
+    }, [])
+
+    const handleScaleRightDragEnd = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
+      const f = fitRef.current
+      if (!f) return
+      const sR = spliceRightPxRef.current ?? naturalWidthRef.current
+      const scL = scaleLeftPxRef.current ?? 0
+      const newRight = Math.round(toOriginal(e.target.x(), f))
+      setScaleRightPx(Math.max(scL + MIN_GUIDE_SEPARATION, Math.min(sR - MIN_GUIDE_SEPARATION, newRight)))
+      setActiveGuide('scaleRight')
+    }, [])
+
+    // ── Clamp scale guides within current splice bounds (called after splice drag) ──
+    function clampScaleGuidesIfNeeded() {
+      if (!showScaleGuidesRef.current) return
+      const sL = spliceLeftPxRef.current ?? 0
+      const sR = spliceRightPxRef.current ?? naturalWidthRef.current
+      const scL = scaleLeftPxRef.current
+      const scR = scaleRightPxRef.current
+      if (scL === null || scR === null) return
+      const clampedScL = Math.max(sL + MIN_GUIDE_SEPARATION, scL)
+      const clampedScR = Math.min(sR - MIN_GUIDE_SEPARATION, scR)
+      if (clampedScL < clampedScR - MIN_GUIDE_SEPARATION) {
+        setScaleLeftPx(clampedScL)
+        setScaleRightPx(clampedScR)
+      } else {
+        // Splice guides compressed past scale guides: reset scale to centre.
+        const mid = Math.round((sL + sR) / 2)
+        setScaleLeftPx(mid - MIN_GUIDE_SEPARATION)
+        setScaleRightPx(mid + MIN_GUIDE_SEPARATION)
+      }
+    }
+
+    // ── Keyboard nudging ──────────────────────────────────────────────────────
     function handleKeyDown(e: React.KeyboardEvent) {
-      if (!fitRef.current || leftPxRef.current === null || rightPxRef.current === null) return
       if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
       e.preventDefault()
 
       const step = (e.shiftKey ? 10 : 1) * (e.key === 'ArrowRight' ? 1 : -1)
       const imgW = naturalWidthRef.current
-      const L = leftPxRef.current
-      const R = rightPxRef.current
+      const active = activeGuideRef.current
 
-      if (activeGuideRef.current === 'left') {
+      if (active === 'spliceLeft') {
+        const sL = spliceLeftPxRef.current
+        const sR = spliceRightPxRef.current
+        if (sL === null || sR === null) return
         if (modeRef.current === 'uniform') {
           const center = imgW / 2
-          const newL = L + step
+          const newL = sL + step
           const dist = center - newL
           if (dist < MIN_GUIDE_SEPARATION / 2) return
-          setLeftPx(Math.max(0, newL))
-          setRightPx(Math.min(imgW, Math.round(center + dist)))
+          setSpliceLeftPx(Math.max(0, newL))
+          setSpliceRightPx(Math.min(imgW, Math.round(center + dist)))
         } else {
-          setLeftPx(Math.max(0, Math.min(R - MIN_GUIDE_SEPARATION, L + step)))
+          setSpliceLeftPx(Math.max(0, Math.min(sR - MIN_GUIDE_SEPARATION, sL + step)))
         }
-      } else {
+        clampScaleGuidesIfNeeded()
+      } else if (active === 'spliceRight') {
+        const sL = spliceLeftPxRef.current
+        const sR = spliceRightPxRef.current
+        if (sL === null || sR === null) return
         if (modeRef.current === 'uniform') {
           const center = imgW / 2
-          const newR = R + step
+          const newR = sR + step
           const dist = newR - center
           if (dist < MIN_GUIDE_SEPARATION / 2) return
-          setRightPx(Math.min(imgW, newR))
-          setLeftPx(Math.max(0, Math.round(center - dist)))
+          setSpliceRightPx(Math.min(imgW, newR))
+          setSpliceLeftPx(Math.max(0, Math.round(center - dist)))
         } else {
-          setRightPx(Math.min(imgW, Math.max(L + MIN_GUIDE_SEPARATION, R + step)))
+          setSpliceRightPx(Math.min(imgW, Math.max(sL + MIN_GUIDE_SEPARATION, sR + step)))
         }
+        clampScaleGuidesIfNeeded()
+      } else if (active === 'scaleLeft') {
+        const sL = spliceLeftPxRef.current ?? 0
+        const scL = scaleLeftPxRef.current
+        const scR = scaleRightPxRef.current
+        if (scL === null || scR === null) return
+        setScaleLeftPx(Math.max(sL + MIN_GUIDE_SEPARATION, Math.min(scR - MIN_GUIDE_SEPARATION, scL + step)))
+      } else if (active === 'scaleRight') {
+        const sR = spliceRightPxRef.current ?? imgW
+        const scL = scaleLeftPxRef.current
+        const scR = scaleRightPxRef.current
+        if (scL === null || scR === null) return
+        setScaleRightPx(Math.max(scL + MIN_GUIDE_SEPARATION, Math.min(sR - MIN_GUIDE_SEPARATION, scR + step)))
       }
     }
 
-    // ── Derived display positions ────────────────────────────────────────────
-    const displayLeft = fit && leftPx !== null ? toDisplay(leftPx, fit) : -9999
-    const displayRight = fit && rightPx !== null ? toDisplay(rightPx, fit) : -9999
-    const guidesReady = fit !== null && leftPx !== null && rightPx !== null
+    // ── Derived display positions ──────────────────────────────────────────────
+    const displaySpliceLeft = fit && spliceLeftPx !== null ? toDisplay(spliceLeftPx, fit) : -9999
+    const displaySpliceRight = fit && spliceRightPx !== null ? toDisplay(spliceRightPx, fit) : -9999
+    const displayScaleLeft = fit && scaleLeftPx !== null ? toDisplay(scaleLeftPx, fit) : -9999
+    const displayScaleRight = fit && scaleRightPx !== null ? toDisplay(scaleRightPx, fit) : -9999
+
+    const spliceGuidesReady = fit !== null && spliceLeftPx !== null && spliceRightPx !== null
+    const scaleGuidesReady = showScaleGuides && fit !== null && scaleLeftPx !== null && scaleRightPx !== null
 
     return (
       <div
@@ -341,25 +499,51 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
               )}
             </Layer>
             <Layer>
-              {guidesReady && (
+              {spliceGuidesReady && (
                 <>
                   <GuideGroup
-                    x={displayLeft}
+                    variant="splice"
+                    x={displaySpliceLeft}
                     height={containerSize}
-                    isActive={activeGuide === 'left'}
-                    dragBoundFunc={leftDragBound}
-                    onDragMove={handleLeftDragMove}
-                    onDragEnd={handleLeftDragEnd}
-                    onClickGuide={() => setActiveGuide('left')}
+                    isActive={activeGuide === 'spliceLeft'}
+                    dragBoundFunc={spliceLeftDragBound}
+                    onDragMove={handleSpliceLeftDragMove}
+                    onDragEnd={handleSpliceLeftDragEnd}
+                    onClickGuide={() => setActiveGuide('spliceLeft')}
                   />
                   <GuideGroup
-                    x={displayRight}
+                    variant="splice"
+                    x={displaySpliceRight}
                     height={containerSize}
-                    isActive={activeGuide === 'right'}
-                    dragBoundFunc={rightDragBound}
-                    onDragMove={handleRightDragMove}
-                    onDragEnd={handleRightDragEnd}
-                    onClickGuide={() => setActiveGuide('right')}
+                    isActive={activeGuide === 'spliceRight'}
+                    dragBoundFunc={spliceRightDragBound}
+                    onDragMove={handleSpliceRightDragMove}
+                    onDragEnd={handleSpliceRightDragEnd}
+                    onClickGuide={() => setActiveGuide('spliceRight')}
+                  />
+                </>
+              )}
+              {scaleGuidesReady && (
+                <>
+                  <GuideGroup
+                    variant="scale"
+                    x={displayScaleLeft}
+                    height={containerSize}
+                    isActive={activeGuide === 'scaleLeft'}
+                    dragBoundFunc={scaleLeftDragBound}
+                    onDragMove={handleScaleLeftDragMove}
+                    onDragEnd={handleScaleLeftDragEnd}
+                    onClickGuide={() => setActiveGuide('scaleLeft')}
+                  />
+                  <GuideGroup
+                    variant="scale"
+                    x={displayScaleRight}
+                    height={containerSize}
+                    isActive={activeGuide === 'scaleRight'}
+                    dragBoundFunc={scaleRightDragBound}
+                    onDragMove={handleScaleRightDragMove}
+                    onDragEnd={handleScaleRightDragEnd}
+                    onClickGuide={() => setActiveGuide('scaleRight')}
                   />
                 </>
               )}

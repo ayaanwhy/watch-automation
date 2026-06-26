@@ -27,6 +27,7 @@ function AnnotationContent({ createdAt, onBack }: { createdAt: string; onBack():
   const canvasRef = useRef<AnnotationCanvasHandle>(null)
 
   const filePath = joinPath(batch.inputFolder, `${currentAnnotation.sku}.png`)
+  const measureBy = ctx.currentRow?.measureBy ?? 'Case'
 
   useSessionAutosave(createdAt)
 
@@ -37,16 +38,22 @@ function AnnotationContent({ createdAt, onBack }: { createdAt: string; onBack():
     const sku = ctx.currentAnnotation.sku
     const row = ctx.currentRow
 
-    const { safeLeft, safeRight } = ctx.submitAnnotation(guides.left, guides.right)
+    const spliceBoundaries = { leftBoundary: guides.spliceLeft, rightBoundary: guides.spliceRight }
+    const scaleBoundaries =
+      guides.scaleLeft !== null && guides.scaleRight !== null
+        ? { leftBoundary: guides.scaleLeft, rightBoundary: guides.scaleRight }
+        : null
 
-    queue.addOptimistic(sku, { leftBoundary: safeLeft, rightBoundary: safeRight, widthMm: row.widthMm })
+    const { safeSplice, safeScale } = ctx.submitAnnotation(spliceBoundaries, scaleBoundaries)
+
+    queue.addOptimistic(sku, { spliceBoundaries: safeSplice, scaleBoundaries: safeScale, widthMm: row.widthMm })
 
     void window.api.invoke('queue:add', {
       sku,
       inputFolder: ctx.batch.inputFolder,
       outputFolder: ctx.batch.outputFolder,
-      leftBoundary: safeLeft,
-      rightBoundary: safeRight,
+      spliceBoundaries: safeSplice,
+      scaleBoundaries: safeScale,
       widthMm: row.widthMm,
     })
   }
@@ -57,7 +64,9 @@ function AnnotationContent({ createdAt, onBack }: { createdAt: string; onBack():
         ref={canvasRef}
         watchKey={`${currentIndex}-${currentAnnotation.sku}`}
         filePath={filePath}
-        savedBoundaries={currentAnnotation.boundaries}
+        savedSpliceBoundaries={currentAnnotation.spliceBoundaries}
+        savedScaleBoundaries={currentAnnotation.scaleBoundaries}
+        measureBy={measureBy}
         mode={mode}
       />
       <InfoPanel onSubmit={handleSubmit} onBack={onBack} />

@@ -7,8 +7,8 @@ interface QueueItemInternal {
   sku: string
   inputFolder: string
   outputFolder: string
-  leftBoundary: number
-  rightBoundary: number
+  spliceBoundaries: { leftBoundary: number; rightBoundary: number }
+  scaleBoundaries: { leftBoundary: number; rightBoundary: number } | null
   widthMm: number
   status: 'queued' | 'processing' | 'complete' | 'failed'
   error: string | null
@@ -28,8 +28,8 @@ function toPublic(item: QueueItemInternal): QueueItemPublic {
     error: item.error,
     enqueuedAt: item.enqueuedAt,
     completedAt: item.completedAt,
-    leftBoundary: item.leftBoundary,
-    rightBoundary: item.rightBoundary,
+    spliceBoundaries: item.spliceBoundaries,
+    scaleBoundaries: item.scaleBoundaries,
     widthMm: item.widthMm,
   }
 }
@@ -54,8 +54,8 @@ async function processNext(): Promise<void> {
     inputFolder: next.inputFolder,
     outputFolder: next.outputFolder,
     sku: next.sku,
-    leftBoundary: next.leftBoundary,
-    rightBoundary: next.rightBoundary,
+    spliceBoundaries: next.spliceBoundaries,
+    scaleBoundaries: next.scaleBoundaries,
     widthMm: next.widthMm,
   })
 
@@ -74,16 +74,15 @@ async function processNext(): Promise<void> {
 
 export function registerQueueHandlers(): void {
   ipcMain.handle('queue:add', async (_event, payload: QueueAddPayload): Promise<{ id: string }> => {
-    // If the SKU already exists, update it in-place and re-queue rather than duplicating.
+    // If SKU already exists, update in-place and re-queue rather than duplicate.
     const existing = queue.find(i => i.sku === payload.sku)
     if (existing) {
-      existing.leftBoundary = payload.leftBoundary
-      existing.rightBoundary = payload.rightBoundary
+      existing.spliceBoundaries = payload.spliceBoundaries
+      existing.scaleBoundaries = payload.scaleBoundaries
       existing.widthMm = payload.widthMm
       existing.error = null
       existing.completedAt = null
       existing.enqueuedAt = new Date().toISOString()
-      // Don't interrupt an in-flight item; it will be re-queued would have to wait.
       if (existing.status !== 'processing') {
         existing.status = 'queued'
         notifyRenderer()
@@ -101,8 +100,8 @@ export function registerQueueHandlers(): void {
       sku: payload.sku,
       inputFolder: payload.inputFolder,
       outputFolder: payload.outputFolder,
-      leftBoundary: payload.leftBoundary,
-      rightBoundary: payload.rightBoundary,
+      spliceBoundaries: payload.spliceBoundaries,
+      scaleBoundaries: payload.scaleBoundaries,
       widthMm: payload.widthMm,
       status: 'queued',
       error: null,
@@ -140,8 +139,8 @@ export function registerQueueHandlers(): void {
         sku: sessionItem.sku,
         inputFolder: payload.inputFolder,
         outputFolder: payload.outputFolder,
-        leftBoundary: sessionItem.leftBoundary,
-        rightBoundary: sessionItem.rightBoundary,
+        spliceBoundaries: sessionItem.spliceBoundaries,
+        scaleBoundaries: sessionItem.scaleBoundaries,
         widthMm: sessionItem.widthMm,
         status: sessionItem.status === 'queued' ? 'queued' : sessionItem.status,
         error: sessionItem.error,

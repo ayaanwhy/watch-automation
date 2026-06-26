@@ -13,8 +13,9 @@ export type AnnotationStatus = 'unannotated' | 'annotated'
 
 export interface WatchAnnotation {
   sku: string
-  boundaries: BoundaryData | null
   status: AnnotationStatus
+  spliceBoundaries: BoundaryData | null
+  scaleBoundaries: BoundaryData | null
 }
 
 export type GuideMode = 'uniform' | 'free'

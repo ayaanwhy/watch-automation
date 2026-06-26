@@ -75,8 +75,8 @@ export interface ProcessWatchPayload {
   inputFolder: string
   outputFolder: string
   sku: string
-  leftBoundary: number
-  rightBoundary: number
+  spliceBoundaries: { leftBoundary: number; rightBoundary: number }
+  scaleBoundaries: { leftBoundary: number; rightBoundary: number } | null
   widthMm: number
 }
 
@@ -96,8 +96,8 @@ export interface QueueItemPublic {
   error: string | null
   enqueuedAt: string
   completedAt: string | null
-  leftBoundary: number
-  rightBoundary: number
+  spliceBoundaries: { leftBoundary: number; rightBoundary: number }
+  scaleBoundaries: { leftBoundary: number; rightBoundary: number } | null
   widthMm: number
 }
 
@@ -105,8 +105,8 @@ export interface QueueAddPayload {
   sku: string
   inputFolder: string
   outputFolder: string
-  leftBoundary: number
-  rightBoundary: number
+  spliceBoundaries: { leftBoundary: number; rightBoundary: number }
+  scaleBoundaries: { leftBoundary: number; rightBoundary: number } | null
   widthMm: number
 }
 

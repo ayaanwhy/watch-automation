@@ -1,8 +1,10 @@
 import { createContext, useContext, useState, type ReactNode } from 'react'
 import { MIN_GUIDE_SEPARATION } from '../types/annotation'
-import type { BatchState, GuideMode, WatchAnnotation } from '../types/annotation'
+import type { BatchState, BoundaryData, GuideMode, WatchAnnotation } from '../types/annotation'
 import type { SpreadsheetRowData } from '../types/ipc'
 import type { SessionFile } from '../types/session'
+
+type SimpleBoundary = { leftBoundary: number; rightBoundary: number }
 
 interface AnnotationContextValue {
   batch: BatchState
@@ -12,7 +14,10 @@ interface AnnotationContextValue {
   currentAnnotation: WatchAnnotation
   currentRow: SpreadsheetRowData
   annotatedCount: number
-  submitAnnotation(left: number, right: number): { safeLeft: number; safeRight: number }
+  submitAnnotation(
+    splice: SimpleBoundary,
+    scale: SimpleBoundary | null
+  ): { safeSplice: BoundaryData; safeScale: BoundaryData | null }
   navigate(delta: -1 | 1): void
   setMode(mode: GuideMode): void
 }
@@ -31,6 +36,12 @@ interface AnnotationProviderProps {
   children: ReactNode
 }
 
+function clampBoundary(b: SimpleBoundary): BoundaryData {
+  const safeLeft = Math.round(Math.min(b.leftBoundary, b.rightBoundary - MIN_GUIDE_SEPARATION))
+  const safeRight = Math.round(Math.max(b.rightBoundary, b.leftBoundary + MIN_GUIDE_SEPARATION))
+  return { leftBoundary: safeLeft, rightBoundary: safeRight, source: 'manual', confidence: null }
+}
+
 export function AnnotationProvider({ batch, initialSession, children }: AnnotationProviderProps) {
   const [annotations, setAnnotations] = useState<WatchAnnotation[]>(() => {
     const saved = new Map(
@@ -39,9 +50,14 @@ export function AnnotationProvider({ batch, initialSession, children }: Annotati
     return batch.match.matched.map(sku => {
       const s = saved.get(sku)
       if (s) {
-        return { sku: s.sku, status: s.status, boundaries: s.boundaries }
+        return {
+          sku: s.sku,
+          status: s.status,
+          spliceBoundaries: s.spliceBoundaries,
+          scaleBoundaries: s.scaleBoundaries,
+        }
       }
-      return { sku, boundaries: null, status: 'unannotated' as const }
+      return { sku, status: 'unannotated' as const, spliceBoundaries: null, scaleBoundaries: null }
     })
   })
 
@@ -57,22 +73,22 @@ export function AnnotationProvider({ batch, initialSession, children }: Annotati
   const currentRow = batch.match.rows[currentAnnotation.sku]
   const annotatedCount = annotations.filter(a => a.status === 'annotated').length
 
-  function submitAnnotation(left: number, right: number): { safeLeft: number; safeRight: number } {
-    const safeLeft = Math.round(Math.min(left, right - MIN_GUIDE_SEPARATION))
-    const safeRight = Math.round(Math.max(right, left + MIN_GUIDE_SEPARATION))
+  function submitAnnotation(
+    splice: SimpleBoundary,
+    scale: SimpleBoundary | null
+  ): { safeSplice: BoundaryData; safeScale: BoundaryData | null } {
+    const safeSplice = clampBoundary(splice)
+    const safeScale = scale ? clampBoundary(scale) : null
+
     setAnnotations(prev =>
       prev.map((a, i) =>
         i === currentIndex
-          ? {
-              ...a,
-              status: 'annotated',
-              boundaries: { leftBoundary: safeLeft, rightBoundary: safeRight, source: 'manual', confidence: null },
-            }
+          ? { ...a, status: 'annotated', spliceBoundaries: safeSplice, scaleBoundaries: safeScale }
           : a
       )
     )
     setCurrentIndex(prev => Math.min(prev + 1, total - 1))
-    return { safeLeft, safeRight }
+    return { safeSplice, safeScale }
   }
 
   function navigate(delta: -1 | 1) {
