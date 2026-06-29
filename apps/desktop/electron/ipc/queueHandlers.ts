@@ -1,5 +1,6 @@
 import { ipcMain, BrowserWindow } from 'electron'
 import { runProcessWatch } from './processHandlers'
+import { logger } from '../logger'
 import type { QueueAddPayload, QueueItemPublic, QueueRestorePayload } from '../../src/types/ipc'
 
 interface QueueItemInternal {
@@ -50,23 +51,29 @@ async function processNext(): Promise<void> {
   next.status = 'processing'
   notifyRenderer()
 
-  const result = await runProcessWatch({
-    inputFolder: next.inputFolder,
-    outputFolder: next.outputFolder,
-    sku: next.sku,
-    spliceBoundaries: next.spliceBoundaries,
-    scaleBoundaries: next.scaleBoundaries,
-    widthMm: next.widthMm,
-  })
+  try {
+    const result = await runProcessWatch({
+      inputFolder: next.inputFolder,
+      outputFolder: next.outputFolder,
+      sku: next.sku,
+      spliceBoundaries: next.spliceBoundaries,
+      scaleBoundaries: next.scaleBoundaries,
+      widthMm: next.widthMm,
+    })
 
-  if (result.ok) {
-    next.status = 'complete'
-  } else {
+    if (result.ok) {
+      next.status = 'complete'
+    } else {
+      next.status = 'failed'
+      next.error = result.error ?? 'Processing failed'
+    }
+  } catch (err) {
     next.status = 'failed'
-    next.error = result.error ?? 'Processing failed'
+    next.error = 'Unexpected processing error'
+    logger.error(`Unexpected error processing ${next.sku}`, err)
   }
-  next.completedAt = new Date().toISOString()
 
+  next.completedAt = new Date().toISOString()
   isProcessing = false
   notifyRenderer()
   void processNext()
@@ -90,6 +97,7 @@ export function registerQueueHandlers(): void {
       } else {
         notifyRenderer()
       }
+      logger.info(`queue:add — re-queued ${payload.sku}`)
       return { id: existing.id }
     }
 
@@ -109,6 +117,7 @@ export function registerQueueHandlers(): void {
       completedAt: null,
     }
     queue.push(item)
+    logger.info(`queue:add — ${payload.sku} (queue length: ${queue.length})`)
     notifyRenderer()
     void processNext()
     return { id }
@@ -120,6 +129,7 @@ export function registerQueueHandlers(): void {
     item.status = 'queued'
     item.error = null
     item.completedAt = null
+    logger.info(`queue:retry — ${item.sku}`)
     notifyRenderer()
     void processNext()
     return { ok: true }
@@ -149,6 +159,11 @@ export function registerQueueHandlers(): void {
       }
       queue.push(item)
     }
+
+    const queued = queue.filter(i => i.status === 'queued').length
+    const complete = queue.filter(i => i.status === 'complete').length
+    logger.info(`queue:restore — ${queue.length} items (${queued} queued, ${complete} complete)`)
+
     notifyRenderer()
     void processNext()
   })

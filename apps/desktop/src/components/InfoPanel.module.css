@@ -334,3 +334,15 @@
 .submitButton:active {
   opacity: 0.85;
 }
+
+.submitButton:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.submitWarning {
+  font-size: 11px;
+  color: rgba(255, 59, 48, 0.85);
+  text-align: center;
+  line-height: 1.4;
+}

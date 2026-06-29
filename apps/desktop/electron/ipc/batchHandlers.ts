@@ -1,6 +1,7 @@
 import { ipcMain, dialog, BrowserWindow } from 'electron'
 import { stat, readdir } from 'node:fs/promises'
 import { extname } from 'node:path'
+import { logger } from '../logger'
 import type { OpenFileOptions, BatchValidatePayload, BatchValidationResult } from '../../src/types/ipc'
 
 export function registerBatchHandlers(): void {
@@ -64,6 +65,12 @@ export function registerBatchHandlers(): void {
       }
     } catch {
       errors.push('Output folder does not exist.')
+    }
+
+    if (errors.length === 0) {
+      logger.info(`batch:validate — ok, ${imageCount ?? 0} PNGs`)
+    } else {
+      logger.warn(`batch:validate — ${errors.join('; ')}`)
     }
 
     return { ok: errors.length === 0, errors, imageCount }

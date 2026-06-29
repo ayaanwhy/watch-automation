@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { readFile, writeFile, rename, mkdir, access } from 'node:fs/promises'
 import { join } from 'node:path'
 import { SESSION_VERSION } from '../../src/types/session'
+import { logger } from '../logger'
 import type { SessionFile, SessionQueueItem } from '../../src/types/session'
 import type { SessionSavePayload, SessionSaveResult, SessionLoadPayload, SessionLoadResult } from '../../src/types/ipc'
 
@@ -42,8 +43,10 @@ export function registerSessionHandlers(): void {
       const tmpPath = filePath + '.tmp'
       await writeFile(tmpPath, JSON.stringify(payload.session, null, 2), 'utf-8')
       await rename(tmpPath, filePath)
+      logger.info(`session:save — ${payload.session.annotations.length} annotations, ${payload.session.processingQueue.length} queue items`)
       return { ok: true }
     } catch (err) {
+      logger.error('session:save — write failed', err)
       return { ok: false, error: String(err) }
     }
   })
@@ -66,6 +69,7 @@ export function registerSessionHandlers(): void {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const parsed = JSON.parse(raw) as any
+      const loadedVersion: number = parsed.version
 
       // ── Migrations ────────────────────────────────────────────────────────────
       //
@@ -122,6 +126,7 @@ export function registerSessionHandlers(): void {
       // ── Output file verification ──────────────────────────────────────────────
       // Items saved as 'complete' are only trustworthy if the exported file still
       // exists. If missing, reset to 'queued' so the item is reprocessed.
+      let resetCount = 0
       if (Array.isArray(parsed.processingQueue)) {
         parsed.processingQueue = await Promise.all(
           parsed.processingQueue.map(async (q: SessionQueueItem) => {
@@ -129,10 +134,21 @@ export function registerSessionHandlers(): void {
             const exportedPath = join(payload.outputFolder, `${q.sku};frontImage.png`)
             const exists = await fileExists(exportedPath)
             if (exists) return q
+            resetCount++
             return { ...q, status: 'queued' as const, completedAt: null }
           })
         )
       }
+
+      const migratedMsg = loadedVersion !== SESSION_VERSION
+        ? ` (migrated from v${loadedVersion})`
+        : ''
+      const resetMsg = resetCount > 0 ? `, reset ${resetCount} missing outputs` : ''
+      logger.info(
+        `session:load — found v${loadedVersion}${migratedMsg}, ` +
+        `${parsed.annotations?.length ?? 0} annotations, ` +
+        `${parsed.processingQueue?.length ?? 0} queue items${resetMsg}`
+      )
 
       return { ok: true, session: parsed as SessionFile }
     } catch {

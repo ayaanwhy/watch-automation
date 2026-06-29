@@ -26,6 +26,7 @@ export function InfoPanel({ onSubmit, onBack, onShowDashboard }: InfoPanelProps)
   const isLast = currentIndex === total - 1
 
   const queueItem = queueItems.find(item => item.sku === currentAnnotation.sku)
+  const missingWidth = !currentRow || currentRow.widthMm <= 0
 
   return (
     <div className={styles.panel}>
@@ -122,7 +123,10 @@ export function InfoPanel({ onSubmit, onBack, onShowDashboard }: InfoPanelProps)
           </button>
         </div>
 
-        <button className={styles.submitButton} onClick={onSubmit}>
+        {missingWidth && (
+          <div className={styles.submitWarning}>Width is 0 mm — check the spreadsheet</div>
+        )}
+        <button className={styles.submitButton} onClick={onSubmit} disabled={missingWidth}>
           Submit
         </button>
       </div>

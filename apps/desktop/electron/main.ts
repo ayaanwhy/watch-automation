@@ -6,6 +6,15 @@ import { registerSessionHandlers } from './ipc/sessionHandlers'
 import { registerPrefsHandlers } from './ipc/prefsHandlers'
 import { registerProcessHandlers } from './ipc/processHandlers'
 import { registerQueueHandlers } from './ipc/queueHandlers'
+import { logger } from './logger'
+
+process.on('uncaughtException', (err) => {
+  logger.error('Uncaught exception', err)
+})
+
+process.on('unhandledRejection', (reason) => {
+  logger.error('Unhandled rejection', reason)
+})
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -32,6 +41,7 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  logger.info(`App ready — v${app.getVersion()}`)
   registerBatchHandlers()
   registerDataHandlers()
   registerSessionHandlers()
@@ -45,6 +55,10 @@ app.whenReady().then(() => {
       createWindow()
     }
   })
+})
+
+app.on('before-quit', () => {
+  logger.info('App quitting')
 })
 
 app.on('window-all-closed', () => {

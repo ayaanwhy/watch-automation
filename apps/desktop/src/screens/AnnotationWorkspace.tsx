@@ -4,6 +4,7 @@ import { QueueProvider, useQueue } from '../context/QueueContext'
 import { AnnotationCanvas } from '../components/AnnotationCanvas'
 import { InfoPanel } from '../components/InfoPanel'
 import { ProcessingQueue } from '../components/ProcessingQueue'
+import { ErrorBoundary } from '../components/ErrorBoundary'
 import { useSessionAutosave } from '../hooks/useSessionAutosave'
 import { BatchDashboard } from './BatchDashboard'
 import type { AnnotationCanvasHandle } from '../components/AnnotationCanvas'
@@ -91,15 +92,17 @@ export function AnnotationWorkspace({ batch, initialSession, onBack }: Annotatio
   return (
     <QueueProvider batch={batch} initialSession={initialSession}>
       <AnnotationProvider batch={batch} initialSession={initialSession}>
-        {view === 'dashboard' ? (
-          <BatchDashboard onBack={() => setView('annotation')} />
-        ) : (
-          <AnnotationContent
-            createdAt={createdAt}
-            onBack={onBack}
-            onShowDashboard={() => setView('dashboard')}
-          />
-        )}
+        <ErrorBoundary onBack={onBack}>
+          {view === 'dashboard' ? (
+            <BatchDashboard onBack={() => setView('annotation')} />
+          ) : (
+            <AnnotationContent
+              createdAt={createdAt}
+              onBack={onBack}
+              onShowDashboard={() => setView('dashboard')}
+            />
+          )}
+        </ErrorBoundary>
       </AnnotationProvider>
     </QueueProvider>
   )
