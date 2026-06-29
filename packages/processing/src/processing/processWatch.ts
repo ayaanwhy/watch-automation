@@ -22,7 +22,16 @@ export async function processWatch(input: ProcessWatchInput): Promise<ProcessWat
   };
 
   const splice = spliceImage(source, input.leftBoundary, input.rightBoundary);
-  const scale = scaleToMeasurement(splice, input.widthMm);
+
+  // If explicit scale boundaries are provided, derive dial width from them rather than
+  // from the splice boundaries. Allows Dial watches to scale by dial width while still
+  // splicing (cropping) at the case boundaries.
+  const scaleWidthOverride =
+    input.scaleLeft !== undefined && input.scaleRight !== undefined
+      ? input.scaleRight - input.scaleLeft
+      : undefined;
+
+  const scale = scaleToMeasurement(splice, input.widthMm, scaleWidthOverride);
   const layout = createCompressedLayout(scale);
 
   await exportAssembly(input.inputPath, scale, layout, input.outputPath, input.shadow);

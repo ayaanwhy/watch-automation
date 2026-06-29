@@ -13,6 +13,11 @@ export interface ProcessWatchInput {
   widthMm: number;
   leftBoundary: number;
   rightBoundary: number;
+  // When provided, scaling uses scaleRight - scaleLeft as the reference pixel width
+  // instead of rightBoundary - leftBoundary (the splice width).
+  // Omitting both fields preserves existing behaviour.
+  scaleLeft?: number;
+  scaleRight?: number;
   shadow?: Partial<ShadowSettings>;
 }
 

@@ -30,3 +30,7 @@ out/
 #Extras
 .idea/
 *;frontImage*.png
+
+#Docs
+CLAUDE.md
+*.docx

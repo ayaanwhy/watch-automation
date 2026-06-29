@@ -1,17 +1,23 @@
 import { PX_PER_MM } from "./constants.js";
 import type { ScaleResult, SegmentBox, SpliceResult } from "../types/processing.js";
 
-export function scaleToMeasurement(splice: SpliceResult, widthMm: number): ScaleResult {
+export function scaleToMeasurement(
+  splice: SpliceResult,
+  widthMm: number,
+  dialWidthOverride?: number
+): ScaleResult {
   if (!Number.isFinite(widthMm) || widthMm <= 0) {
     throw new Error("widthMm must be a positive number");
   }
 
-  if (splice.dial.width <= 0) {
+  const effectiveDialWidth = dialWidthOverride ?? splice.dial.width;
+
+  if (effectiveDialWidth <= 0) {
     throw new Error("Dial width must be greater than zero");
   }
 
   const targetDialWidth = widthMm * PX_PER_MM;
-  const scale = targetDialWidth / splice.dial.width;
+  const scale = targetDialWidth / effectiveDialWidth;
 
   return {
     targetDialWidth,
