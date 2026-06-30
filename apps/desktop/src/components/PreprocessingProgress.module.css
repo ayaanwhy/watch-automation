@@ -1,0 +1,107 @@
+.panel {
+  margin-top: 24px;
+  padding: 16px;
+  border-radius: 6px;
+  background: #fafafa;
+  border: 1px solid #ddd;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.headerRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.elapsed {
+  font-size: 13px;
+  color: #555;
+  font-variant-numeric: tabular-nums;
+}
+
+.progressBarTrack {
+  height: 8px;
+  border-radius: 4px;
+  background: #e6e6e6;
+  overflow: hidden;
+}
+
+.progressBarFill {
+  height: 100%;
+  background: #1a1a1a;
+  transition: width 0.2s ease;
+}
+
+.counts {
+  font-size: 12px;
+  color: #555;
+  font-variant-numeric: tabular-nums;
+}
+
+.statusRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #333;
+}
+
+.activityDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ccc;
+  flex-shrink: 0;
+}
+
+.activityDotLive {
+  background: #2d8a2d;
+}
+
+.currentImage {
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stageBadge {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #555;
+  background: #eee;
+  border-radius: 4px;
+}
+
+.cancelling {
+  font-size: 13px;
+  color: #b07a00;
+}
+
+.cancelButton {
+  align-self: flex-start;
+  padding: 6px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #c0392b;
+  background: #fff;
+  border: 1px solid #f0b8b8;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.cancelButton:hover {
+  background: #fff5f5;
+}

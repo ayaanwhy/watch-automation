@@ -6,6 +6,7 @@ import { registerSessionHandlers } from './ipc/sessionHandlers'
 import { registerPrefsHandlers } from './ipc/prefsHandlers'
 import { registerProcessHandlers } from './ipc/processHandlers'
 import { registerQueueHandlers } from './ipc/queueHandlers'
+import { registerPreprocessHandlers } from './ipc/preprocessHandlers'
 import { logger } from './logger'
 
 process.on('uncaughtException', (err) => {
@@ -48,6 +49,7 @@ app.whenReady().then(() => {
   registerPrefsHandlers()
   registerProcessHandlers()
   registerQueueHandlers()
+  registerPreprocessHandlers()
   createWindow()
 
   app.on('activate', () => {

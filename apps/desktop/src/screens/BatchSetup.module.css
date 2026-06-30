@@ -24,64 +24,6 @@
   gap: 20px;
 }
 
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.label {
-  font-size: 12px;
-  font-weight: 500;
-  color: #555;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.pathRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  padding: 0 8px 0 12px;
-  height: 40px;
-}
-
-.pathDisplay {
-  flex: 1;
-  font-size: 13px;
-  color: #1a1a1a;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
-  font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
-}
-
-.placeholder {
-  color: #aaa;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
-
-.browseButton {
-  flex-shrink: 0;
-  padding: 4px 12px;
-  font-size: 12px;
-  font-weight: 500;
-  color: #333;
-  background: #f0f0f0;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.browseButton:hover {
-  background: #e4e4e4;
-}
-
 .actions {
   display: flex;
   justify-content: flex-end;

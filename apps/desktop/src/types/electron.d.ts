@@ -14,6 +14,11 @@ import type {
   QueueAddPayload,
   QueueItemPublic,
   QueueRestorePayload,
+  PreprocessStartPayload,
+  PreprocessStartResult,
+  PreprocessEventPayload,
+  PreprocessDonePayload,
+  PreprocessResolveResult,
 } from './ipc'
 
 declare global {
@@ -33,6 +38,13 @@ declare global {
       invoke(channel: 'queue:get'): Promise<QueueItemPublic[]>
       invoke(channel: 'queue:restore', payload: QueueRestorePayload): Promise<void>
       on(channel: 'queue:update', listener: (items: QueueItemPublic[]) => void): () => void
+
+      // Preprocessing
+      invoke(channel: 'preprocess:start', payload: PreprocessStartPayload): Promise<PreprocessStartResult>
+      invoke(channel: 'preprocess:cancel', payload: { jobId: string }): Promise<{ ok: boolean }>
+      invoke(channel: 'preprocess:resolve-python'): Promise<PreprocessResolveResult>
+      on(channel: 'preprocess:event', listener: (payload: PreprocessEventPayload) => void): () => void
+      on(channel: 'preprocess:done', listener: (payload: PreprocessDonePayload) => void): () => void
     }
   }
 }

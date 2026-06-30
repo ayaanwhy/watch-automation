@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import type { BatchValidationResult, BatchLoadResult, MatchSummary, OpenFileOptions } from '../types/ipc'
 import type { BatchState } from '../types/annotation'
 import type { SessionFile } from '../types/session'
+import { PathField } from '../components/PathField'
 import styles from './BatchSetup.module.css'
 
 interface BatchSetupProps {
@@ -196,29 +197,6 @@ export default function BatchSetup({ onBeginAnnotation }: BatchSetupProps) {
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
-
-interface PathFieldProps {
-  label: string
-  value: string
-  placeholder: string
-  onPick: () => void
-}
-
-function PathField({ label, value, placeholder, onPick }: PathFieldProps) {
-  return (
-    <div className={styles.field}>
-      <label className={styles.label}>{label}</label>
-      <div className={styles.pathRow}>
-        <span className={styles.pathDisplay}>
-          {value !== '' ? value : <span className={styles.placeholder}>{placeholder}</span>}
-        </span>
-        <button className={styles.browseButton} onClick={onPick}>
-          Browse
-        </button>
-      </div>
-    </div>
-  )
-}
 
 function ValidationResults({ result }: { result: BatchValidationResult }) {
   if (result.ok) {

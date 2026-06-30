@@ -1,0 +1,78 @@
+.summary {
+  margin-top: 24px;
+  padding: 16px;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.summaryOk {
+  background: #f0faf0;
+  border: 1px solid #b3ddb3;
+}
+
+.summaryWarn {
+  background: #fffbf0;
+  border: 1px solid #e0c97a;
+}
+
+.summaryTitle {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #555;
+}
+
+.errorRow {
+  font-size: 13px;
+  color: #c0392b;
+}
+
+.statGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.statRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: #333;
+}
+
+.statLabel {
+  color: #555;
+}
+
+.statValue {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.statOk {
+  color: #2d8a2d;
+}
+
+.statWarn {
+  color: #b07a00;
+}
+
+.resetButton {
+  align-self: flex-start;
+  padding: 8px 24px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #fff;
+  background: #1a1a1a;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.resetButton:hover {
+  background: #333;
+}
