@@ -1,0 +1,28 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.shellHeader {
+  flex-shrink: 0;
+  padding: 12px 24px 0;
+}
+
+.homeLink {
+  font-size: 13px;
+  font-weight: 500;
+  color: #555;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.homeLink:hover {
+  color: #1a1a1a;
+}
+
+.shellBody {
+  flex: 1;
+}

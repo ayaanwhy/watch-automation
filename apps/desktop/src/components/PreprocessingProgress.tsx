@@ -1,12 +1,17 @@
 import { useEffect, useState } from 'react'
-import type { PreprocessingProgressState } from '../hooks/usePreprocessingJob'
+import type { CancelPhase, PreprocessingProgressState } from '../context/PreprocessingJobContext'
 import styles from './PreprocessingProgress.module.css'
 
 interface PreprocessingProgressProps {
   progress: PreprocessingProgressState
-  cancelRequested: boolean
+  cancelPhase: CancelPhase
   startedAt: number | null
   onCancel: () => void
+}
+
+const INIT_STAGE_LABELS: Record<string, string> = {
+  loading_birefnet: 'Loading BiRefNet…',
+  loading_sam2: 'Loading SAM 2…',
 }
 
 function formatElapsed(ms: number): string {
@@ -18,7 +23,7 @@ function formatElapsed(ms: number): string {
 
 export function PreprocessingProgress({
   progress,
-  cancelRequested,
+  cancelPhase,
   startedAt,
   onCancel,
 }: PreprocessingProgressProps) {
@@ -54,12 +59,26 @@ export function PreprocessingProgress({
         {progress.currentStage && <span className={styles.stageBadge}>{progress.currentStage}</span>}
       </div>
 
-      {cancelRequested ? (
-        <div className={styles.cancelling}>Cancelling — finishing current step…</div>
-      ) : (
+      {progress.initializingStage && (
+        <div className={styles.initBanner}>
+          {INIT_STAGE_LABELS[progress.initializingStage] ?? 'Initializing…'}
+        </div>
+      )}
+
+      {cancelPhase === 'none' && (
         <button className={styles.cancelButton} onClick={onCancel}>
           Cancel
         </button>
+      )}
+      {cancelPhase === 'requested' && (
+        <div className={styles.cancelPending}>Cancellation requested…</div>
+      )}
+      {cancelPhase === 'acknowledged' && (
+        <div className={styles.cancelling}>
+          {progress.initializingStage
+            ? "Initialization can't be safely interrupted — cancelling immediately after it completes…"
+            : 'Finishing current step before cancelling…'}
+        </div>
       )}
     </div>
   )

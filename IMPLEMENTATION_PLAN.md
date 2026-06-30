@@ -332,6 +332,129 @@ Application remains stable on large real-world batches.
 
 ⸻
 
+Phase 8.5 — Preprocessing Module Integration
+
+Goal
+
+Introduce a modular preprocessing stage to WatchAutomation while keeping the existing Watch Processing workflow fully functional and independent.
+
+The preprocessing module is intended to prepare raw product imagery before manual annotation. It operates as a standalone pipeline that can also hand off its output directly into Watch Processing.
+
+⸻
+
+Phase 8.5A — Python Runtime Integration
+
+Objective
+
+Establish communication between the Electron application and the Python preprocessing pipeline.
+
+Scope
+
+* Spawn the Python preprocessing runner (electron_runner.py) from Electron.
+* Stream newline-delimited JSON events from stdout.
+* Parse progress, completion, error and heartbeat events.
+* Handle process lifecycle (launch, cancellation, completion and failures).
+* Preserve complete independence from the existing Watch Processing module.
+
+Deliverable:
+
+A reliable Electron ↔ Python bridge capable of running preprocessing jobs.
+
+⸻
+
+Phase 8.5B — Modular Application Navigation
+
+Objective
+
+Convert the application into a multi-module workflow.
+
+Scope
+
+Replace the current startup screen with a module selector.
+
+Watch Automation
+• Preprocessing
+• Watch Processing
+
+Requirements:
+
+* Existing Watch Processing remains unchanged.
+* Both modules are independently launchable.
+* Future modules can be added without redesigning navigation.
+
+Deliverable:
+
+Extensible application shell supporting multiple processing modules.
+
+⸻
+
+Phase 8.5C — Preprocessing User Interface
+
+Objective
+
+Provide a dedicated interface for launching preprocessing jobs.
+
+Scope
+
+Inputs:
+
+* Source image folder
+* Output folder
+* Upscale factor
+* Object type
+* Processing options (future)
+
+Outputs:
+
+* Live processing progress
+* Current image
+* Current processing stage
+* Completion summary
+* Error reporting
+
+The interface should visually align with the existing Watch Processing screens to maintain consistency.
+
+Deliverable:
+
+Complete UI for configuring and monitoring preprocessing batches.
+
+⸻
+
+Phase 8.5D — Workflow Integration
+
+Objective
+
+Connect preprocessing output with downstream Watch Processing.
+
+Scope
+
+Support three workflows:
+
+1. Preprocessing only
+2. Watch Processing only
+3. Preprocessing → Watch Processing
+
+Following successful preprocessing, the application should offer immediate transition into Watch Processing using the generated output folder without requiring the user to repeat setup.
+
+Deliverable:
+
+Seamless hand-off between application modules.
+
+⸻
+
+Deferred Work
+
+The following functionality is intentionally excluded from Phase 8.5:
+
+* Automatic strap segmentation
+* AI splice boundary prediction
+* AI scaling boundary prediction
+* Automatic annotation generation
+
+These capabilities will be introduced in later phases without requiring architectural changes to the preprocessing framework.
+
+____
+
 Phase 9 — AI Boundary Provider Foundation
 
 Goal

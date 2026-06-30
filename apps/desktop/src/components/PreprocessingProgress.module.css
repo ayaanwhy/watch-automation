@@ -85,6 +85,22 @@
   border-radius: 4px;
 }
 
+.initBanner {
+  align-self: flex-start;
+  font-size: 12px;
+  font-weight: 500;
+  color: #555;
+  background: #eef3fb;
+  border: 1px solid #c9dcf2;
+  border-radius: 4px;
+  padding: 4px 8px;
+}
+
+.cancelPending {
+  font-size: 13px;
+  color: #888;
+}
+
 .cancelling {
   font-size: 13px;
   color: #b07a00;

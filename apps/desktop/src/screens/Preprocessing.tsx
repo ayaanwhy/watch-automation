@@ -4,7 +4,7 @@ import { PythonInterpreterStatus } from '../components/PythonInterpreterStatus'
 import { PreprocessingProgress } from '../components/PreprocessingProgress'
 import { PreprocessingSummary } from '../components/PreprocessingSummary'
 import { usePythonInterpreter } from '../hooks/usePythonInterpreter'
-import { usePreprocessingJob } from '../hooks/usePreprocessingJob'
+import { usePreprocessingJob } from '../context/PreprocessingJobContext'
 import styles from './Preprocessing.module.css'
 
 export default function Preprocessing() {
@@ -77,7 +77,7 @@ export default function Preprocessing() {
         {job.phase === 'running' && (
           <PreprocessingProgress
             progress={job.progress}
-            cancelRequested={job.cancelRequested}
+            cancelPhase={job.cancelPhase}
             startedAt={job.startedAt}
             onCancel={job.cancel}
           />

@@ -14,6 +14,29 @@ Exit codes:
   0 — every image succeeded
   1 — fatal startup failure, or zero images succeeded
   2 — partial success (at least one image failed, at least one succeeded)
+  3 — cancelled cooperatively at a safe checkpoint (see Cancellation below)
+
+Cancellation:
+Electron requests cancellation by writing a single JSON line to this
+process's stdin: {"cmd":"cancel"}. A background thread reads stdin and
+sets an in-memory threading.Event when it sees that command; it emits
+{"type":"cancel_requested"} immediately, but never acts on the request
+itself. The main thread only checks the event at safe checkpoints —
+before starting the next image, and between pipeline stages — never
+while BiRefNet or SAM 2 inference is in progress. This avoids tearing
+down the process mid-GPU-kernel on the MPS backend, which has been
+observed to cause kernel panics when done via external SIGTERM/SIGKILL.
+The process always exits on its own; Electron never sends a signal for
+normal user cancellation.
+
+Initialization visibility:
+Before the first checkpoint can run, two one-time model loads happen:
+BiRefNet (always, eagerly, before the per-image loop) and SAM 2 (lazily,
+inside the first image's "sam" stage — see services/sam_segmenter.py).
+Both are announced via {"type":"initializing","stage":"loading_birefnet"}
+and {"type":"initializing","stage":"loading_sam2"} purely so the renderer
+can tell the user these spans cannot be interrupted. Neither emit adds,
+removes, or moves a cancellation checkpoint.
 """
 from __future__ import annotations
 
@@ -29,6 +52,8 @@ from pathlib import Path
 _HERE = Path(__file__).resolve().parent
 if str(_HERE) not in sys.path:
     sys.path.insert(0, str(_HERE))
+
+EXIT_CANCELLED = 3
 
 
 # ── JSON output ───────────────────────────────────────────────────────────────
@@ -100,6 +125,37 @@ def _stage(index: int, total: int, image: str, stage: str, timings: dict):
         emit({"type": "progress", "index": index, "total": total,
               "image": image, "stage": stage, "status": "done",
               "duration_ms": duration_ms})
+
+
+# ── Cooperative cancellation ──────────────────────────────────────────────────
+#
+# _CANCEL_EVENT is set by a background stdin-reader thread the instant Electron
+# sends {"cmd":"cancel"}. The main thread never reacts to it directly — it only
+# checks the event at the safe checkpoints in main()'s per-image loop (top of
+# loop, and between each pipeline stage). This guarantees the process never
+# tears down while BiRefNet or SAM 2 is mid-inference on the MPS backend.
+#
+_CANCEL_EVENT = threading.Event()
+
+
+def _stdin_listener() -> None:
+    """Background daemon thread: read NDJSON commands from stdin.
+
+    Only sets _CANCEL_EVENT and emits an acknowledgement — never exits the
+    process. Runs for the lifetime of the process; ends naturally when stdin
+    closes (Electron tears down the pipe) or the process exits.
+    """
+    for raw_line in sys.stdin:
+        line = raw_line.strip()
+        if not line:
+            continue
+        try:
+            cmd = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(cmd, dict) and cmd.get("cmd") == "cancel" and not _CANCEL_EVENT.is_set():
+            _CANCEL_EVENT.set()
+            emit({"type": "cancel_requested"})
 
 
 # ── CLI ───────────────────────────────────────────────────────────────────────
@@ -191,6 +247,10 @@ def _patch_config_if_needed(args: argparse.Namespace) -> None:
 def main() -> int:
     args = _parse_args()
 
+    # Start listening for cancellation requests as early as possible so a
+    # cancel sent during model loading is captured before the first checkpoint.
+    threading.Thread(target=_stdin_listener, daemon=True).start()
+
     # ── Validate inputs before touching any models ────────────────────────────
     input_dir = Path(args.input_dir).expanduser().resolve()
     output_dir = Path(args.output_dir).expanduser().resolve()
@@ -233,7 +293,10 @@ def main() -> int:
     )
 
     # ── Load models ───────────────────────────────────────────────────────────
-    emit({"type": "initializing", "stage": "loading_models"})
+    # No cancellation checkpoint exists here — this is the one genuinely
+    # uninterruptible span in the pipeline (see "Initialization visibility"
+    # above). The stage label is for renderer visibility only.
+    emit({"type": "initializing", "stage": "loading_birefnet"})
 
     try:
         with _quiet():
@@ -254,13 +317,26 @@ def main() -> int:
     batch_t0 = time.perf_counter()
     ppi = (args.output_ppi, args.output_ppi)
 
+    cancelled = False
+    sam2_load_announced = False
+
     for index, input_path in enumerate(images, start=1):
+        # Safe checkpoint — before starting the next image.
+        if _CANCEL_EVENT.is_set():
+            cancelled = True
+            break
+
         image_t0 = time.perf_counter()
         temp_path = temp_dir / f"{input_path.stem}_upscaled.png"
         output_path = output_dir / f"{input_path.stem}{args.output_suffix}"
         timings: dict[str, int] = {}
 
         try:
+            # Safe checkpoint — before upscale.
+            if _CANCEL_EVENT.is_set():
+                cancelled = True
+                break
+
             # Stage 1 — upscale (no-op copy when scale_factor == 1)
             with _stage(index, total, input_path.name, "upscale", timings):
                 with _quiet():
@@ -269,6 +345,11 @@ def main() -> int:
                         str(temp_path),
                         scale_factor=args.scale_factor,
                     )
+
+            # Safe checkpoint — before BiRefNet.
+            if _CANCEL_EVENT.is_set():
+                cancelled = True
+                break
 
             # Stage 2 — background removal via BiRefNet
             with _stage(index, total, input_path.name, "birefnet", timings):
@@ -286,6 +367,20 @@ def main() -> int:
                         artifact_name=input_path.stem,
                     )
 
+            # Safe checkpoint — before SAM.
+            if _CANCEL_EVENT.is_set():
+                cancelled = True
+                break
+
+            # SAM 2 lazy-loads its model weights on first use (see
+            # _load_generator in services/sam_segmenter.py). Announce that
+            # one-time cost once, for renderer visibility only — this does
+            # not change when or how SAM 2 loads, and the checkpoint above
+            # is unchanged.
+            if not sam2_load_announced:
+                emit({"type": "initializing", "stage": "loading_sam2"})
+                sam2_load_announced = True
+
             # Stage 3 — SAM 2 automatic segmentation
             with _stage(index, total, input_path.name, "sam", timings):
                 with _quiet():
@@ -294,6 +389,11 @@ def main() -> int:
                         artifact_name=input_path.stem,
                         output_dir=masks_dir,
                     )
+
+            # Safe checkpoint — before plugin.
+            if _CANCEL_EVENT.is_set():
+                cancelled = True
+                break
 
             # Stage 4 — object-type plugin
             with _stage(index, total, input_path.name, "plugin", timings):
@@ -304,6 +404,11 @@ def main() -> int:
                         object_type=args.object_type,
                     )
             final_rgba = plugin_result.get("processed_image", rgba)
+
+            # Safe checkpoint — before save.
+            if _CANCEL_EVENT.is_set():
+                cancelled = True
+                break
 
             # Stage 5 — save all outputs
             with _stage(index, total, input_path.name, "save", timings):
@@ -344,7 +449,7 @@ def main() -> int:
             failed += 1
 
         finally:
-            # Always clean up the temp upscaled file, even on failure.
+            # Always clean up the temp upscaled file, even on failure or cancellation.
             if temp_path.exists():
                 temp_path.unlink()
 
@@ -354,8 +459,11 @@ def main() -> int:
         "succeeded": succeeded,
         "failed": failed,
         "total_duration_ms": total_ms,
+        "cancelled": cancelled,
     })
 
+    if cancelled:
+        return EXIT_CANCELLED
     if succeeded == 0:
         return 1
     if failed > 0:
