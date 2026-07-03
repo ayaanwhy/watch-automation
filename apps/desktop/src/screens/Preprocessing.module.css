@@ -59,3 +59,28 @@
   opacity: 0.35;
   cursor: not-allowed;
 }
+
+.selectField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.selectLabel {
+  font-size: 12px;
+  font-weight: 500;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.select {
+  height: 40px;
+  padding: 0 10px;
+  font-size: 13px;
+  color: #1a1a1a;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  cursor: pointer;
+}

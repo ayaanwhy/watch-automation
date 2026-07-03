@@ -8,7 +8,6 @@ from PIL import Image, ImageChops, ImageDraw, ImageFilter
 CONFIG = {
     "export_masks": True,
     "export_parts": True,
-    "save_preview": True,
     # Edit this list to choose what gets removed from the watch image.
     # Use mask_index for precise selection, or region for a normalized box.
     # Example:
@@ -40,10 +39,6 @@ def _prepare_watch_context(image, masks: list[dict[str, Any]]) -> dict[str, Any]
     }
 
 
-def _load_mask(mask_path: str) -> Image.Image:
-    return Image.open(mask_path).convert("L")
-
-
 def _expand_mask(mask: Image.Image, px: int) -> Image.Image:
     if px <= 0:
         return mask
@@ -67,7 +62,7 @@ def _select_target_masks(image: Image.Image, masks: list[dict[str, Any]]) -> lis
     if not masks:
         return selected
 
-    mask_by_index = {mask["index"]: _load_mask(mask["path"]) for mask in masks if mask.get("path")}
+    mask_by_index = {mask["index"]: mask["mask"] for mask in masks if mask.get("mask") is not None}
     sorted_masks = sorted(masks, key=lambda item: item.get("area", 0))
 
     for target in CONFIG.get("remove_targets", []):
@@ -78,9 +73,9 @@ def _select_target_masks(image: Image.Image, masks: list[dict[str, Any]]) -> lis
         elif "region" in target and isinstance(target["region"], list) and len(target["region"]) == 4:
             selected.append(_mask_from_region(image.size, target["region"]))
         elif target.get("pick") == "smallest" and sorted_masks:
-            selected.append(_load_mask(sorted_masks[0]["path"]))
+            selected.append(sorted_masks[0]["mask"])
         elif target.get("pick") == "largest" and sorted_masks:
-            selected.append(_load_mask(sorted_masks[-1]["path"]))
+            selected.append(sorted_masks[-1]["mask"])
 
     return selected
 

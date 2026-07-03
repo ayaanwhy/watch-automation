@@ -2,7 +2,6 @@ from pathlib import Path
 
 from config import EDGE, MASK, PIPELINE, UPSCALE
 from services.plugin_loader import process_with_plugin
-from services.preview import save_preview
 from services.sam_segmenter import segment_image
 from stage0.background_remover import BackgroundRemover
 from services.upscaler import upscale_image
@@ -36,12 +35,6 @@ def main():
         temp_dir = base / temp_dir
     output_dir.mkdir(parents=True, exist_ok=True)
     temp_dir.mkdir(parents=True, exist_ok=True)
-    png_dir = output_dir / "png"
-    masks_dir = output_dir / "masks"
-    preview_dir = output_dir / "preview"
-    png_dir.mkdir(parents=True, exist_ok=True)
-    masks_dir.mkdir(parents=True, exist_ok=True)
-    preview_dir.mkdir(parents=True, exist_ok=True)
 
     images = sorted(
         p for p in input_dir.iterdir()
@@ -75,15 +68,12 @@ def main():
                 artifact_name=input_path.stem,
             )
             print("Background removal complete.")
-            masks = segment_image(rgba, artifact_name=input_path.stem, output_dir=masks_dir)
+            masks = segment_image(rgba)
             plugin_result = process_with_plugin(rgba, masks, object_type=PIPELINE.object_type)
             print(f"Plugin complete: {plugin_result.get('plugin', PIPELINE.object_type)}")
             final_rgba = plugin_result.get("processed_image", rgba)
-            preview_path = preview_dir / f"{input_path.stem}_preview.png"
-            save_preview(input_path, final_rgba, masks, preview_path)
             print("Saving output...")
             final_rgba.save(output_path, dpi=(PIPELINE.output_ppi, PIPELINE.output_ppi))
-            final_rgba.save(png_dir / f"{input_path.stem}{PIPELINE.output_suffix}", dpi=(PIPELINE.output_ppi, PIPELINE.output_ppi))
             print("Done.")
             print(output_path)
         finally:

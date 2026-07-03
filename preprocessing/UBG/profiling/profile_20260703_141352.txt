@@ -1,0 +1,102 @@
+[PROFILE] Preprocessing run
+  started      : 2026-07-03T14:13:52.003485
+  input_dir    : /Volumes/PortableSSD 1/misc/sandbox testing/UBG_test2
+  output_dir   : /Volumes/PortableSSD 1/misc/sandbox testing/UBG_edited/12
+  images       : 3
+  scale_factor : 2
+  object_type  : watch
+  background   : Alpha
+  edge_mode    : sharpen
+
+
+[PROFILE] BiRefNet init
+  model_root : /Users/apple/PycharmProjects/watchAutomation/preprocessing/UBG/stage0/BiRefNet
+  device     : mps
+  input_res  : 1024×1024 (fixed resize in background_remover._preprocess)
+  load_ms    : 2,826
+  rss_before : 360.2 MB
+  rss_after  : 1144.8 MB
+  rss_delta  : +784.5 MB
+
+[PROFILE] Real-ESRGAN diagnostics
+  version_torch      : 2.12.1
+  version_realesrgan : 0.3.0
+  scale_factor       : 2
+  model_path         : /Users/apple/PycharmProjects/watchAutomation/preprocessing/UBG/models/RealESRGAN_x2plus.pth
+  device_selected    : cpu
+  cuda_available     : False
+  mps_available      : True
+  unexpected_cpu     : True ← MPS is present but upscaler runs on CPU
+  fp16_enabled       : False
+  model_param_device : cpu
+  model_param_dtype  : torch.float32
+  tile_size          : 512
+  cache_hit          : False
+  input_shape        : (1000, 1000, 3) (H×W×C numpy BGR)
+  output_type        : ndarray (always CPU memory)
+  output_shape       : (2000, 2000, 3)
+  t_model_path_ms    : 1
+  t_image_decode_ms  : 43
+  t_cache_lookup_ms  : 392 (cache miss — model loaded from disk)
+  t_enhance_ms       : 55284 (bundles: tensor prep + tiled forward passes + output conversion)
+  t_encode_ms        : 1113
+
+[PROFILE] SAM 2 init (first image includes model load)
+  checkpoint        : models/sam2/sam2.1_hiera_tiny.pt
+  device            : mps
+  points_per_side   : 16
+  points_per_batch  : 64
+  grid_points_total : 256
+  forward_passes    : 4 per image
+  max_masks         : 8
+  multimask_output  : True
+  max_image_size    : 1024
+  effective_res     : 1024×1024 (this image: 1688KM10.jpg)
+  first_sam_ms      : 5,659 (includes model load)
+  rss_before        : 633.4 MB
+  rss_after         : 229.1 MB
+  rss_delta         : +-404.2 MB
+
+[PROFILE] Batch summary
+  images_profiled : 3
+
+  stage          avg_ms   med_ms   min_ms   max_ms
+  ------------ -------- -------- -------- --------
+  upscale         57780    56840    55021    61478
+  birefnet         4049     4580     2297     5270
+  sam              7803     6250     5658    11502
+  plugin             15       15        9       21
+  save              181      183      172      188
+
+  avg_total_ms  : 69833
+  med_total_ms  : 71319
+  slowest_image : 1688KM11.jpg (73,201 ms)
+  fastest_image : 1688KM10.jpg (64,980 ms)
+
+  peak_rss_mb   : 1144.8
+  mps_current_mb: 1030.3
+  mps_driver_mb : 13212.4
+
+  stage          avg_rss_delta_mb
+  ------------ ------------------
+  upscale                   -43.6
+  birefnet                   -7.9
+  sam                      -278.3
+  plugin                    +28.5
+  save                      -12.2
+
+  total_batch_ms: 209,513 (209.5 s)
+
+[PROFILE] Per-image timings (ms)
+  image                            total  upscale  birefnet      sam  plugin   save
+  ------------------------------ ------- -------- --------- -------- ------- ------
+  1688KM10.jpg                     64980    56840      2297     5658       9    172
+  1688KM11.jpg                     73201    61478      5270     6250      15    183
+  1688KM12.jpg                     71319    55021      4580    11502      21    188
+
+[PROFILE] Per-image RSS (MB)
+  image                          before_bref after_bref  after_sam after_save
+  ------------------------------ ----------- ---------- ---------- ----------
+  1688KM10.jpg                         687.7      633.4      229.1      264.2
+  1688KM11.jpg                         287.0      231.0      153.6      134.6
+  1688KM12.jpg                         439.5      526.2      173.2      207.0

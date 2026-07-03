@@ -19,6 +19,8 @@ import type {
   PreprocessEventPayload,
   PreprocessDonePayload,
   PreprocessResolveResult,
+  SamTuningPrefs,
+  UpscaleFactor,
 } from './ipc'
 
 declare global {
@@ -32,6 +34,10 @@ declare global {
       invoke(channel: 'session:load', payload: SessionLoadPayload): Promise<SessionLoadResult>
       invoke(channel: 'prefs:load-last-batch'): Promise<LastBatchPrefs>
       invoke(channel: 'prefs:save-last-batch', payload: LastBatchPrefs): Promise<void>
+      invoke(channel: 'prefs:load-sam-tuning'): Promise<SamTuningPrefs | null>
+      invoke(channel: 'prefs:save-sam-tuning', payload: SamTuningPrefs): Promise<void>
+      invoke(channel: 'prefs:load-upscale-factor'): Promise<UpscaleFactor | null>
+      invoke(channel: 'prefs:save-upscale-factor', payload: UpscaleFactor): Promise<void>
       invoke(channel: 'process:watch', payload: ProcessWatchPayload): Promise<ProcessWatchResult>
       invoke(channel: 'queue:add', payload: QueueAddPayload): Promise<{ id: string }>
       invoke(channel: 'queue:retry', payload: { id: string }): Promise<{ ok: boolean }>

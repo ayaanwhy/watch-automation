@@ -4,7 +4,11 @@ import { PythonInterpreterStatus } from '../components/PythonInterpreterStatus'
 import { PreprocessingProgress } from '../components/PreprocessingProgress'
 import { PreprocessingSummary } from '../components/PreprocessingSummary'
 import { usePythonInterpreter } from '../hooks/usePythonInterpreter'
+import { useSamTuning } from '../hooks/useSamTuning'
+import { useUpscaleFactor } from '../hooks/useUpscaleFactor'
+import type { UpscaleFactor } from '../types/ipc'
 import { usePreprocessingJob } from '../context/PreprocessingJobContext'
+import { SamTuningPanel } from '../components/SamTuningPanel'
 import styles from './Preprocessing.module.css'
 
 export default function Preprocessing() {
@@ -12,6 +16,8 @@ export default function Preprocessing() {
   const [outputDir, setOutputDir] = useState('')
 
   const python = usePythonInterpreter()
+  const sam = useSamTuning()
+  const upscale = useUpscaleFactor()
   const job = usePreprocessingJob()
 
   async function pickInputDir() {
@@ -32,7 +38,14 @@ export default function Preprocessing() {
     await job.start({
       inputDir,
       outputDir,
+      scaleFactor: upscale.scaleFactor,
       ...(overridePath !== '' ? { pythonPath: overridePath } : {}),
+      samPointsPerSide: sam.prefs.pointsPerSide,
+      samPointsPerBatch: sam.prefs.pointsPerBatch,
+      samPredIouThresh: sam.prefs.predIouThresh,
+      samStabilityScoreThresh: sam.prefs.stabilityScoreThresh,
+      samMaxMasks: sam.prefs.maxMasks,
+      samMultimaskOutput: sam.prefs.multimaskOutput,
     })
   }
 
@@ -56,12 +69,25 @@ export default function Preprocessing() {
                 placeholder="Select folder for processed output"
                 onPick={pickOutputDir}
               />
+              <div className={styles.selectField}>
+                <label className={styles.selectLabel}>Upscale Factor</label>
+                <select
+                  className={styles.select}
+                  value={upscale.scaleFactor}
+                  onChange={e => upscale.set(Number(e.target.value) as UpscaleFactor)}
+                >
+                  <option value={1}>1× (None)</option>
+                  <option value={2}>2×</option>
+                  <option value={4}>4×</option>
+                </select>
+              </div>
               <PythonInterpreterStatus
                 resolvedPath={python.resolvedPath}
                 resolving={python.resolving}
                 override={python.override}
                 onOverrideChange={python.setOverride}
               />
+              <SamTuningPanel prefs={sam.prefs} onUpdate={sam.update} />
             </div>
 
             {job.startError && <div className={styles.errorBanner}>{job.startError}</div>}

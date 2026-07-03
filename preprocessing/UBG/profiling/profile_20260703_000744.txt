@@ -1,0 +1,19 @@
+[PROFILE] Preprocessing run
+  started      : 2026-07-03T00:07:44.562911
+  input_dir    : /Volumes/PortableSSD 1/misc/sandbox testing/UBG_test
+  output_dir   : /Volumes/PortableSSD 1/misc/sandbox testing/UBG_edited/11
+  images       : 12
+  scale_factor : 2
+  object_type  : watch
+  background   : Alpha
+  edge_mode    : sharpen
+
+
+[PROFILE] BiRefNet init
+  model_root : /Users/apple/PycharmProjects/watchAutomation/preprocessing/UBG/stage0/BiRefNet
+  device     : mps
+  input_res  : 1024×1024 (fixed resize in background_remover._preprocess)
+  load_ms    : 1,852
+  rss_before : 367.6 MB
+  rss_after  : 1183.5 MB
+  rss_delta  : +816.0 MB

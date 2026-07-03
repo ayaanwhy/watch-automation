@@ -1,0 +1,142 @@
+[PROFILE] Preprocessing run
+  started      : 2026-07-03T16:55:25.388645
+  input_dir    : /Volumes/PortableSSD 1/misc/sandbox testing/UBG_test2
+  output_dir   : /Volumes/PortableSSD 1/misc/sandbox testing/UBG_edited/16
+  images       : 3
+  scale_factor : 4
+  object_type  : watch
+  background   : Alpha
+  edge_mode    : sharpen
+
+
+[PROFILE] BiRefNet init
+  model_root : /Users/apple/PycharmProjects/watchAutomation/preprocessing/UBG/stage0/BiRefNet
+  device     : mps
+  input_res  : 1024×1024 (fixed resize in background_remover._preprocess)
+  load_ms    : 2,692
+  rss_before : 365.0 MB
+  rss_after  : 849.5 MB
+  rss_delta  : +484.5 MB
+
+[PROFILE] Real-ESRGAN diagnostics
+  version_torch      : 2.12.1
+  version_realesrgan : 0.3.0
+  scale_factor       : 4
+  model_path         : /Users/apple/PycharmProjects/watchAutomation/preprocessing/UBG/models/RealESRGAN_x4plus.pth
+  device_selected    : mps
+  cuda_available     : False
+  mps_available      : True
+  unexpected_cpu     : False 
+  fp16_enabled       : False
+  model_param_device : mps:0
+  model_param_dtype  : torch.float32
+  tile_size          : 512
+  cache_hit          : False
+  input_shape        : (1000, 1000, 3) (H×W×C numpy BGR)
+  output_type        : ndarray (always CPU memory)
+  output_shape       : (4000, 4000, 3)
+  t_model_path_ms    : 0
+  t_image_decode_ms  : 18
+  t_cache_lookup_ms  : 526 (cache miss — model loaded from disk)
+  t_enhance_ms       : 15943 (bundles: tensor prep + tiled forward passes + output conversion)
+  t_encode_ms        : 600
+
+[PROFILE] SAM 2 init (first image includes model load)
+  checkpoint        : models/sam2/sam2.1_hiera_tiny.pt
+  device            : mps
+  points_per_side   : 16
+  points_per_batch  : 64
+  grid_points_total : 256
+  forward_passes    : 4 per image
+  max_masks         : 8
+  multimask_output  : True
+  max_image_size    : 1024
+  effective_res     : 1024×1024 (this image: 1688KM10.jpg)
+  first_sam_ms      : 6,374 (includes model load)
+  rss_before        : 475.5 MB
+  rss_after         : 275.7 MB
+  rss_delta         : +-199.8 MB
+
+[PROFILE] Batch summary
+  images_profiled : 3
+
+  stage          avg_ms   med_ms   min_ms   max_ms
+  ------------ -------- -------- -------- --------
+  upscale         19009    18346    17092    21588
+  birefnet         5295     6145     3586     6154
+  sam             25228    32326     6373    36984
+  plugin            109      127       36      163
+  save              688      669      665      731
+
+  avg_total_ms  : 50341
+  med_total_ms  : 57621
+  slowest_image : 1688KM12.jpg (65,580 ms)
+  fastest_image : 1688KM10.jpg (27,822 ms)
+
+  peak_rss_mb   : 849.5
+  mps_current_mb: 1365.9
+  mps_driver_mb : 13580.6
+
+  stage          avg_rss_delta_mb
+  ------------ ------------------
+  upscale                  -211.2
+  birefnet                 +165.2
+  sam                      -133.3
+  plugin                   +112.1
+  save                      -86.5
+
+  SAM sub-stage      avg_ms   min_ms   max_ms
+  ---------------- -------- -------- --------
+  prepare_ms             91       86       96
+  generate_ms         24991     6201    36643
+  mask_resize_ms        129       76      215
+  postprocess_ms          1        0        2
+  avg_masks_raw  : 13.7
+  avg_masks_kept : 8.0
+  orig_rgba_size : 4000×4000
+  sam_input_size : 1024×1024
+
+  generate() internals (avg across 3 image(s))
+  sub-stage            avg_ms   min_ms   max_ms
+  ------------------ -------- -------- --------
+  set_image              1175      438     1616
+  batch_inference       23090     4316    34790
+  nms                      56       41       68
+  encode                   12        5       17
+  generate_total        24577     4970    36635
+
+  candidate flow            avg   (raw → post-filter → pre-NMS → post-NMS → encoded → returned)
+                            768 →    290 →    290 →     14 →     14 →     14
+  avg_batches        : 4.0
+  avg_nms_calls      : 1.0
+  postprocess_small_regions : not called (min_mask_region_area handled inside SAM2ImagePredictor)
+
+  total_batch_ms: 151,036 (151.0 s)
+
+[PROFILE] Per-image timings (ms)
+  image                            total  upscale  birefnet      sam  plugin   save
+  ------------------------------ ------- -------- --------- -------- ------- ------
+  1688KM10.jpg                     27822    17092      3586     6373      36    731
+  1688KM11.jpg                     57621    18346      6145    32326     127    665
+  1688KM12.jpg                     65580    21588      6154    36984     163    669
+
+[PROFILE] Per-image RSS (MB)
+  image                          before_bref after_bref  after_sam after_save
+  ------------------------------ ----------- ---------- ---------- ----------
+  1688KM10.jpg                         324.3      475.4      275.7      243.6
+  1688KM11.jpg                         187.6      359.1      247.7      232.0
+  1688KM12.jpg                         181.1      354.0      265.3      391.1
+
+[PROFILE] SAM sub-stage timings (ms)
+  image                           prepare  generate  msk_rsz  post   raw  kept     orig_res    sam_res
+  ------------------------------ -------- --------- -------- ----- ----- ----- ------------ ----------
+  1688KM10.jpg                         92      6201       76     0    13     8    4000×4000  1024×1024
+  1688KM11.jpg                         86     32130       96     1    12     8    4000×4000  1024×1024
+  1688KM12.jpg                         96     36643      215     2    16     8    4000×4000  1024×1024
+
+[PROFILE] SAM generate() internals (ms / counts per image)
+  image                           gen_ms  set_img  batch_ms  nms_ms  enc_ms   raw  post_filt  pre_nms  post_nms  encoded  returned
+  ------------------------------ ------- -------- --------- ------- ------- ----- ---------- -------- --------- -------- ---------
+  1688KM10.jpg                      4970      438      4316      41       5   768        273      273        13       13        13
+  1688KM11.jpg                     32126     1616     30163      68      17   768        286      286        12       12        12
+  1688KM12.jpg                     36635     1470     34790      58      13   768        311      311        16       16        16

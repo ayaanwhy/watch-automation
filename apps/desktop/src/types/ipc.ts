@@ -118,6 +118,8 @@ export interface QueueRestorePayload {
 
 // ── Preprocessing ──────────────────────────────────────────────────────────────
 
+export type UpscaleFactor = 1 | 2 | 4
+
 export interface PreprocessStartPayload {
   inputDir: string
   outputDir: string
@@ -136,6 +138,14 @@ export interface PreprocessStartPayload {
   maskBlur?: number
   maskOffset?: number
   birefnetModelRoot?: string
+  // SAM tuning — renderer-controlled overrides forwarded to electron_runner.py via CLI.
+  // When absent, config.py SAM defaults apply unchanged.
+  samPointsPerSide?: number
+  samPointsPerBatch?: number
+  samPredIouThresh?: number
+  samStabilityScoreThresh?: number
+  samMaxMasks?: number
+  samMultimaskOutput?: boolean
   samCheckpoint?: string
 }
 
@@ -176,4 +186,14 @@ export interface PreprocessDonePayload {
 
 export interface PreprocessResolveResult {
   pythonPath: string | null
+}
+
+// Persisted SAM tuning settings. Defaults match the current config.py SAM values.
+export interface SamTuningPrefs {
+  pointsPerSide: number
+  pointsPerBatch: number
+  predIouThresh: number
+  stabilityScoreThresh: number
+  maxMasks: number
+  multimaskOutput: boolean
 }

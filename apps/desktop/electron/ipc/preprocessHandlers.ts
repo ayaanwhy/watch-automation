@@ -71,6 +71,12 @@ function buildArgs(runnerPath: string, payload: PreprocessStartPayload): string[
   if (payload.maskOffset !== undefined)       args.push('--mask-offset',       String(payload.maskOffset))
   if (payload.birefnetModelRoot !== undefined) args.push('--birefnet-model-root', payload.birefnetModelRoot)
   if (payload.samCheckpoint !== undefined)    args.push('--sam-checkpoint',    payload.samCheckpoint)
+  if (payload.samPointsPerSide !== undefined)       args.push('--sam-points-per-side',       String(payload.samPointsPerSide))
+  if (payload.samPointsPerBatch !== undefined)      args.push('--sam-points-per-batch',      String(payload.samPointsPerBatch))
+  if (payload.samPredIouThresh !== undefined)       args.push('--sam-pred-iou-thresh',       String(payload.samPredIouThresh))
+  if (payload.samStabilityScoreThresh !== undefined) args.push('--sam-stability-score-thresh', String(payload.samStabilityScoreThresh))
+  if (payload.samMaxMasks !== undefined)            args.push('--sam-max-masks',             String(payload.samMaxMasks))
+  if (payload.samMultimaskOutput !== undefined)     args.push('--sam-multimask-output',      payload.samMultimaskOutput ? '1' : '0')
   return args
 }
 

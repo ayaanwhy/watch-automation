@@ -1,0 +1,97 @@
+[PROFILE] Preprocessing run
+  started      : 2026-07-02T22:40:45.502770
+  input_dir    : /Volumes/PortableSSD 1/misc/sandbox testing/UBG_test
+  output_dir   : /Volumes/PortableSSD 1/misc/sandbox testing/UBG_edited/9
+  images       : 12
+  scale_factor : 1
+  object_type  : watch
+  background   : Alpha
+  edge_mode    : sharpen
+
+
+[PROFILE] BiRefNet init
+  model_root : /Users/apple/PycharmProjects/watchAutomation/preprocessing/UBG/stage0/BiRefNet
+  device     : mps
+  input_res  : 1024×1024 (fixed resize in background_remover._preprocess)
+  load_ms    : 2,954
+  rss_before : 361.3 MB
+  rss_after  : 905.8 MB
+  rss_delta  : +544.5 MB
+
+[PROFILE] SAM 2 init (first image includes model load)
+  checkpoint        : models/sam2/sam2.1_hiera_tiny.pt
+  device            : mps
+  points_per_side   : 32
+  points_per_batch  : 16
+  grid_points_total : 1024
+  forward_passes    : 64 per image
+  max_masks         : 32
+  multimask_output  : True
+  max_image_size    : 1024
+  effective_res     : 1000×1000 (this image: 1688KM10.jpg)
+  first_sam_ms      : 20,915 (includes model load)
+  rss_before        : 264.6 MB
+  rss_after         : 244.0 MB
+  rss_delta         : +-20.5 MB
+
+[PROFILE] Batch summary
+  images_profiled : 12
+
+  stage          avg_ms   med_ms   min_ms   max_ms
+  ------------ -------- -------- -------- --------
+  upscale            51       40       36      136
+  birefnet         1997     1697     1667     4112
+  sam             20188    14790    13866    63013
+  plugin             28        2        1      248
+  save               89       48       43      332
+
+  avg_total_ms  : 22360
+  med_total_ms  : 16703
+  slowest_image : 1688KM11.jpg (67,602 ms)
+  fastest_image : 2784WM02.jpg (15,654 ms)
+
+  peak_rss_mb   : 908.0
+  mps_current_mb: 1030.3
+  mps_driver_mb : 16132.5
+
+  stage          avg_rss_delta_mb
+  ------------ ------------------
+  upscale                    -0.8
+  birefnet                   -6.0
+  sam                       -26.6
+  plugin                     +7.2
+  save                       +0.4
+
+  total_batch_ms: 268,368 (268.4 s)
+
+[PROFILE] Per-image timings (ms)
+  image                            total  upscale  birefnet      sam  plugin   save
+  ------------------------------ ------- -------- --------- -------- ------- ------
+  1688KM10.jpg                     23657       78      2076    20894     248    332
+  1688KM11.jpg                     67602      136      4112    63013      61    260
+  1688KM12.jpg                     29875       41      2481    27289       6     51
+  1829KM08.jpg                     16723       41      1845    14790       1     43
+  1829KM09.jpg                     16703       36      1667    14947       2     46
+  1829WM01.jpg                     15798       39      1668    14038       2     44
+  2734QM03.jpg                     16198       39      1676    14430       2     47
+  2734QM05.jpg                     16284       44      1674    14515       2     44
+  2734QM07.jpg                     17676       37      1669    15910       2     56
+  2784WL02.jpg                     16123       38      1706    14324       2     48
+  2784WM02.jpg                     15654       40      1697    13866       1     47
+  3344KM01.jpg                     16033       40      1693    14241       2     55
+
+[PROFILE] Per-image RSS (MB)
+  image                          before_bref after_bref  after_sam after_save
+  ------------------------------ ----------- ---------- ---------- ----------
+  1688KM10.jpg                         908.0      264.5      244.0      257.3
+  1688KM11.jpg                         259.6      145.3      273.7      284.8
+  1688KM12.jpg                         288.3      327.3      393.0      404.6
+  1829KM08.jpg                         410.3      422.3      414.1      421.3
+  1829KM09.jpg                         425.0      541.8      550.7      552.4
+  1829WM01.jpg                         544.3      575.5      491.2      497.5
+  2734QM03.jpg                         501.9      579.6      463.8      466.5
+  2734QM05.jpg                         449.8      584.8      532.5      541.6
+  2734QM07.jpg                         535.1      580.8      428.2      439.3
+  2784WL02.jpg                         441.0      550.8      553.8      557.8
+  2784WM02.jpg                         559.2      628.9      610.3      617.0
+  3344KM01.jpg                         617.2      665.6      593.0      598.2
