@@ -5,6 +5,7 @@ interface PythonInterpreterStatusProps {
   resolving: boolean
   override: string
   onOverrideChange: (value: string) => void
+  disabled?: boolean
 }
 
 export function PythonInterpreterStatus({
@@ -12,6 +13,7 @@ export function PythonInterpreterStatus({
   resolving,
   override,
   onOverrideChange,
+  disabled = false,
 }: PythonInterpreterStatusProps) {
   const usingOverride = override.trim() !== ''
 
@@ -42,6 +44,7 @@ export function PythonInterpreterStatus({
         onChange={(e) => onOverrideChange(e.target.value)}
         placeholder="Override interpreter path (optional)"
         spellCheck={false}
+        disabled={disabled}
       />
     </div>
   )

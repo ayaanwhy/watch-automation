@@ -21,6 +21,8 @@ import type {
   PreprocessResolveResult,
   SamTuningPrefs,
   UpscaleFactor,
+  ProductType,
+  PreprocessingFolderPrefs,
 } from './ipc'
 
 declare global {
@@ -38,6 +40,10 @@ declare global {
       invoke(channel: 'prefs:save-sam-tuning', payload: SamTuningPrefs): Promise<void>
       invoke(channel: 'prefs:load-upscale-factor'): Promise<UpscaleFactor | null>
       invoke(channel: 'prefs:save-upscale-factor', payload: UpscaleFactor): Promise<void>
+      invoke(channel: 'prefs:load-product-type'): Promise<ProductType | null>
+      invoke(channel: 'prefs:save-product-type', payload: ProductType): Promise<void>
+      invoke(channel: 'prefs:load-preprocessing-folders'): Promise<PreprocessingFolderPrefs>
+      invoke(channel: 'prefs:save-preprocessing-folders', payload: PreprocessingFolderPrefs): Promise<void>
       invoke(channel: 'process:watch', payload: ProcessWatchPayload): Promise<ProcessWatchResult>
       invoke(channel: 'queue:add', payload: QueueAddPayload): Promise<{ id: string }>
       invoke(channel: 'queue:retry', payload: { id: string }): Promise<{ ok: boolean }>

@@ -4,14 +4,15 @@ import styles from './SamTuningPanel.module.css'
 interface SamTuningPanelProps {
   prefs: SamTuningPrefs
   onUpdate: <K extends keyof SamTuningPrefs>(key: K, value: SamTuningPrefs[K]) => void
+  disabled?: boolean
 }
 
-export function SamTuningPanel({ prefs, onUpdate }: SamTuningPanelProps) {
+export function SamTuningPanel({ prefs, onUpdate, disabled = false }: SamTuningPanelProps) {
   return (
     <details className={styles.details}>
       <summary className={styles.summary}>SAM Tuning</summary>
 
-      <div className={styles.grid}>
+      <div className={styles.grid} style={disabled ? { opacity: 0.38, pointerEvents: 'none' } : undefined}>
         <label className={styles.label}>Points per Side</label>
         <input
           className={styles.input}

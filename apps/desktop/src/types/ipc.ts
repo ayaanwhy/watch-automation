@@ -120,6 +120,13 @@ export interface QueueRestorePayload {
 
 export type UpscaleFactor = 1 | 2 | 4
 
+export type ProductType = 'watch' | 'bracelet' | 'ring' | 'generic'
+
+export interface PreprocessingFolderPrefs {
+  inputDir: string | null
+  outputDir: string | null
+}
+
 export interface PreprocessStartPayload {
   inputDir: string
   outputDir: string

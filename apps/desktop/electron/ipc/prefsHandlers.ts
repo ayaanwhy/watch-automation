@@ -1,7 +1,7 @@
 import { ipcMain, app } from 'electron'
 import { readFile, writeFile, access } from 'node:fs/promises'
 import { join } from 'node:path'
-import type { LastBatchPrefs, SamTuningPrefs, UpscaleFactor } from '../../src/types/ipc'
+import type { LastBatchPrefs, SamTuningPrefs, UpscaleFactor, ProductType, PreprocessingFolderPrefs } from '../../src/types/ipc'
 
 const PREFS_FILENAME = 'last-batch.json'
 const SAM_TUNING_PREFS_FILENAME = 'sam-tuning.json'
@@ -77,6 +77,50 @@ export function registerPrefsHandlers(): void {
   ipcMain.handle('prefs:save-upscale-factor', async (_event, payload: UpscaleFactor): Promise<void> => {
     try {
       await writeFile(join(app.getPath('userData'), 'upscale-factor.json'), JSON.stringify(payload), 'utf-8')
+    } catch { /* non-critical */ }
+  })
+
+  // ── Product type pref ───────────────────────────────────────────────────────
+  ipcMain.handle('prefs:load-product-type', async (): Promise<ProductType | null> => {
+    try {
+      const raw = await readFile(join(app.getPath('userData'), 'product-type.json'), 'utf-8')
+      const v = JSON.parse(raw)
+      if (v === 'watch' || v === 'bracelet' || v === 'ring' || v === 'generic') return v as ProductType
+      return null
+    } catch {
+      return null
+    }
+  })
+
+  ipcMain.handle('prefs:save-product-type', async (_event, payload: ProductType): Promise<void> => {
+    try {
+      await writeFile(join(app.getPath('userData'), 'product-type.json'), JSON.stringify(payload), 'utf-8')
+    } catch { /* non-critical */ }
+  })
+
+  // ── Preprocessing folder prefs ──────────────────────────────────────────────
+  // Validates that saved paths still exist before restoring them, matching the
+  // same pattern used by prefs:load-last-batch for Watch Processing folders.
+  ipcMain.handle('prefs:load-preprocessing-folders', async (): Promise<PreprocessingFolderPrefs> => {
+    try {
+      const raw = await readFile(join(app.getPath('userData'), 'preprocessing-folders.json'), 'utf-8')
+      const stored = JSON.parse(raw) as Partial<PreprocessingFolderPrefs>
+      const [inOk, outOk] = await Promise.all([
+        stored.inputDir  ? exists(stored.inputDir)  : Promise.resolve(false),
+        stored.outputDir ? exists(stored.outputDir) : Promise.resolve(false),
+      ])
+      return {
+        inputDir:  inOk  ? stored.inputDir!  : null,
+        outputDir: outOk ? stored.outputDir! : null,
+      }
+    } catch {
+      return { inputDir: null, outputDir: null }
+    }
+  })
+
+  ipcMain.handle('prefs:save-preprocessing-folders', async (_event, payload: PreprocessingFolderPrefs): Promise<void> => {
+    try {
+      await writeFile(join(app.getPath('userData'), 'preprocessing-folders.json'), JSON.stringify(payload, null, 2), 'utf-8')
     } catch { /* non-critical */ }
   })
 }
