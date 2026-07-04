@@ -1,10 +1,12 @@
-import type { PreprocessDonePayload } from '../types/ipc'
+import { useEffect, useState } from 'react'
+import type { PreprocessDonePayload, PrepareProgressPayload } from '../types/ipc'
 import styles from './PreprocessingSummary.module.css'
 
 interface PreprocessingSummaryProps {
   donePayload: PreprocessDonePayload | null
   fatalError: string | null
   onReset: () => void
+  onContinueToWatchProcessing?: () => Promise<{ ok: boolean; error?: string }>
 }
 
 function formatDuration(ms: number): string {
@@ -14,11 +16,40 @@ function formatDuration(ms: number): string {
   return `${minutes}m ${seconds}s`
 }
 
-export function PreprocessingSummary({ donePayload, fatalError, onReset }: PreprocessingSummaryProps) {
+export function PreprocessingSummary({ donePayload, fatalError, onReset, onContinueToWatchProcessing }: PreprocessingSummaryProps) {
+  const [preparing, setPreparing] = useState(false)
+  const [prepareProgress, setPrepareProgress] = useState<PrepareProgressPayload | null>(null)
+  const [prepareError, setPrepareError] = useState<string | null>(null)
+
+  // Only subscribed while a prepare step is actually in flight — this is a
+  // single-shot operation triggered by one button click, so there is no
+  // jobId to key events on (unlike the preprocess:event stream).
+  useEffect(() => {
+    if (!preparing) return
+    const off = window.api.on('preprocess:prepare-progress', (payload: PrepareProgressPayload) => {
+      setPrepareProgress(payload)
+    })
+    return off
+  }, [preparing])
+
   if (!donePayload) return null
 
   const hasIssue = donePayload.spawnError !== undefined || fatalError !== null || donePayload.failed > 0
   const variant = hasIssue || donePayload.cancelledByUser ? styles.summaryWarn : styles.summaryOk
+
+  async function handleContinueClick() {
+    if (!onContinueToWatchProcessing) return
+    setPreparing(true)
+    setPrepareProgress(null)
+    setPrepareError(null)
+    const result = await onContinueToWatchProcessing()
+    if (!result.ok) {
+      setPreparing(false)
+      setPrepareError(result.error ?? 'Failed to prepare images for Watch Processing.')
+    }
+    // On success the parent navigates away and this component unmounts —
+    // no need to reset `preparing` here.
+  }
 
   return (
     <div className={`${styles.summary} ${variant}`}>
@@ -40,9 +71,22 @@ export function PreprocessingSummary({ donePayload, fatalError, onReset }: Prepr
         <StatRow label="Runtime" value={formatDuration(donePayload.totalDurationMs)} />
       </div>
 
-      <button className={styles.resetButton} onClick={onReset}>
-        Run another batch
-      </button>
+      {prepareError && <div className={styles.errorRow}>{prepareError}</div>}
+
+      <div className={styles.actions}>
+        <button className={styles.resetButton} onClick={onReset} disabled={preparing}>
+          Run another batch
+        </button>
+        {onContinueToWatchProcessing && donePayload.succeeded > 0 && !donePayload.spawnError && (
+          <button className={styles.continueButton} onClick={handleContinueClick} disabled={preparing}>
+            {preparing
+              ? prepareProgress
+                ? `Preparing… (${prepareProgress.completed}/${prepareProgress.total})`
+                : 'Preparing…'
+              : 'Continue to Watch Processing →'}
+          </button>
+        )}
+      </div>
     </div>
   )
 }

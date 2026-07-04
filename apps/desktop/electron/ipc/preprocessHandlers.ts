@@ -4,12 +4,15 @@ import { spawn } from 'node:child_process'
 import { join, dirname } from 'node:path'
 import type { ChildProcess } from 'node:child_process'
 import { resolvePreprocessingPython, validatePythonPath } from '../services/pythonResolver'
+import { prepareForWatchProcessing } from '../services/workflowPreparation'
 import { logger } from '../logger'
 import type {
   PreprocessStartPayload,
   PreprocessStartResult,
   PreprocessDonePayload,
   PreprocessResolveResult,
+  PrepareForWatchProcessingPayload,
+  PrepareForWatchProcessingResult,
 } from '../../src/types/ipc'
 
 // electron_runner.py exits with this code only when it stopped cooperatively
@@ -313,5 +316,29 @@ export function registerPreprocessHandlers(): void {
   ipcMain.handle('preprocess:resolve-python', async (): Promise<PreprocessResolveResult> => {
     const pythonPath = await resolvePreprocessingPython()
     return { pythonPath }
+  })
+
+  // ── preprocess:prepare-for-watch-processing ─────────────────────────────────
+  // Triggered only by the "Continue to Watch Processing" action, never during
+  // a normal preprocessing run. Fully independent of activeJob/jobStarting —
+  // it only reads the completed output folder and writes a new sibling
+  // folder; it does not touch the Python process or its state.
+  ipcMain.handle('preprocess:prepare-for-watch-processing', async (
+    _event,
+    payload: PrepareForWatchProcessingPayload,
+  ): Promise<PrepareForWatchProcessingResult> => {
+    logger.info(`preprocess:prepare-for-watch-processing — starting for ${payload.sourceDir}`)
+    const result = await prepareForWatchProcessing(payload.sourceDir, (completed, total) => {
+      notifyRenderer('preprocess:prepare-progress', { completed, total })
+    })
+    if (result.ok) {
+      logger.info(
+        `preprocess:prepare-for-watch-processing — done: ${result.imageCount} prepared, ` +
+        `${result.skippedCount} skipped, folder=${result.preparedDir}`
+      )
+    } else {
+      logger.warn(`preprocess:prepare-for-watch-processing — failed: ${result.error}`)
+    }
+    return result
   })
 }

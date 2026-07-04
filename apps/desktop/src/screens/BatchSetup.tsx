@@ -7,9 +7,10 @@ import styles from './BatchSetup.module.css'
 
 interface BatchSetupProps {
   onBeginAnnotation(batch: BatchState, initialSession: SessionFile | null): void
+  handoffFolder?: string | null
 }
 
-export default function BatchSetup({ onBeginAnnotation }: BatchSetupProps) {
+export default function BatchSetup({ onBeginAnnotation, handoffFolder }: BatchSetupProps) {
   const [inputFolder, setInputFolder] = useState('')
   const [spreadsheetPath, setSpreadsheetPath] = useState('')
   const [outputFolder, setOutputFolder] = useState('')
@@ -138,12 +139,19 @@ export default function BatchSetup({ onBeginAnnotation }: BatchSetupProps) {
       <div className={styles.container}>
         <h1 className={styles.title}>New Batch</h1>
 
+        {handoffFolder && inputFolder === handoffFolder && (
+          <p className={styles.handoffMessage}>
+            ✓ Input folder prepared from Preprocessing. Choose a spreadsheet and output folder to continue.
+          </p>
+        )}
+
         <div className={styles.fields}>
           <PathField
             label="Input Folder"
             value={inputFolder}
             placeholder="Select folder containing watch images"
             onPick={pickInputFolder}
+            badge={handoffFolder && inputFolder === handoffFolder ? 'Prepared ✓' : undefined}
           />
           <PathField
             label="Spreadsheet"

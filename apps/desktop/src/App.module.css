@@ -6,21 +6,34 @@
 
 .shellHeader {
   flex-shrink: 0;
-  padding: 12px 24px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 44px;
+  padding: 0 20px;
+  background: #1a1a1a;
 }
 
 .homeLink {
   font-size: 13px;
   font-weight: 500;
-  color: #555;
+  color: rgba(255, 255, 255, 0.8);
   background: none;
   border: none;
   cursor: pointer;
-  padding: 4px 0;
+  padding: 4px 8px;
+  border-radius: 4px;
 }
 
 .homeLink:hover {
-  color: #1a1a1a;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.moduleLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.45);
 }
 
 .shellBody {

@@ -1,9 +1,10 @@
+import { useState } from 'react'
 import { PathField } from '../components/PathField'
 import { PythonInterpreterStatus } from '../components/PythonInterpreterStatus'
 import { PreprocessingProgress } from '../components/PreprocessingProgress'
 import { PreprocessingSummary } from '../components/PreprocessingSummary'
+import { PreprocessingSettings } from '../components/PreprocessingSettings'
 import { SnapSlider } from '../components/SnapSlider'
-import { SamTuningPanel } from '../components/SamTuningPanel'
 import { usePythonInterpreter } from '../hooks/usePythonInterpreter'
 import { useSamTuning } from '../hooks/useSamTuning'
 import { useUpscaleFactor } from '../hooks/useUpscaleFactor'
@@ -26,7 +27,12 @@ const PRODUCT_TYPE_OPTIONS: { value: ProductType; label: string }[] = [
   { value: 'generic',  label: 'Generic' },
 ]
 
-export default function Preprocessing() {
+interface PreprocessingProps {
+  onContinueToWatchProcessing?: (outputDir: string) => Promise<{ ok: boolean; error?: string }>
+}
+
+export default function Preprocessing({ onContinueToWatchProcessing }: PreprocessingProps) {
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const folders = usePreprocessingFolders()
   const python  = usePythonInterpreter()
   const upscale = useUpscaleFactor()
@@ -56,6 +62,16 @@ export default function Preprocessing() {
     isIdle
   )
 
+  // Passes the preprocessing output folder to the parent (App.tsx), which
+  // prepares the hand-off images, saves Watch Processing prefs, and
+  // navigates — only on success. No prefs saved here; no job.reset() — the
+  // completed state remains until the user explicitly clicks "Run another
+  // batch". Returns the result so PreprocessingSummary can show progress/errors.
+  function handleContinueToWatchProcessing() {
+    if (!onContinueToWatchProcessing) return Promise.resolve({ ok: false })
+    return onContinueToWatchProcessing(folders.outputDir)
+  }
+
   async function handleStart() {
     if (!canStart) return
     const overridePath = python.override.trim()
@@ -77,7 +93,25 @@ export default function Preprocessing() {
   return (
     <div className={styles.page}>
       <div className={styles.container}>
-        <h1 className={styles.title}>Preprocessing</h1>
+        <div className={styles.titleRow}>
+          <h1 className={styles.title}>Preprocessing</h1>
+          <button
+            className={styles.settingsButton}
+            onClick={() => setSettingsOpen(true)}
+            aria-label="Open settings"
+            title="Settings"
+          >
+            ⚙
+          </button>
+        </div>
+
+        {settingsOpen && (
+          <PreprocessingSettings
+            sam={sam}
+            disabled={disabled}
+            onClose={() => setSettingsOpen(false)}
+          />
+        )}
 
         {/* Configuration — always visible; controls disabled while a job runs */}
         <div className={styles.fields}>
@@ -122,11 +156,6 @@ export default function Preprocessing() {
             onOverrideChange={python.setOverride}
             disabled={disabled}
           />
-          <SamTuningPanel
-            prefs={sam.prefs}
-            onUpdate={sam.update}
-            disabled={disabled}
-          />
         </div>
 
         {/* Error banner — only relevant when idle */}
@@ -157,6 +186,9 @@ export default function Preprocessing() {
             donePayload={job.donePayload}
             fatalError={job.fatalError}
             onReset={job.reset}
+            onContinueToWatchProcessing={
+              onContinueToWatchProcessing ? handleContinueToWatchProcessing : undefined
+            }
           />
         )}
       </div>

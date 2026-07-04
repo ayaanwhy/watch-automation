@@ -204,3 +204,22 @@ export interface SamTuningPrefs {
   maxMasks: number
   multimaskOutput: boolean
 }
+
+// ── Watch Processing hand-off preparation ───────────────────────────────────
+// Triggered only when the user clicks "Continue to Watch Processing" after a
+// successful preprocessing run. Trims each image to its non-transparent
+// bounding box, rotates it 90° counter-clockwise, and writes the result into
+// a new sibling folder — the original preprocessing output is never modified.
+
+export interface PrepareForWatchProcessingPayload {
+  sourceDir: string
+}
+
+export type PrepareForWatchProcessingResult =
+  | { ok: true; preparedDir: string; imageCount: number; skippedCount: number }
+  | { ok: false; error: string }
+
+export interface PrepareProgressPayload {
+  completed: number
+  total: number
+}

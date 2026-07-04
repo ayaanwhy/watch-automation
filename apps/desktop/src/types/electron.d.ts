@@ -23,6 +23,9 @@ import type {
   UpscaleFactor,
   ProductType,
   PreprocessingFolderPrefs,
+  PrepareForWatchProcessingPayload,
+  PrepareForWatchProcessingResult,
+  PrepareProgressPayload,
 } from './ipc'
 
 declare global {
@@ -57,6 +60,10 @@ declare global {
       invoke(channel: 'preprocess:resolve-python'): Promise<PreprocessResolveResult>
       on(channel: 'preprocess:event', listener: (payload: PreprocessEventPayload) => void): () => void
       on(channel: 'preprocess:done', listener: (payload: PreprocessDonePayload) => void): () => void
+
+      // Watch Processing hand-off preparation
+      invoke(channel: 'preprocess:prepare-for-watch-processing', payload: PrepareForWatchProcessingPayload): Promise<PrepareForWatchProcessingResult>
+      on(channel: 'preprocess:prepare-progress', listener: (payload: PrepareProgressPayload) => void): () => void
     }
   }
 }

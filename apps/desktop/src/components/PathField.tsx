@@ -6,12 +6,16 @@ interface PathFieldProps {
   placeholder: string
   onPick: () => void
   disabled?: boolean
+  badge?: string
 }
 
-export function PathField({ label, value, placeholder, onPick, disabled = false }: PathFieldProps) {
+export function PathField({ label, value, placeholder, onPick, disabled = false, badge }: PathFieldProps) {
   return (
     <div className={styles.field}>
-      <label className={styles.label}>{label}</label>
+      <div className={styles.labelRow}>
+        <label className={styles.label}>{label}</label>
+        {badge && <span className={styles.badge}>{badge}</span>}
+      </div>
       <div className={styles.pathRow}>
         <span className={styles.pathDisplay}>
           {value !== '' ? value : <span className={styles.placeholder}>{placeholder}</span>}

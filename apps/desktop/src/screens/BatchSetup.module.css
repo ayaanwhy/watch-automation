@@ -18,6 +18,14 @@
   margin-bottom: 32px;
 }
 
+.handoffMessage {
+  font-size: 13px;
+  color: #2d8a2d;
+  line-height: 1.5;
+  margin-top: -12px;
+  margin-bottom: 20px;
+}
+
 .fields {
   display: flex;
   flex-direction: column;

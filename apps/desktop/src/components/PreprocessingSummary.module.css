@@ -61,8 +61,14 @@
   color: #b07a00;
 }
 
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .resetButton {
-  align-self: flex-start;
   padding: 8px 24px;
   font-size: 14px;
   font-weight: 500;
@@ -73,6 +79,33 @@
   cursor: pointer;
 }
 
-.resetButton:hover {
+.resetButton:hover:not(:disabled) {
   background: #333;
+}
+
+.resetButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.continueButton {
+  padding: 8px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1a1a1a;
+  background: transparent;
+  border: 1px solid #c0c0c0;
+  border-radius: 6px;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+
+.continueButton:hover:not(:disabled) {
+  background: #f5f5f5;
+  border-color: #1a1a1a;
+}
+
+.continueButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
