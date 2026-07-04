@@ -34,3 +34,6 @@ out/
 #Docs
 CLAUDE.md
 *.docx
+
+# Preprocessing profiling reports (generated diagnostic working output)
+preprocessing/UBG/profiling/*.txt

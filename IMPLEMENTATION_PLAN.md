@@ -455,11 +455,11 @@ These capabilities will be introduced in later phases without requiring architec
 
 ____
 
-Phase 9 — UI / UX Refinement
+Phase 9 — Workflow & Experience Refinement
 
 Goal
 
-Transform WatchAutomation from a collection of functional modules into a cohesive production application with a unified workflow, polished interface, and persistent batch management.
+Transform WatchAutomation from a collection of functional modules into a cohesive production application. This phase is broader than visual polish — it covers workflow design, persistent batch management, navigation, persistence, progress visualization, processed-image review, settings, and overall application cohesion. The result should be a unified workflow, a polished interface, and persistent batch management across both modules.
 
 Deliverables
 
@@ -775,7 +775,7 @@ Users spend significantly less time annotating.
 
 ⸻
 
-Phase 11 — Fully Automated Processing
+Phase 13 — Fully Automated Processing
 
 Goal
 
