@@ -455,7 +455,260 @@ These capabilities will be introduced in later phases without requiring architec
 
 ____
 
-Phase 9 — AI Boundary Provider Foundation
+Phase 9 — UI / UX Refinement
+
+Goal
+
+Transform WatchAutomation from a collection of functional modules into a cohesive production application with a unified workflow, polished interface, and persistent batch management.
+
+Deliverables
+
+Batch Management
+
+Introduce persistent batches across both Preprocessing and Watch Processing.
+
+Each batch should include:
+
+* Automatically generated batch name
+* Optional custom batch name
+* Creation date
+* Module (Preprocessing / Watch Processing)
+* Current status
+* Image counts
+* Processing statistics
+
+Support:
+
+* Running
+* Completed
+* Failed
+* Cancelled
+
+Batch history should persist between application launches.
+
+⸻
+
+Batch Browser
+
+Provide a dedicated batch history view.
+
+Display:
+
+* Batch name
+* Date
+* Status
+* Number of images
+* Completion percentage
+* Processing duration
+
+Support:
+
+* Search
+* Sorting
+* Future filtering
+
+⸻
+
+Workflow Refinement
+
+Separate configuration from execution.
+
+For Preprocessing:
+
+Configuration Screen
+
+↓
+
+Dedicated Progress Screen
+
+↓
+
+Completion Summary
+
+↓
+
+Continue to Watch Processing
+
+The running experience should no longer share the same screen as configuration.
+
+⸻
+
+Rich Progress Experience
+
+Replace the current textual progress display with a visual production dashboard.
+
+Display:
+
+* Live thumbnail grid
+* Current stage
+* Progress overlay on each image
+* Current image preview
+* ETA
+* Overall batch progress
+
+Completed images should update live.
+
+⸻
+
+Image Inspector
+
+Allow inspection of processed results.
+
+Support:
+
+* Before / After comparison
+* Interactive comparison slider
+* Zoom
+* Pan
+* Full-resolution preview
+
+⸻
+
+Unified Application Design
+
+Standardize the application visually.
+
+Refine:
+
+* Navigation
+* Headers
+* Empty states
+* Typography
+* Spacing
+* Icons
+* Button hierarchy
+* Status colours
+
+The application should feel like a single product rather than multiple modules.
+
+⸻
+
+Global Settings
+
+Introduce a centralized application settings experience.
+
+Examples:
+
+* Appearance
+* Performance
+* Default folders
+* Python configuration
+* Advanced preprocessing options
+
+Module-specific settings should move out of individual screens where appropriate.
+
+⸻
+
+Success Criteria
+
+The application presents a cohesive production workflow with persistent batch management, polished navigation, consistent interaction patterns, and significantly improved visual feedback.
+
+⸻
+
+Phase 10 — Backend Refinement
+
+Goal
+
+Optimize the application’s architecture, reliability, and performance for large-scale production use without changing user-facing workflows.
+
+Deliverables
+
+Performance Optimization
+
+Review and optimize:
+
+* Memory usage
+* CPU utilization
+* GPU utilization
+* Image processing throughput
+* Startup time
+* Large batch performance
+
+⸻
+
+Processing Pipeline Optimization
+
+Improve:
+
+* Parallelism
+* Caching
+* Temporary file handling
+* Queue scheduling
+* Batch throughput
+
+Reduce unnecessary disk I/O wherever practical.
+
+⸻
+
+Robustness
+
+Improve recovery from:
+
+* Interrupted batches
+* Application crashes
+* Python failures
+* Corrupt images
+* Missing files
+
+Ensure users can safely resume work whenever possible.
+
+⸻
+
+Logging & Diagnostics
+
+Expand diagnostic tooling.
+
+Provide:
+
+* Structured logs
+* Performance metrics
+* Memory snapshots
+* Error reporting
+* Batch diagnostics
+
+Support future troubleshooting without affecting normal users.
+
+⸻
+
+Architecture Cleanup
+
+Review the codebase for maintainability.
+
+Refine:
+
+* IPC boundaries
+* Shared types
+* State management
+* Folder organization
+* Plugin interfaces
+* Module responsibilities
+
+Remove temporary implementations introduced during earlier phases.
+
+⸻
+
+Plugin System Improvements
+
+Strengthen extensibility.
+
+Prepare for future modules by improving:
+
+* Plugin discovery
+* Shared interfaces
+* Configuration
+* Registration
+* Version compatibility
+
+⸻
+
+Success Criteria
+
+The application operates reliably on large real-world datasets, remains responsive during extended processing sessions, and provides a stable foundation for future AI-assisted features.
+
+____
+
+
+Phase 11 — AI Boundary Provider Foundation
 
 Goal
 
@@ -491,7 +744,7 @@ Processing engine no longer depends on manual annotation.
 
 ⸻
 
-Phase 10 — AI-Assisted Annotation
+Phase 12 — AI-Assisted Annotation
 
 Goal
 

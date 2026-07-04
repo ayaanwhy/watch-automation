@@ -14,6 +14,20 @@ Primary objectives:
 
 ⸻
 
+Design Philosophy
+
+* Automation should never come at the cost of user trust. Manual review is preferred over incorrect automation.
+* Every phase should leave the application in a usable state.
+* Favor maintainability over cleverness.
+* Prefer modular boundaries over convenience.
+* Production logic should remain isolated from UI.
+* Optimize only after profiling.
+* Document engineering discoveries so they aren't repeated.
+* Every workflow should degrade gracefully.
+* Future AI should integrate into existing workflows rather than replace them.
+
+⸻
+
 Technology Stack
 
 Initial Version
