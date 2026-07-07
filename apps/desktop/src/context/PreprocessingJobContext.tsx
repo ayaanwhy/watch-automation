@@ -31,9 +31,25 @@ const INITIAL_PROGRESS: PreprocessingProgressState = {
   initializingStage: null,
 }
 
+// Per-image status (Phase 9D) — feeds the execution workspace's thumbnail
+// grid. Built entirely from the existing NDJSON event stream; no Python or
+// wire-protocol changes were needed, since 'start' already lists every image
+// and 'progress'/'complete'/'error' already report per-image outcomes.
+export type PreprocessingImageStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled'
+
+export interface PreprocessingImageState {
+  name: string
+  status: PreprocessingImageStatus
+  stage: string | null
+  outputPath: string | null
+  error: string | null
+  durationMs: number | null
+}
+
 interface PreprocessingJobContextValue {
   phase: PreprocessingPhase
   progress: PreprocessingProgressState
+  images: PreprocessingImageState[]
   startError: string | null
   fatalError: string | null
   cancelPhase: CancelPhase
@@ -57,15 +73,13 @@ interface PreprocessingJobProviderProps {
 }
 
 // Owns the preprocess:* job lifecycle for the lifetime of the app, not the
-// lifetime of whichever screen happens to be mounted. The Preprocessing
-// screen is reachable via a temporary dev toggle that unmounts it when the
-// user switches to Watch Processing — mounting this provider above that
-// toggle (in App.tsx) lets an in-progress job's state and IPC subscription
-// survive the switch, so returning to the screen reconnects to the running
-// job instead of resetting to idle.
+// lifetime of whichever screen happens to be mounted. Mounting this provider
+// above the conditionally-rendered content (in App.tsx) lets an in-progress
+// job's state and IPC subscription survive navigating away and back.
 export function PreprocessingJobProvider({ children }: PreprocessingJobProviderProps) {
   const [phase, setPhase] = useState<PreprocessingPhase>('idle')
   const [progress, setProgress] = useState<PreprocessingProgressState>(INITIAL_PROGRESS)
+  const [images, setImages] = useState<PreprocessingImageState[]>([])
   const [startError, setStartError] = useState<string | null>(null)
   const [fatalError, setFatalError] = useState<string | null>(null)
   const [cancelPhase, setCancelPhase] = useState<CancelPhase>('none')
@@ -88,6 +102,16 @@ export function PreprocessingJobProvider({ children }: PreprocessingJobProviderP
           break
         case 'start':
           setProgress(p => ({ ...p, total: payload.total }))
+          setImages(
+            payload.images.map(name => ({
+              name,
+              status: 'pending',
+              stage: null,
+              outputPath: null,
+              error: null,
+              durationMs: null,
+            }))
+          )
           break
         case 'progress':
           setProgress(p => ({
@@ -96,13 +120,34 @@ export function PreprocessingJobProvider({ children }: PreprocessingJobProviderP
             currentStage: payload.stage,
             initializingStage: null,
           }))
+          setImages(prev =>
+            prev.map(img =>
+              img.name === payload.image
+                ? { ...img, status: img.status === 'pending' ? 'processing' : img.status, stage: payload.stage }
+                : img
+            )
+          )
           break
         case 'heartbeat':
           setProgress(p => ({ ...p, lastHeartbeatAt: Date.now() }))
           break
         case 'complete':
+          setProgress(p => ({ ...p, completed: p.completed + 1 }))
+          setImages(prev =>
+            prev.map(img =>
+              img.name === payload.image
+                ? { ...img, status: 'completed', stage: null, outputPath: payload.output, durationMs: payload.duration_ms }
+                : img
+            )
+          )
+          break
         case 'error':
           setProgress(p => ({ ...p, completed: p.completed + 1 }))
+          setImages(prev =>
+            prev.map(img =>
+              img.name === payload.image ? { ...img, status: 'failed', stage: null, error: payload.error } : img
+            )
+          )
           break
         case 'fatal':
           setFatalError(payload.error)
@@ -117,6 +162,22 @@ export function PreprocessingJobProvider({ children }: PreprocessingJobProviderP
       if (payload.jobId !== jobIdRef.current) return
       setDonePayload(payload)
       setPhase('done')
+      // Reconcile any image that never reached a terminal per-image event —
+      // e.g. cooperative cancellation stops the runner between images, or a
+      // fatal error ends the batch early. Without this, such images would be
+      // stuck showing "processing"/"pending" forever in the grid.
+      setImages(prev =>
+        prev.map(img =>
+          img.status === 'pending' || img.status === 'processing'
+            ? {
+                ...img,
+                status: payload.cancelledByUser ? 'cancelled' : 'failed',
+                stage: null,
+                error: payload.cancelledByUser ? null : (img.error ?? 'Not completed'),
+              }
+            : img
+        )
+      )
     })
 
     return () => {
@@ -131,6 +192,7 @@ export function PreprocessingJobProvider({ children }: PreprocessingJobProviderP
     setCancelPhase('none')
     setDonePayload(null)
     setProgress(INITIAL_PROGRESS)
+    setImages([])
 
     const result = await window.api.invoke('preprocess:start', payload)
     if (!result.ok) {
@@ -154,6 +216,7 @@ export function PreprocessingJobProvider({ children }: PreprocessingJobProviderP
     jobIdRef.current = null
     setPhase('idle')
     setProgress(INITIAL_PROGRESS)
+    setImages([])
     setStartError(null)
     setFatalError(null)
     setCancelPhase('none')
@@ -163,7 +226,7 @@ export function PreprocessingJobProvider({ children }: PreprocessingJobProviderP
 
   return (
     <PreprocessingJobContext.Provider
-      value={{ phase, progress, startError, fatalError, cancelPhase, donePayload, startedAt, start, cancel, reset }}
+      value={{ phase, progress, images, startError, fatalError, cancelPhase, donePayload, startedAt, start, cancel, reset }}
     >
       {children}
     </PreprocessingJobContext.Provider>

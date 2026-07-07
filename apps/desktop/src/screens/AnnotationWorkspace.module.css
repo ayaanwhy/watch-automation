@@ -9,3 +9,17 @@
   box-sizing: border-box;
   background: #0a0a0a;
 }
+
+/* Below this width, the canvas + two 280/260px panels no longer fit on one
+   row without clipping. Stack vertically and let the whole workspace scroll
+   instead of hiding anything — no functional panel ever disappears. */
+@media (max-width: 900px) {
+  .workspace {
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+    overflow-y: auto;
+    align-items: stretch;
+    justify-content: flex-start;
+  }
+}

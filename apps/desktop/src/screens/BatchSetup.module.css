@@ -32,6 +32,36 @@
   gap: 20px;
 }
 
+.nameField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nameLabel {
+  font-size: 12px;
+  font-weight: 500;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.nameInput {
+  height: 40px;
+  padding: 0 10px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #1a1a1a;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+}
+
+.nameInput:focus {
+  outline: none;
+  border-color: #1a1a1a;
+}
+
 .actions {
   display: flex;
   justify-content: flex-end;

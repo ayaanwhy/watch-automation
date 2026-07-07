@@ -1,0 +1,122 @@
+.cell {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #111;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.cell:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.selected {
+  border-color: #fff;
+}
+
+.image {
+  position: absolute;
+  inset: 0;
+  bottom: 16px;
+  width: 100%;
+  height: calc(100% - 16px);
+  object-fit: cover;
+  transition: opacity 0.2s ease, filter 0.2s ease;
+}
+
+.cell[data-status='pending'] .image {
+  opacity: 0.45;
+  filter: grayscale(0.6);
+}
+
+.cell[data-status='processing'] .image {
+  opacity: 0.85;
+}
+
+.cell[data-status='failed'] .image,
+.cell[data-status='cancelled'] .image {
+  opacity: 0.5;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  bottom: 16px;
+  pointer-events: none;
+}
+
+.cell[data-status='failed'] .overlay {
+  background: rgba(255, 59, 48, 0.18);
+}
+
+.cell[data-status='cancelled'] .overlay {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Indeterminate left-to-right sweep — there is no per-image completion
+   percentage in the wire protocol, so this communicates "in progress"
+   honestly rather than fabricating a number. */
+.sweepTrack {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 16px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.15);
+  overflow: hidden;
+}
+
+.sweepBar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 40%;
+  background: #ffcc00;
+  animation: sweep 1.1s ease-in-out infinite;
+}
+
+@keyframes sweep {
+  0% { left: -40%; }
+  100% { left: 100%; }
+}
+
+.badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+}
+
+.badgeOk { background: #34c759; }
+.badgeErr { background: #ff3b30; }
+.badgeWarn { background: rgba(255, 255, 255, 0.35); }
+
+.name {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 16px;
+  padding: 0 4px;
+  font-size: 9px;
+  line-height: 16px;
+  color: rgba(255, 255, 255, 0.55);
+  background: #000;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -1,3 +1,91 @@
+/*
+ * Design tokens — Phase 9A foundation.
+ * Single source of truth for color, spacing, typography, and layout, captured
+ * from the values previously hardcoded across the per-component CSS modules.
+ * New screens reference these vars; legacy modules are migrated opportunistically.
+ */
+:root {
+  /* ── Surfaces & text (light content) ─────────────────────────────── */
+  --bg: #f5f5f5;
+  --surface: #ffffff;
+  --surface-muted: #fafafa;
+  --text: #1a1a1a;
+  --text-strong: #111111;
+  --text-muted: #555555;
+  --text-subtle: #666666;
+  --text-faint: #888888;
+  --border: #dddddd;
+  --border-subtle: #ececec;
+  --border-strong: #1a1a1a;
+
+  /* ── Brand / primary ─────────────────────────────────────────────── */
+  --primary: #1a1a1a;
+  --primary-hover: #333333;
+  --on-primary: #ffffff;
+
+  /* ── Status accents ──────────────────────────────────────────────── */
+  --ok: #2d8a2d;
+  --ok-bg: #f0faf0;
+  --ok-border: #b3ddb3;
+  --warn: #b07a00;
+  --warn-bg: #fffbf0;
+  --warn-border: #e0c97a;
+  --err: #c0392b;
+  --err-bg: #fdf0ee;
+  --err-border: #e3b4ac;
+  --info: #2c6cb0;
+
+  /* ── Dark app frame (sidebar / workspace chrome) ─────────────────── */
+  --shell-bg: #1a1a1a;
+  --shell-bg-raised: #242424;
+  --on-dark: #ffffff;
+  --on-dark-muted: rgba(255, 255, 255, 0.8);
+  --on-dark-subtle: rgba(255, 255, 255, 0.45);
+  --on-dark-hover: rgba(255, 255, 255, 0.1);
+  --on-dark-active: rgba(255, 255, 255, 0.14);
+
+  /* ── Spacing scale ───────────────────────────────────────────────── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* ── Radii ───────────────────────────────────────────────────────── */
+  --radius-sm: 4px;
+  --radius: 6px;
+  --radius-lg: 8px;
+
+  /* ── Typography ──────────────────────────────────────────────────── */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-md: 16px;
+  --text-lg: 22px;
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+
+  /* ── Elevation ───────────────────────────────────────────────────── */
+  --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.12);
+
+  /* ── Motion ──────────────────────────────────────────────────────── */
+  --transition: 0.15s ease;
+
+  /* ── Layout ──────────────────────────────────────────────────────── */
+  --sidebar-width: 216px;
+
+  /* ── Z-index layers ──────────────────────────────────────────────── */
+  --z-sidebar: 10;
+  --z-modal: 100;
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -9,9 +97,9 @@ html, body, #root {
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-size: 14px;
-  color: #1a1a1a;
-  background: #f5f5f5;
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  color: var(--text);
+  background: var(--bg);
   -webkit-font-smoothing: antialiased;
 }

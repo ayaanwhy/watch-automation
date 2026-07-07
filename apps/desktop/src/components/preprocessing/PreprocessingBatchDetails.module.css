@@ -1,0 +1,114 @@
+.page {
+  min-height: 100vh;
+  background: #0a0a0a;
+  color: #e5e5e5;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.headerText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.subtitle {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.configGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 28px;
+}
+
+.configRow {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.configLabel {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.configValue {
+  color: #e5e5e5;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.timingRow {
+  display: flex;
+  gap: 20px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+/* PreprocessingSummary is a light card by design (reused unchanged); this
+   simply gives it a sensible resting place on the dark Overview section. */
+.summaryWrap {
+  max-width: 480px;
+}
+
+.imagesLayout {
+  display: flex;
+  gap: 16px;
+  height: 460px;
+}
+
+.gridArea {
+  flex: 1;
+  min-width: 0;
+  background: #111;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.previewArea {
+  width: 360px;
+  min-width: 280px;
+  flex-shrink: 1;
+  background: #111;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+@media (max-width: 900px) {
+  .imagesLayout {
+    flex-direction: column;
+    height: auto;
+  }
+  .gridArea {
+    height: 320px;
+  }
+  .previewArea {
+    width: 100%;
+    min-width: 0;
+    height: 320px;
+  }
+}

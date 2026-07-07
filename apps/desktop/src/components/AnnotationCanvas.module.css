@@ -1,16 +1,31 @@
 .container {
-  height: 80vh;
+  /* The most flexible element in the workspace: prefers a square ~80vh box
+     (matching PROJECT_SPEC's annotation canvas sizing) but shrinks before
+     either side panel does — see AnnotationWorkspace.module.css for the
+     column breakpoint. The Konva Stage inside re-measures via ResizeObserver,
+     so no JS changes are needed for it to track this box's actual size. */
+  flex: 0 1 80vh;
+  min-width: 220px;
+  max-width: 100%;
   aspect-ratio: 1 / 1;
   background: #111;
   border-radius: 6px;
   overflow: hidden;
   outline: none;
   position: relative;
-  flex-shrink: 0;
 }
 
 .container:focus-visible {
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.25);
+}
+
+@media (max-width: 900px) {
+  .container {
+    flex: none;
+    width: min(55vh, 100%);
+    max-width: 100%;
+    margin: 0 auto;
+  }
 }
 
 .overlay {

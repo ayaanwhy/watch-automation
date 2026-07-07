@@ -7,6 +7,7 @@ import { registerPrefsHandlers } from './ipc/prefsHandlers'
 import { registerProcessHandlers } from './ipc/processHandlers'
 import { registerQueueHandlers } from './ipc/queueHandlers'
 import { registerPreprocessHandlers } from './ipc/preprocessHandlers'
+import { registerBatchRegistryHandlers } from './ipc/batchRegistryHandlers'
 import { logger } from './logger'
 
 process.on('uncaughtException', (err) => {
@@ -21,6 +22,10 @@ function createWindow(): void {
   const mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
+    // Keep the persistent sidebar + content region usable; below this the
+    // sidebar collapses to an icon rail (see Sidebar.module.css).
+    minWidth: 960,
+    minHeight: 640,
     title: 'Watch Processing Automation',
     show: false,
     webPreferences: {
@@ -50,6 +55,7 @@ app.whenReady().then(() => {
   registerProcessHandlers()
   registerQueueHandlers()
   registerPreprocessHandlers()
+  registerBatchRegistryHandlers()
   createWindow()
 
   app.on('activate', () => {

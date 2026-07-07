@@ -130,6 +130,11 @@ export interface PreprocessingFolderPrefs {
 export interface PreprocessStartPayload {
   inputDir: string
   outputDir: string
+  // The Batch (Phase 9B/9C) whose preprocessing stage this run belongs to.
+  // When present, the main process writes that stage's running/terminal
+  // status directly to the batch registry as the job progresses — the
+  // renderer no longer owns recording stage status (see batchRegistry.ts).
+  batchId?: string
   // Optional manual override of the Python interpreter; when omitted the
   // main process auto-resolves one (see pythonResolver.ts).
   pythonPath?: string
@@ -222,4 +227,24 @@ export type PrepareForWatchProcessingResult =
 export interface PrepareProgressPayload {
   completed: number
   total: number
+}
+
+// ── Batch registry (Phase 9B) ───────────────────────────────────────────────
+// The Batch is the primary workflow entity; see types/batch.ts.
+
+export interface BatchCreatePayload {
+  sourceDir: string
+  pipeline: import('./batch').StageType[]
+  title?: string
+}
+
+export interface BatchStageUpdatePayload {
+  id: string
+  stageType: import('./batch').StageType
+  patch: import('./batch').StagePatch
+}
+
+export interface BatchRenamePayload {
+  id: string
+  title: string
 }

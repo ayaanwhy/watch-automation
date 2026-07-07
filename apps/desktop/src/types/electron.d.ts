@@ -26,7 +26,11 @@ import type {
   PrepareForWatchProcessingPayload,
   PrepareForWatchProcessingResult,
   PrepareProgressPayload,
+  BatchCreatePayload,
+  BatchStageUpdatePayload,
+  BatchRenamePayload,
 } from './ipc'
+import type { BatchDetailRecord, BatchSummaryRecord } from './batch'
 
 declare global {
   interface Window {
@@ -64,6 +68,13 @@ declare global {
       // Watch Processing hand-off preparation
       invoke(channel: 'preprocess:prepare-for-watch-processing', payload: PrepareForWatchProcessingPayload): Promise<PrepareForWatchProcessingResult>
       on(channel: 'preprocess:prepare-progress', listener: (payload: PrepareProgressPayload) => void): () => void
+
+      // Batch registry (Phase 9B)
+      invoke(channel: 'batch-registry:create', payload: BatchCreatePayload): Promise<BatchDetailRecord>
+      invoke(channel: 'batch-registry:list'): Promise<BatchSummaryRecord[]>
+      invoke(channel: 'batch-registry:get', payload: { id: string }): Promise<BatchDetailRecord | null>
+      invoke(channel: 'batch-registry:update-stage', payload: BatchStageUpdatePayload): Promise<BatchDetailRecord | null>
+      invoke(channel: 'batch-registry:rename', payload: BatchRenamePayload): Promise<BatchDetailRecord | null>
     }
   }
 }

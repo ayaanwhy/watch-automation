@@ -1,0 +1,78 @@
+.workspace {
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+  padding: 20px;
+  height: 100vh;
+  box-sizing: border-box;
+  background: #0a0a0a;
+}
+
+/* Takes all remaining width after the fixed-width sidebar and centers the
+   grid within it, so on very wide windows the grid doesn't stretch edge to
+   edge with the sidebar merely tacked on after it — instead the grid stays a
+   comfortable working width and the sidebar reads as intentionally docked to
+   the right edge, with balanced space rather than one large leftover gap. */
+.gridStage {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.gridArea {
+  width: 100%;
+  max-width: 1000px;
+  height: 100%;
+  background: #111;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.sidebar {
+  width: 320px;
+  min-width: 260px;
+  flex-shrink: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.previewArea {
+  flex: 1;
+  min-height: 220px;
+  background: #1c1c1e;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+/* Mirrors AnnotationWorkspace's column-stack breakpoint: below this width the
+   grid + sidebar no longer fit side by side without clipping, so stack and
+   scroll instead — nothing is ever hidden. */
+@media (max-width: 900px) {
+  .workspace {
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+    overflow-y: auto;
+  }
+  .gridStage {
+    flex: none;
+    display: block;
+  }
+  .gridArea {
+    width: 100%;
+    max-width: 100%;
+    height: 50vh;
+  }
+  .sidebar {
+    width: 100%;
+    min-width: 0;
+  }
+  .previewArea {
+    min-height: 260px;
+  }
+}

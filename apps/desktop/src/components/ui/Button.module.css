@@ -1,0 +1,62 @@
+.button {
+  font-family: inherit;
+  font-weight: var(--weight-medium);
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition), color var(--transition), opacity var(--transition);
+  white-space: nowrap;
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Sizes ──────────────────────────────────────────────────────────── */
+.md {
+  font-size: var(--text-base);
+  padding: 8px 20px;
+}
+
+.sm {
+  font-size: var(--text-sm);
+  padding: 5px 12px;
+}
+
+/* ── Variants ───────────────────────────────────────────────────────── */
+.primary {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+.primary:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+
+.secondary {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border);
+}
+.secondary:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--surface-muted);
+}
+
+.ghost {
+  background: transparent;
+  color: var(--text-muted);
+}
+.ghost:hover:not(:disabled) {
+  background: var(--surface-muted);
+  color: var(--text);
+}
+
+.danger {
+  background: transparent;
+  color: var(--err);
+  border-color: var(--err-border);
+}
+.danger:hover:not(:disabled) {
+  background: var(--err-bg);
+}

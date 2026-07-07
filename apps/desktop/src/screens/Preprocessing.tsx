@@ -1,16 +1,17 @@
 import { useState } from 'react'
 import { PathField } from '../components/PathField'
 import { PythonInterpreterStatus } from '../components/PythonInterpreterStatus'
-import { PreprocessingProgress } from '../components/PreprocessingProgress'
-import { PreprocessingSummary } from '../components/PreprocessingSummary'
-import { PreprocessingSettings } from '../components/PreprocessingSettings'
 import { SnapSlider } from '../components/SnapSlider'
+import { PreprocessingRunWorkspace } from '../components/preprocessing/PreprocessingRunWorkspace'
+import { PreprocessingBatchDetails } from '../components/preprocessing/PreprocessingBatchDetails'
+import { findStageStatus } from '../components/batch/batchDisplay'
 import { usePythonInterpreter } from '../hooks/usePythonInterpreter'
 import { useSamTuning } from '../hooks/useSamTuning'
 import { useUpscaleFactor } from '../hooks/useUpscaleFactor'
 import { usePreprocessingFolders } from '../hooks/usePreprocessingFolders'
 import { useProductType } from '../hooks/useProductType'
 import { usePreprocessingJob } from '../context/PreprocessingJobContext'
+import type { BatchDetailRecord } from '../types/batch'
 import type { ProductType, UpscaleFactor } from '../types/ipc'
 import styles from './Preprocessing.module.css'
 
@@ -28,11 +29,37 @@ const PRODUCT_TYPE_OPTIONS: { value: ProductType; label: string }[] = [
 ]
 
 interface PreprocessingProps {
+  // The batch backing the current/most recent run, or null before one
+  // exists. This — not any renderer-local phase — is what decides whether
+  // Configure, Run, or Batch Details is shown (Phase 9D).
+  batch: BatchDetailRecord | null
+  // Seeds the optional batch-name field — set when this screen was entered
+  // via Home's "Create & Open" with a custom title; empty for sidebar entry.
+  initialBatchName?: string
+  // Creates (or resolves, when continuing an existing batch) the Batch
+  // backing this run. Called at Start, before the job spawns, so its id can
+  // be forwarded to job.start() — the main process writes that batch's
+  // preprocessing-stage status directly as the run progresses.
+  onCreateBatch: (sourceDir: string, title: string) => Promise<string>
   onContinueToWatchProcessing?: (outputDir: string) => Promise<{ ok: boolean; error?: string }>
+  // "Run another batch" from Batch Details: clears the parent's reference to
+  // this batch so the next Start creates a fresh one.
+  onRunAnother: () => void
 }
 
-export default function Preprocessing({ onContinueToWatchProcessing }: PreprocessingProps) {
-  const [settingsOpen, setSettingsOpen] = useState(false)
+export default function Preprocessing({
+  batch,
+  initialBatchName = '',
+  onCreateBatch,
+  onContinueToWatchProcessing,
+  onRunAnother,
+}: PreprocessingProps) {
+  const [batchName, setBatchName] = useState(initialBatchName)
+  // Bridges the brief async window between clicking Start and the batch's
+  // status actually flipping to 'running' (batch creation + job spawn are
+  // both awaited round trips) — Configure has no other reason to disable
+  // once a batch is genuinely running, since Run takes over entirely then.
+  const [starting, setStarting] = useState(false)
   const folders = usePreprocessingFolders()
   const python  = usePythonInterpreter()
   const upscale = useUpscaleFactor()
@@ -40,8 +67,8 @@ export default function Preprocessing({ onContinueToWatchProcessing }: Preproces
   const sam     = useSamTuning()
   const job     = usePreprocessingJob()
 
-  const isIdle   = job.phase === 'idle'
-  const disabled = !isIdle
+  const stageStatus = findStageStatus(batch, 'preprocessing')
+  const disabled = starting
 
   async function pickInputDir() {
     if (disabled) return
@@ -59,25 +86,18 @@ export default function Preprocessing({ onContinueToWatchProcessing }: Preproces
     folders.inputDir !== '' &&
     folders.outputDir !== '' &&
     python.isValid &&
-    isIdle
+    !disabled
   )
-
-  // Passes the preprocessing output folder to the parent (App.tsx), which
-  // prepares the hand-off images, saves Watch Processing prefs, and
-  // navigates — only on success. No prefs saved here; no job.reset() — the
-  // completed state remains until the user explicitly clicks "Run another
-  // batch". Returns the result so PreprocessingSummary can show progress/errors.
-  function handleContinueToWatchProcessing() {
-    if (!onContinueToWatchProcessing) return Promise.resolve({ ok: false })
-    return onContinueToWatchProcessing(folders.outputDir)
-  }
 
   async function handleStart() {
     if (!canStart) return
+    setStarting(true)
+    const batchId = await onCreateBatch(folders.inputDir, batchName)
     const overridePath = python.override.trim()
     await job.start({
       inputDir:  folders.inputDir,
       outputDir: folders.outputDir,
+      batchId,
       scaleFactor: upscale.scaleFactor,
       objectType: product.productType,
       ...(overridePath !== '' ? { pythonPath: overridePath } : {}),
@@ -88,33 +108,64 @@ export default function Preprocessing({ onContinueToWatchProcessing }: Preproces
       samMaxMasks:              sam.prefs.maxMasks,
       samMultimaskOutput:       sam.prefs.multimaskOutput,
     })
+    setStarting(false)
   }
 
+  function handleRunAnother() {
+    job.reset()
+    onRunAnother()
+  }
+
+  // Passes the preprocessing output folder to the parent (App.tsx), which
+  // prepares the hand-off images, saves Watch Processing prefs, and
+  // advances this batch's stage — only on success. Returns the result so
+  // PreprocessingSummary (inside Batch Details) can show progress/errors.
+  function handleContinueToWatchProcessing() {
+    if (!onContinueToWatchProcessing) return Promise.resolve({ ok: false })
+    return onContinueToWatchProcessing(folders.outputDir)
+  }
+
+  if (stageStatus === 'running') {
+    const stage = batch?.stages.find(s => s.type === 'preprocessing')
+    return <PreprocessingRunWorkspace inputDir={stage?.inputDir || folders.inputDir} />
+  }
+
+  if (stageStatus === 'completed' || stageStatus === 'failed' || stageStatus === 'cancelled') {
+    const stage = batch!.stages.find(s => s.type === 'preprocessing')
+    return (
+      <PreprocessingBatchDetails
+        batch={batch!}
+        inputDir={stage?.inputDir || folders.inputDir}
+        onReset={handleRunAnother}
+        onContinueToWatchProcessing={
+          onContinueToWatchProcessing ? handleContinueToWatchProcessing : undefined
+        }
+      />
+    )
+  }
+
+  // ── Configure ────────────────────────────────────────────────────────────
   return (
     <div className={styles.page}>
       <div className={styles.container}>
         <div className={styles.titleRow}>
           <h1 className={styles.title}>Preprocessing</h1>
-          <button
-            className={styles.settingsButton}
-            onClick={() => setSettingsOpen(true)}
-            aria-label="Open settings"
-            title="Settings"
-          >
-            ⚙
-          </button>
         </div>
 
-        {settingsOpen && (
-          <PreprocessingSettings
-            sam={sam}
-            disabled={disabled}
-            onClose={() => setSettingsOpen(false)}
-          />
-        )}
-
-        {/* Configuration — always visible; controls disabled while a job runs */}
+        {/* Configuration — always visible; controls disabled while a run is starting */}
         <div className={styles.fields}>
+          <div className={styles.selectField}>
+            <label className={styles.selectLabel}>Batch Name (optional)</label>
+            <input
+              className={styles.textInput}
+              type="text"
+              value={batchName}
+              onChange={e => setBatchName(e.target.value)}
+              placeholder="A name is generated if left blank"
+              spellCheck={false}
+              disabled={disabled}
+            />
+          </div>
           <PathField
             label="Input Folder"
             value={folders.inputDir}
@@ -158,39 +209,15 @@ export default function Preprocessing({ onContinueToWatchProcessing }: Preproces
           />
         </div>
 
-        {/* Error banner — only relevant when idle */}
-        {isIdle && job.startError && (
+        {job.startError && (
           <div className={styles.errorBanner}>{job.startError}</div>
         )}
 
-        {/* Phase-specific content below the config */}
-        {isIdle && (
-          <div className={styles.actions}>
-            <button className={styles.startButton} onClick={handleStart} disabled={!canStart}>
-              Start
-            </button>
-          </div>
-        )}
-
-        {job.phase === 'running' && (
-          <PreprocessingProgress
-            progress={job.progress}
-            cancelPhase={job.cancelPhase}
-            startedAt={job.startedAt}
-            onCancel={job.cancel}
-          />
-        )}
-
-        {job.phase === 'done' && (
-          <PreprocessingSummary
-            donePayload={job.donePayload}
-            fatalError={job.fatalError}
-            onReset={job.reset}
-            onContinueToWatchProcessing={
-              onContinueToWatchProcessing ? handleContinueToWatchProcessing : undefined
-            }
-          />
-        )}
+        <div className={styles.actions}>
+          <button className={styles.startButton} onClick={handleStart} disabled={!canStart}>
+            {starting ? 'Starting…' : 'Start'}
+          </button>
+        </div>
       </div>
     </div>
   )

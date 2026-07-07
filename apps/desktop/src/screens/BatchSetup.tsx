@@ -6,11 +6,15 @@ import { PathField } from '../components/PathField'
 import styles from './BatchSetup.module.css'
 
 interface BatchSetupProps {
-  onBeginAnnotation(batch: BatchState, initialSession: SessionFile | null): void
+  onBeginAnnotation(batch: BatchState, initialSession: SessionFile | null, batchName: string): void
+  // Seeds the optional batch-name field — set when this screen was entered
+  // via Home's "Create & Open" with a custom title; empty for sidebar entry.
+  initialBatchName?: string
   handoffFolder?: string | null
 }
 
-export default function BatchSetup({ onBeginAnnotation, handoffFolder }: BatchSetupProps) {
+export default function BatchSetup({ onBeginAnnotation, initialBatchName = '', handoffFolder }: BatchSetupProps) {
+  const [batchName, setBatchName] = useState(initialBatchName)
   const [inputFolder, setInputFolder] = useState('')
   const [spreadsheetPath, setSpreadsheetPath] = useState('')
   const [outputFolder, setOutputFolder] = useState('')
@@ -146,6 +150,23 @@ export default function BatchSetup({ onBeginAnnotation, handoffFolder }: BatchSe
         )}
 
         <div className={styles.fields}>
+          {/* Continuing an existing batch's Watch stage (hand-off from
+              Preprocessing) reuses that batch's identity — renaming isn't
+              part of this flow, so the field is hidden rather than shown
+              inert. It reappears for a genuinely new Watch batch. */}
+          {!(handoffFolder && inputFolder === handoffFolder) && (
+            <div className={styles.nameField}>
+              <label className={styles.nameLabel}>Batch Name (optional)</label>
+              <input
+                className={styles.nameInput}
+                type="text"
+                value={batchName}
+                onChange={e => setBatchName(e.target.value)}
+                placeholder="A name is generated if left blank"
+                spellCheck={false}
+              />
+            </div>
+          )}
           <PathField
             label="Input Folder"
             value={inputFolder}
@@ -185,14 +206,14 @@ export default function BatchSetup({ onBeginAnnotation, handoffFolder }: BatchSe
             <ResumePrompt
               session={existingSession}
               total={loadResult!.match!.matched.length}
-              onResume={() => onBeginAnnotation(buildBatch(), existingSession)}
-              onFresh={() => onBeginAnnotation(buildBatch(), null)}
+              onResume={() => onBeginAnnotation(buildBatch(), existingSession, batchName)}
+              onFresh={() => onBeginAnnotation(buildBatch(), null, batchName)}
             />
           ) : (
             <div className={styles.actions}>
               <button
                 className={styles.beginButton}
-                onClick={() => onBeginAnnotation(buildBatch(), null)}
+                onClick={() => onBeginAnnotation(buildBatch(), null, batchName)}
               >
                 Begin Annotation ({loadResult!.match!.matched.length} SKUs)
               </button>

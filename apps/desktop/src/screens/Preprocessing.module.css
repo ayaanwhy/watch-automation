@@ -106,3 +106,24 @@
   border-radius: 6px;
   cursor: pointer;
 }
+
+.textInput {
+  height: 40px;
+  padding: 0 10px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #1a1a1a;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+}
+
+.textInput:focus {
+  outline: none;
+  border-color: #1a1a1a;
+}
+
+.textInput:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

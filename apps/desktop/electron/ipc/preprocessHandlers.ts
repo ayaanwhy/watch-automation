@@ -5,6 +5,7 @@ import { join, dirname } from 'node:path'
 import type { ChildProcess } from 'node:child_process'
 import { resolvePreprocessingPython, validatePythonPath } from '../services/pythonResolver'
 import { prepareForWatchProcessing } from '../services/workflowPreparation'
+import { updateStage } from '../services/batchRegistry'
 import { logger } from '../logger'
 import type {
   PreprocessStartPayload,
@@ -23,6 +24,9 @@ const EXIT_CANCELLED = 3
 interface ActiveJob {
   jobId: string
   process: ChildProcess
+  // The batch (if any) whose preprocessing stage this job is running for.
+  // See preprocess:start's batchId handling below.
+  batchId: string | null
   // True once preprocess:cancel has been invoked for this job. This only
   // reflects that a cancel request was sent — it does NOT mean the job
   // actually stopped early (the runner may finish naturally before reaching
@@ -32,6 +36,9 @@ interface ActiveJob {
   succeeded: number
   failed: number
   totalDurationMs: number
+  // Set from the NDJSON 'fatal' event, if one arrives before 'close'. Mirrors
+  // the same signal the renderer used to track locally (fatalError).
+  fatalError: string | null
 }
 
 let activeJob: ActiveJob | null = null
@@ -175,13 +182,40 @@ export function registerPreprocessHandlers(): void {
       activeJob = {
         jobId,
         process: child,
+        batchId: payload.batchId ?? null,
         cancelRequested: false,
         succeeded: 0,
         failed: 0,
         totalDurationMs: 0,
+        fatalError: null,
       }
 
       logger.info(`preprocess:start — job ${jobId} started, python=${pythonPath}`)
+
+      if (payload.batchId) {
+        // Records outputDir and the effective run configuration onto the
+        // stage — both fields already existed on StageRecord but were never
+        // populated before Phase 9D's Batch Details "configuration used"
+        // summary needed them. Awaited (not fire-and-forget) for the same
+        // reason as the 'close'/'error' handlers below: preprocess:start's
+        // result resolving is what flips the renderer's job.phase to
+        // 'running', which immediately triggers a batch refetch — that
+        // refetch must not be able to outrace this write.
+        await updateStage(payload.batchId, 'preprocessing', {
+          status: 'running',
+          outputDir: payload.outputDir,
+          config: {
+            scaleFactor: payload.scaleFactor ?? 1,
+            objectType: payload.objectType ?? 'generic',
+            samPointsPerSide: payload.samPointsPerSide,
+            samPointsPerBatch: payload.samPointsPerBatch,
+            samPredIouThresh: payload.samPredIouThresh,
+            samStabilityScoreThresh: payload.samStabilityScoreThresh,
+            samMaxMasks: payload.samMaxMasks,
+            samMultimaskOutput: payload.samMultimaskOutput,
+          },
+        })
+      }
 
       // ── stdout: incremental NDJSON parsing ────────────────────────────────
       let lineBuf = ''
@@ -201,6 +235,11 @@ export function registerPreprocessHandlers(): void {
           activeJob.succeeded       = (event['succeeded']         as number) ?? 0
           activeJob.failed          = (event['failed']            as number) ?? 0
           activeJob.totalDurationMs = (event['total_duration_ms'] as number) ?? 0
+        }
+        // A fatal error can arrive before the process actually closes; record
+        // it now so the 'close' handler's stage-status write reflects it.
+        if (event['type'] === 'fatal' && activeJob) {
+          activeJob.fatalError = (event['error'] as string) ?? 'Unknown fatal error'
         }
         notifyRenderer('preprocess:event', { jobId, ...event })
       }
@@ -224,7 +263,7 @@ export function registerPreprocessHandlers(): void {
       // Exit is the sole source of truth for completion — the process always
       // terminates on its own (cooperative cancellation, never an external
       // signal), so this handler covers every outcome including cancellation.
-      child.on('close', (code) => {
+      child.on('close', async (code) => {
         const job = activeJob
         activeJob = null
         if (!job) return
@@ -237,6 +276,29 @@ export function registerPreprocessHandlers(): void {
         // a checkpoint (exit code EXIT_CANCELLED). A cancel request sent just
         // as the job finished naturally will not be reflected here.
         const cancelledByUser = code === EXIT_CANCELLED
+
+        // Main-owned stage status write (Phase 9C) — awaited BEFORE notifying
+        // the renderer. The renderer refetches the batch the instant it sees
+        // 'preprocess:done' (PreprocessingBatchSync), and that refetch only
+        // ever fires once per phase transition (no retry/poll). Notifying
+        // first raced this write: the refetch could land before the registry
+        // update did, permanently caching a stale 'running' status and
+        // leaving the UI stuck in the Run workspace even though the file on
+        // disk was already correct. Awaiting here — not a timer — is what
+        // actually closes that race.
+        if (job.batchId) {
+          const status = cancelledByUser ? 'cancelled' : job.fatalError ? 'failed' : 'completed'
+          await updateStage(job.batchId, 'preprocessing', {
+            status,
+            counts: {
+              total: job.succeeded + job.failed,
+              succeeded: job.succeeded,
+              failed: job.failed,
+              cancelled: 0,
+            },
+            error: job.fatalError,
+          })
+        }
 
         const donePayload: PreprocessDonePayload = {
           jobId:           job.jobId,
@@ -256,11 +318,16 @@ export function registerPreprocessHandlers(): void {
       })
 
       // ── process error: spawn failure (ENOENT, permissions, etc.) ──────────
-      child.on('error', (err) => {
+      child.on('error', async (err) => {
         logger.error(`preprocess — process error for job ${jobId}`, err)
         const job = activeJob
         activeJob = null
         if (!job) return
+
+        // Same ordering fix as 'close' above — write before notify.
+        if (job.batchId) {
+          await updateStage(job.batchId, 'preprocessing', { status: 'failed', error: err.message })
+        }
 
         const donePayload: PreprocessDonePayload = {
           jobId:           job.jobId,
