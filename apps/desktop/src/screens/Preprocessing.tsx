@@ -3,7 +3,6 @@ import { PathField } from '../components/PathField'
 import { PythonInterpreterStatus } from '../components/PythonInterpreterStatus'
 import { SnapSlider } from '../components/SnapSlider'
 import { PreprocessingRunWorkspace } from '../components/preprocessing/PreprocessingRunWorkspace'
-import { PreprocessingBatchDetails } from '../components/preprocessing/PreprocessingBatchDetails'
 import { findStageStatus } from '../components/batch/batchDisplay'
 import { usePythonInterpreter } from '../hooks/usePythonInterpreter'
 import { useSamTuning } from '../hooks/useSamTuning'
@@ -30,8 +29,10 @@ const PRODUCT_TYPE_OPTIONS: { value: ProductType; label: string }[] = [
 
 interface PreprocessingProps {
   // The batch backing the current/most recent run, or null before one
-  // exists. This — not any renderer-local phase — is what decides whether
-  // Configure, Run, or Batch Details is shown (Phase 9D).
+  // exists. Used only to decide Configure vs. Run here — a terminal status
+  // is handled one level up in App.tsx, which renders the canonical
+  // BatchDetails screen instead (Phase 9E; the same screen a batch reopened
+  // from Home uses), so this component never needs to render that itself.
   batch: BatchDetailRecord | null
   // Seeds the optional batch-name field — set when this screen was entered
   // via Home's "Create & Open" with a custom title; empty for sidebar entry.
@@ -41,19 +42,9 @@ interface PreprocessingProps {
   // be forwarded to job.start() — the main process writes that batch's
   // preprocessing-stage status directly as the run progresses.
   onCreateBatch: (sourceDir: string, title: string) => Promise<string>
-  onContinueToWatchProcessing?: (outputDir: string) => Promise<{ ok: boolean; error?: string }>
-  // "Run another batch" from Batch Details: clears the parent's reference to
-  // this batch so the next Start creates a fresh one.
-  onRunAnother: () => void
 }
 
-export default function Preprocessing({
-  batch,
-  initialBatchName = '',
-  onCreateBatch,
-  onContinueToWatchProcessing,
-  onRunAnother,
-}: PreprocessingProps) {
+export default function Preprocessing({ batch, initialBatchName = '', onCreateBatch }: PreprocessingProps) {
   const [batchName, setBatchName] = useState(initialBatchName)
   // Bridges the brief async window between clicking Start and the batch's
   // status actually flipping to 'running' (batch creation + job spawn are
@@ -111,40 +102,14 @@ export default function Preprocessing({
     setStarting(false)
   }
 
-  function handleRunAnother() {
-    job.reset()
-    onRunAnother()
-  }
-
-  // Passes the preprocessing output folder to the parent (App.tsx), which
-  // prepares the hand-off images, saves Watch Processing prefs, and
-  // advances this batch's stage — only on success. Returns the result so
-  // PreprocessingSummary (inside Batch Details) can show progress/errors.
-  function handleContinueToWatchProcessing() {
-    if (!onContinueToWatchProcessing) return Promise.resolve({ ok: false })
-    return onContinueToWatchProcessing(folders.outputDir)
-  }
-
   if (stageStatus === 'running') {
     const stage = batch?.stages.find(s => s.type === 'preprocessing')
     return <PreprocessingRunWorkspace inputDir={stage?.inputDir || folders.inputDir} />
   }
 
-  if (stageStatus === 'completed' || stageStatus === 'failed' || stageStatus === 'cancelled') {
-    const stage = batch!.stages.find(s => s.type === 'preprocessing')
-    return (
-      <PreprocessingBatchDetails
-        batch={batch!}
-        inputDir={stage?.inputDir || folders.inputDir}
-        onReset={handleRunAnother}
-        onContinueToWatchProcessing={
-          onContinueToWatchProcessing ? handleContinueToWatchProcessing : undefined
-        }
-      />
-    )
-  }
-
   // ── Configure ────────────────────────────────────────────────────────────
+  // (App.tsx never renders this component for a terminal batch status, so
+  // stageStatus here is always 'none' | 'not_started' | 'configuring'.)
   return (
     <div className={styles.page}>
       <div className={styles.container}>

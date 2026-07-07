@@ -13,6 +13,9 @@ interface HomeProps {
   // execution action (Start / Begin Annotation), so this produces the exact
   // same downstream result as entering the same workflow via the sidebar.
   onLaunch: (pipeline: StageType[], title: string) => void
+  // Reopens an existing batch (Phase 9E) — an in-progress batch reopens into
+  // its live stage; a finished one opens the permanent Batch Details screen.
+  onOpenBatch: (id: string) => void
 }
 
 // The two single-stage batch types functional in 9B. Full-pipeline
@@ -32,7 +35,7 @@ const ENTRIES: { id: BatchEntry; title: string; description: string }[] = [
 
 // Home — the execution-history landing screen and the entry point back into
 // previous work.
-export default function Home({ onLaunch }: HomeProps) {
+export default function Home({ onLaunch, onOpenBatch }: HomeProps) {
   const [batches, setBatches] = useState<BatchSummaryRecord[]>([])
   const [creating, setCreating] = useState(false)
   const [entry, setEntry] = useState<BatchEntry>('preprocessing')
@@ -108,7 +111,7 @@ export default function Home({ onLaunch }: HomeProps) {
         ) : (
           <div className={styles.list}>
             {batches.map(b => (
-              <BatchCard key={b.id} batch={b} onRenamed={handleRenamed} />
+              <BatchCard key={b.id} batch={b} onOpen={() => onOpenBatch(b.id)} onRenamed={handleRenamed} />
             ))}
           </div>
         )}

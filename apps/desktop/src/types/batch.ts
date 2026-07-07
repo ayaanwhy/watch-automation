@@ -45,6 +45,18 @@ export interface StageRef {
   sessionKey?: string
 }
 
+// A single image's terminal outcome within a stage, persisted so a stage's
+// Batch Details (Phase 9E) can be rebuilt purely from the registry — never
+// from PreprocessingJobContext's in-memory, run-scoped state, which does not
+// survive to a later session or a different batch.
+export interface StageImageRecord {
+  name: string
+  status: 'completed' | 'failed' | 'cancelled'
+  outputPath: string | null
+  error: string | null
+  durationMs: number | null
+}
+
 export interface StageRecord {
   type: StageType
   status: StageStatus
@@ -52,6 +64,7 @@ export interface StageRecord {
   outputDir: string | null
   config: Record<string, unknown>
   counts: StageCounts
+  images: StageImageRecord[]
   ref: StageRef
   createdAt: string
   startedAt: string | null
@@ -66,6 +79,7 @@ export interface StagePatch {
   outputDir?: string | null
   config?: Record<string, unknown>
   counts?: StageCounts
+  images?: StageImageRecord[]
   ref?: StageRef
   error?: string | null
 }

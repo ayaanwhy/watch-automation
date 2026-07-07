@@ -15,6 +15,7 @@ import type {
   PrepareForWatchProcessingPayload,
   PrepareForWatchProcessingResult,
 } from '../../src/types/ipc'
+import type { StageImageRecord } from '../../src/types/batch'
 
 // electron_runner.py exits with this code only when it stopped cooperatively
 // at a safe checkpoint after receiving a cancel request — never as a result
@@ -39,6 +40,13 @@ interface ActiveJob {
   // Set from the NDJSON 'fatal' event, if one arrives before 'close'. Mirrors
   // the same signal the renderer used to track locally (fatalError).
   fatalError: string | null
+  // Per-image bookkeeping (Phase 9E) — mirrors the same reconciliation
+  // PreprocessingJobContext performs for the live Run workspace, but here so
+  // it can be PERSISTED to the batch registry at completion. A reopened
+  // historical batch's Images view has no live job to read from, so this is
+  // the only source of per-image detail once a run is over.
+  allImages: string[]
+  imageResults: Map<string, Omit<StageImageRecord, 'name'>>
 }
 
 let activeJob: ActiveJob | null = null
@@ -188,6 +196,8 @@ export function registerPreprocessHandlers(): void {
         failed: 0,
         totalDurationMs: 0,
         fatalError: null,
+        allImages: [],
+        imageResults: new Map(),
       }
 
       logger.info(`preprocess:start — job ${jobId} started, python=${pythonPath}`)
@@ -241,6 +251,31 @@ export function registerPreprocessHandlers(): void {
         if (event['type'] === 'fatal' && activeJob) {
           activeJob.fatalError = (event['error'] as string) ?? 'Unknown fatal error'
         }
+        // Per-image bookkeeping for persistence (Phase 9E) — parallels
+        // PreprocessingJobContext's own tracking, which stays renderer-only
+        // and serves the live Run workspace; this copy is what gets written
+        // to the registry so a historical Batch Details view has real data.
+        if (event['type'] === 'start' && activeJob) {
+          activeJob.allImages = (event['images'] as string[]) ?? []
+        }
+        if (event['type'] === 'complete' && activeJob) {
+          const name = event['image'] as string
+          activeJob.imageResults.set(name, {
+            status: 'completed',
+            outputPath: (event['output'] as string) ?? null,
+            error: null,
+            durationMs: (event['duration_ms'] as number) ?? null,
+          })
+        }
+        if (event['type'] === 'error' && activeJob) {
+          const name = event['image'] as string
+          activeJob.imageResults.set(name, {
+            status: 'failed',
+            outputPath: null,
+            error: (event['error'] as string) ?? 'Unknown error',
+            durationMs: null,
+          })
+        }
         notifyRenderer('preprocess:event', { jobId, ...event })
       }
 
@@ -288,6 +323,22 @@ export function registerPreprocessHandlers(): void {
         // actually closes that race.
         if (job.batchId) {
           const status = cancelledByUser ? 'cancelled' : job.fatalError ? 'failed' : 'completed'
+          // Reconcile any image that never reached a terminal per-image event
+          // (cooperative cancellation stops the runner between images; a
+          // fatal error ends the batch early) — mirrors the same
+          // reconciliation PreprocessingJobContext does for the live grid,
+          // so a reopened historical batch shows the same outcome.
+          const images: StageImageRecord[] = job.allImages.map(name => {
+            const result = job.imageResults.get(name)
+            if (result) return { name, ...result }
+            return {
+              name,
+              status: cancelledByUser ? 'cancelled' : 'failed',
+              outputPath: null,
+              error: cancelledByUser ? null : 'Not completed',
+              durationMs: null,
+            }
+          })
           await updateStage(job.batchId, 'preprocessing', {
             status,
             counts: {
@@ -296,6 +347,7 @@ export function registerPreprocessHandlers(): void {
               failed: job.failed,
               cancelled: 0,
             },
+            images,
             error: job.fatalError,
           })
         }

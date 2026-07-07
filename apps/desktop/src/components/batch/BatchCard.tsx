@@ -15,17 +15,17 @@ import styles from './BatchCard.module.css'
 
 interface BatchCardProps {
   batch: BatchSummaryRecord
+  onOpen: () => void
   onRenamed: (updated: BatchSummaryRecord) => void
 }
 
 // Glance-complete execution-history card: status, title, pipeline (with each
 // stage's status), image counts, duration, and timestamp — so users rarely
-// need to open a batch just to understand what happened.
-//
-// Non-navigational: reopening a batch into a live view is the Phase 9E Batch
-// Details screen. For now the only action a card supports is renaming — the
-// auto-generated title remains the default but is never permanent.
-export function BatchCard({ batch, onRenamed }: BatchCardProps) {
+// need to open a batch just to understand what happened. Clicking the card
+// opens it into Batch Details (Phase 9E) or its live stage; the ✎ affordance
+// still renames in place without opening it — the auto-generated title
+// remains the default but is never permanent.
+export function BatchCard({ batch, onOpen, onRenamed }: BatchCardProps) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(batch.title)
   const [saving, setSaving] = useState(false)
@@ -55,69 +55,94 @@ export function BatchCard({ batch, onRenamed }: BatchCardProps) {
     setEditing(false)
   }
 
+  // Card itself stays a plain container (not a <button>) so the ✎ button can
+  // be a real, independently-clickable descendant without nesting one button
+  // inside another. The click zone below opens the card; onClick is only
+  // active while not editing, so clicking into the rename input never
+  // triggers it, and the ✎ button stops propagation as its one exception.
   return (
     <Card className={styles.card}>
-      <div className={styles.header}>
-        {editing ? (
-          <div className={styles.editRow}>
-            <input
-              className={styles.editInput}
-              value={draft}
-              onChange={e => setDraft(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter') void handleSave()
-                if (e.key === 'Escape') handleCancel()
-              }}
-              disabled={saving}
-              autoFocus
-              spellCheck={false}
-            />
-            <Button size="sm" variant="ghost" onClick={handleSave} disabled={saving}>
-              Save
-            </Button>
-            <Button size="sm" variant="ghost" onClick={handleCancel} disabled={saving}>
-              Cancel
-            </Button>
-          </div>
-        ) : (
-          <>
-            <span className={styles.titleGroup}>
-              <span className={styles.title}>{batch.title}</span>
-              <button
-                className={styles.editButton}
-                onClick={() => setEditing(true)}
-                aria-label="Rename batch"
-                title="Rename"
-              >
-                ✎
-              </button>
+      <div
+        className={editing ? styles.clickAreaEditing : styles.clickArea}
+        onClick={editing ? undefined : onOpen}
+        role={editing ? undefined : 'button'}
+        tabIndex={editing ? undefined : 0}
+        onKeyDown={
+          editing
+            ? undefined
+            : e => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  onOpen()
+                }
+              }
+        }
+      >
+        <div className={styles.header}>
+          {editing ? (
+            <div className={styles.editRow}>
+              <input
+                className={styles.editInput}
+                value={draft}
+                onChange={e => setDraft(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') void handleSave()
+                  if (e.key === 'Escape') handleCancel()
+                }}
+                disabled={saving}
+                autoFocus
+                spellCheck={false}
+              />
+              <Button size="sm" variant="ghost" onClick={handleSave} disabled={saving}>
+                Save
+              </Button>
+              <Button size="sm" variant="ghost" onClick={handleCancel} disabled={saving}>
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            <>
+              <span className={styles.titleGroup}>
+                <span className={styles.title}>{batch.title}</span>
+                <button
+                  className={styles.editButton}
+                  onClick={e => {
+                    e.stopPropagation()
+                    setEditing(true)
+                  }}
+                  aria-label="Rename batch"
+                  title="Rename"
+                >
+                  ✎
+                </button>
+              </span>
+              <StatusChip tone={batchStatusTone(batch.status)}>
+                {BATCH_STATUS_LABELS[batch.status]}
+              </StatusChip>
+            </>
+          )}
+        </div>
+
+        <div className={styles.pipeline}>
+          {batch.stageStatuses.map(s => (
+            <span key={s.type} className={styles.stage}>
+              <span className={`${styles.dot} ${styles[stageStatusTone(s.status)]}`} aria-hidden="true" />
+              {STAGE_LABELS[s.type]}
             </span>
-            <StatusChip tone={batchStatusTone(batch.status)}>
-              {BATCH_STATUS_LABELS[batch.status]}
-            </StatusChip>
-          </>
-        )}
-      </div>
+          ))}
+        </div>
 
-      <div className={styles.pipeline}>
-        {batch.stageStatuses.map(s => (
-          <span key={s.type} className={styles.stage}>
-            <span className={`${styles.dot} ${styles[stageStatusTone(s.status)]}`} aria-hidden="true" />
-            {STAGE_LABELS[s.type]}
+        <div className={styles.meta}>
+          <span>
+            {hasCounts
+              ? `${counts.succeeded}✓${counts.failed > 0 ? ` · ${counts.failed}✗` : ''} / ${counts.total}`
+              : 'No images yet'}
           </span>
-        ))}
-      </div>
-
-      <div className={styles.meta}>
-        <span>
-          {hasCounts
-            ? `${counts.succeeded}✓${counts.failed > 0 ? ` · ${counts.failed}✗` : ''} / ${counts.total}`
-            : 'No images yet'}
-        </span>
-        <span className={styles.metaRight}>
-          <span>{formatDuration(batch.durationMs)}</span>
-          <span className={styles.time}>{formatRelativeTime(batch.createdAt)}</span>
-        </span>
+          <span className={styles.metaRight}>
+            <span>{formatDuration(batch.durationMs)}</span>
+            <span className={styles.time}>{formatRelativeTime(batch.createdAt)}</span>
+          </span>
+        </div>
       </div>
     </Card>
   )

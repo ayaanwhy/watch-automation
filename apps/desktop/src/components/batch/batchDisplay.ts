@@ -65,6 +65,16 @@ export function findStageStatus(batch: BatchDetailRecord | null, type: StageType
   return batch.stages.find(s => s.type === type)?.status ?? 'none'
 }
 
+// Reads one key out of a stage's free-form config for display, formatting
+// booleans as On/Off. Shared by every stage type's "configuration used"
+// block in Batch Details (Phase 9E) rather than each reimplementing it.
+export function readConfigValue(config: Record<string, unknown>, key: string): string | null {
+  const value = config[key]
+  if (value === undefined || value === null) return null
+  if (typeof value === 'boolean') return value ? 'On' : 'Off'
+  return String(value)
+}
+
 export function formatRelativeTime(iso: string): string {
   const then = Date.parse(iso)
   if (Number.isNaN(then)) return ''

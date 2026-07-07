@@ -28,6 +28,7 @@ export function emptyStage(type: StageType, inputDir: string, now: string): Stag
     outputDir: null,
     config: {},
     counts: { ...ZERO_COUNTS },
+    images: [],
     ref: {},
     createdAt: now,
     startedAt: null,

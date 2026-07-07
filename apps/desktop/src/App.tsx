@@ -4,9 +4,11 @@ import { AnnotationWorkspace } from './screens/AnnotationWorkspace'
 import Preprocessing from './screens/Preprocessing'
 import Settings from './screens/Settings'
 import Home from './screens/Home'
+import BatchDetails from './screens/BatchDetails'
 import { AppShell } from './components/shell/AppShell'
 import { PreprocessingJobProvider } from './context/PreprocessingJobContext'
 import { PreprocessingBatchSync } from './components/batch/PreprocessingBatchSync'
+import { findStageStatus } from './components/batch/batchDisplay'
 import type { BatchState } from './types/annotation'
 import type { SessionFile } from './types/session'
 import type { AppView } from './types/navigation'
@@ -38,10 +40,16 @@ export default function App() {
   const [pendingBatch, setPendingBatch] = useState<PendingBatch | null>(null)
 
   // The batch backing the current/most-recent preprocessing run. Refreshed by
-  // PreprocessingBatchSync whenever that job finishes, so its derived
-  // currentStage/nextStage are fresh enough to decide whether to offer
-  // "Continue to Watch Processing".
+  // PreprocessingBatchSync whenever that job starts/finishes, so its derived
+  // status/currentStage are fresh enough to drive Preprocessing.tsx's
+  // Configure/Run switch and the Continue-to-Watch decision.
   const [preprocessBatch, setPreprocessBatch] = useState<BatchDetailRecord | null>(null)
+
+  // The batch explicitly opened from Home (Phase 9E) — reopens a terminal
+  // batch into the permanent Batch Details screen. Historical batches are
+  // always fetched fresh from the registry by BatchDetails itself; this is
+  // just which id to fetch.
+  const [openBatchId, setOpenBatchId] = useState<string | null>(null)
 
   // Set only during a Preprocessing → Watch hand-off, so BatchSetup can show
   // its "Prepared ✓" badge/helper message. This is a Watch-screen UX nicety —
@@ -60,13 +68,14 @@ export default function App() {
 
   // Sidebar shortcuts are pure navigation into a workflow: they always seed a
   // bare, untitled, single-stage pending spec and clear any stale hand-off
-  // badge — never carrying anything a prior Home launch or hand-off may have
-  // set — so behavior is identical regardless of whether the workflow was
-  // entered from Home or the sidebar.
+  // badge/opened-batch reference — never carrying anything a prior Home
+  // launch or hand-off may have set — so behavior is identical regardless of
+  // whether the workflow was entered from Home or the sidebar.
   function navigate(next: AppView) {
     if (next === 'preprocessing') setPendingBatch({ pipeline: ['preprocessing'], title: '' })
     if (next === 'watch') setPendingBatch({ pipeline: ['watch'], title: '' })
     setHandoffFolder(null)
+    setOpenBatchId(null)
     setView(next)
   }
 
@@ -75,7 +84,53 @@ export default function App() {
   function handleLaunchFromHome(pipeline: StageType[], title: string) {
     setPendingBatch({ pipeline, title })
     setHandoffFolder(null)
+    setOpenBatchId(null)
     setView(pipeline[0] === 'watch' ? 'watch' : 'preprocessing')
+  }
+
+  // Reopening a batch from Home (Phase 9E). Historical batches always load
+  // from the registry, never from renderer memory: this always fetches
+  // fresh, regardless of whether it happens to match whatever App.tsx was
+  // already tracking. An in-progress batch reopens into its live stage
+  // (existing screens, unchanged); anything else (terminal, or the rare
+  // never-actually-started edge case) opens the permanent Batch Details page.
+  async function handleOpenBatch(id: string) {
+    const detail = await window.api.invoke('batch-registry:get', { id })
+    if (!detail) return
+
+    if (detail.status === 'in_progress' && detail.currentStage === 'preprocessing') {
+      setPendingBatch(null)
+      setPreprocessBatch(detail)
+      setHandoffFolder(null)
+      setOpenBatchId(null)
+      setView('preprocessing')
+      return
+    }
+
+    if (detail.status === 'in_progress' && detail.currentStage === 'watch') {
+      const watchStage = detail.stages.find(s => s.type === 'watch')
+      if (watchStage) {
+        // Seeds BatchSetup's own existing restore-on-mount + auto-validate
+        // flow with THIS batch's folders — reusing that machinery exactly as
+        // it already exists rather than building a separate Watch-reopening
+        // path (the annotation workflow itself is not being redesigned).
+        await window.api.invoke('prefs:save-last-batch', {
+          inputFolder: watchStage.inputDir,
+          spreadsheetPath: (watchStage.config.spreadsheetPath as string) ?? null,
+          outputFolder: watchStage.outputDir,
+        })
+      }
+      setPendingBatch(null)
+      setScreen('setup')
+      setEntry(null)
+      setOpenBatchId(null)
+      setView('watch')
+      return
+    }
+
+    // Terminal (or draft/never-started) — the canonical Batch Details page.
+    setOpenBatchId(id)
+    setView('batchDetails')
   }
 
   // The single funnel for resolving which Batch an execution belongs to —
@@ -108,17 +163,31 @@ export default function App() {
     return id
   }
 
+  // Clears whatever batch App.tsx was tracking and returns to a fresh
+  // Preprocessing Configure screen — the same "Run another batch" semantic
+  // Phase 9D introduced, now reachable identically from either the live
+  // Preprocessing screen's own terminal state or a historical batch opened
+  // from Home (both render the same BatchDetails screen; see renderContent).
+  function handleRunAnotherPreprocessing() {
+    setPreprocessBatch(null)
+    setPendingBatch({ pipeline: ['preprocessing'], title: '' })
+    setHandoffFolder(null)
+    setOpenBatchId(null)
+    setView('preprocessing')
+  }
+
   // Redesigned around the Batch model (Phase 9C): this is a stage transition
   // on the SAME batch, never a session restore and never a new batch. It
   // hands the batch's id to the next screen via pendingBatch.continueBatchId
-  // so Begin Annotation reuses it instead of minting one.
+  // so Begin Annotation reuses it instead of minting one. Takes the target
+  // batch explicitly (Phase 9E) so it works identically whether triggered
+  // from the live Preprocessing screen (preprocessBatch) or a historical
+  // batch's Batch Details page (openBatchId) — not just the currently-tracked
+  // one.
   async function handleContinueToWatchProcessing(
+    batch: BatchDetailRecord,
     outputDir: string
   ): Promise<{ ok: boolean; error?: string }> {
-    const batch = preprocessBatch
-    if (!batch) {
-      return { ok: false, error: 'No active batch to continue.' }
-    }
     if (!outputDir) {
       return { ok: false, error: 'No preprocessing output folder to prepare.' }
     }
@@ -140,6 +209,7 @@ export default function App() {
     setHandoffFolder(result.preparedDir)
     setPendingBatch({ pipeline: batch.pipeline, title: batch.title, continueBatchId: batch.id })
     setPreprocessBatch(null)
+    setOpenBatchId(null)
     setView('watch')
     return { ok: true }
   }
@@ -171,21 +241,45 @@ export default function App() {
   }
 
   function renderContent() {
-    if (view === 'home') return <Home onLaunch={handleLaunchFromHome} />
+    if (view === 'home') return <Home onLaunch={handleLaunchFromHome} onOpenBatch={handleOpenBatch} />
     if (view === 'settings') return <Settings />
+
+    if (view === 'batchDetails' && openBatchId) {
+      return (
+        <BatchDetails
+          batchId={openBatchId}
+          onBack={() => setView('home')}
+          onRunAnotherPreprocessing={handleRunAnotherPreprocessing}
+          onContinueToWatchProcessing={handleContinueToWatchProcessing}
+        />
+      )
+    }
+
     if (view === 'preprocessing') {
+      const stageStatus = findStageStatus(preprocessBatch, 'preprocessing')
+      // A terminal preprocessing batch's outcome is shown via the exact same
+      // canonical Batch Details screen a historical batch reopens into —
+      // there is only ever one implementation of "what does a finished
+      // Preprocessing stage look like" (Phase 9E).
+      if (stageStatus === 'completed' || stageStatus === 'failed' || stageStatus === 'cancelled') {
+        return (
+          <BatchDetails
+            batchId={preprocessBatch!.id}
+            onBack={() => setView('home')}
+            onRunAnotherPreprocessing={handleRunAnotherPreprocessing}
+            onContinueToWatchProcessing={handleContinueToWatchProcessing}
+          />
+        )
+      }
       return (
         <Preprocessing
           batch={preprocessBatch}
           initialBatchName={pendingBatch?.title ?? ''}
           onCreateBatch={handleCreatePreprocessingBatch}
-          onContinueToWatchProcessing={
-            preprocessBatch?.currentStage === 'watch' ? handleContinueToWatchProcessing : undefined
-          }
-          onRunAnother={() => setPreprocessBatch(null)}
         />
       )
     }
+
     // view === 'watch'
     return screen === 'annotation' && entry !== null ? (
       <AnnotationWorkspace batch={entry.batch} initialSession={entry.initialSession} onBack={handleBack} />
@@ -202,10 +296,11 @@ export default function App() {
     // PreprocessingJobProvider wraps the whole shell so an in-progress
     // preprocessing job (and its IPC subscription) survives navigation.
     // PreprocessingBatchSync observes that job and refreshes preprocessBatch
-    // once it finishes, even if the user has navigated away from the screen —
-    // it is unconditional, not gated on the current view, so revisitability
-    // holds for the Continue-to-Watch decision too. Stage status itself is no
-    // longer written from here — the main process owns that (Phase 9C).
+    // on both start and finish, even if the user has navigated away from the
+    // screen — it is unconditional, not gated on the current view, so
+    // revisitability holds for the Configure/Run switch and the
+    // Continue-to-Watch decision alike. Stage status itself is never written
+    // from here — the main process owns that (Phase 9C).
     <PreprocessingJobProvider>
       <PreprocessingBatchSync
         batchId={preprocessBatch?.id ?? null}
