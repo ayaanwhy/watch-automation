@@ -8,6 +8,7 @@ import { registerProcessHandlers } from './ipc/processHandlers'
 import { registerQueueHandlers } from './ipc/queueHandlers'
 import { registerPreprocessHandlers } from './ipc/preprocessHandlers'
 import { registerBatchRegistryHandlers } from './ipc/batchRegistryHandlers'
+import { registerRingBraceletHandlers } from './ipc/ringBraceletHandlers'
 import { logger } from './logger'
 
 process.on('uncaughtException', (err) => {
@@ -56,6 +57,7 @@ app.whenReady().then(() => {
   registerQueueHandlers()
   registerPreprocessHandlers()
   registerBatchRegistryHandlers()
+  registerRingBraceletHandlers()
   createWindow()
 
   app.on('activate', () => {

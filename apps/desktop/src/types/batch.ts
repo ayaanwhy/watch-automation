@@ -15,7 +15,14 @@
 
 export const BATCH_REGISTRY_VERSION = 1
 
-export type StageType = 'preprocessing' | 'watch' | 'qa' | 'export'
+// 'editing' is the general product-specific asset-generation stage category
+// (Phase 10C: Ring & Bracelet today, via config.product; future products —
+// e.g. Earring — reuse this same type with a different config.product rather
+// than minting a new StageType each time, mirroring how 'preprocessing'
+// already covers multiple products via config.objectType). 'watch' predates
+// this generalization and remains its own separate type — folding it into
+// 'editing' is an Architecture Strengthening question, not addressed here.
+export type StageType = 'preprocessing' | 'watch' | 'editing' | 'qa' | 'export'
 
 export type StageStatus =
   | 'not_started'
@@ -45,6 +52,16 @@ export interface StageRef {
   sessionKey?: string
 }
 
+// Named outputs beyond a stage's single canonical outputPath — e.g. Ring &
+// Bracelet's frontFullImage + frontImage (Phase 10C). Keys are individually
+// optional so a future stage producing a different subset (or a differently
+// named output entirely) can reuse this same interface rather than each
+// stage needing its own bespoke multi-output shape.
+export interface StageImageAssets {
+  frontFullImage?: string
+  frontImage?: string
+}
+
 // A single image's terminal outcome within a stage, persisted so a stage's
 // Batch Details (Phase 9E) can be rebuilt purely from the registry — never
 // from PreprocessingJobContext's in-memory, run-scoped state, which does not
@@ -53,6 +70,7 @@ export interface StageImageRecord {
   name: string
   status: 'completed' | 'failed' | 'cancelled'
   outputPath: string | null
+  assets?: StageImageAssets
   error: string | null
   durationMs: number | null
 }

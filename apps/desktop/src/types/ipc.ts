@@ -272,3 +272,59 @@ export interface BatchFindWatchPayload {
   outputFolder: string
   spreadsheetPath: string
 }
+
+// ── Ring & Bracelet asset generation (Phase 10C) ────────────────────────────
+// Consumes Universal Preprocessing's already-prepared transparent PNGs — this
+// stage never touches raw photos or runs its own background removal. Wire
+// contract is deliberately independent of PreprocessStartPayload/Event/Done
+// (not reused) even though the shapes rhyme, per "keep preprocessing and
+// asset generation cleanly separated."
+
+export interface RingBraceletStartPayload {
+  inputDir: string
+  outputDir: string
+  // The Batch (see types/batch.ts) whose 'editing' stage this run belongs
+  // to — mirrors PreprocessStartPayload.batchId's role for preprocessing.
+  batchId?: string
+  pythonPath?: string
+  // Recorded on the stage config; the runner's own algorithm behavior does
+  // not depend on it (generate_wrap_mask doesn't distinguish ring/bracelet).
+  product: 'ring' | 'bracelet'
+  // Fallback vertical split used when no hole topology is found. Optional
+  // renderer override on an unchanged default (0.5), same pattern as SAM
+  // tuning in PreprocessStartPayload.
+  splitY?: number
+}
+
+export type RingBraceletStartResult =
+  | { ok: true; jobId: string }
+  | { ok: false; error: string }
+
+export type RingBraceletEventPayload = { jobId: string } & (
+  | { type: 'start'; total: number; images: string[] }
+  | { type: 'progress'; index: number; total: number; image: string; stage: string; status: 'start' }
+  | {
+      type: 'complete'
+      index: number
+      total: number
+      image: string
+      frontFullImage: string
+      frontImage: string
+      detected: boolean
+      duration_ms: number
+    }
+  | { type: 'error'; index: number; total: number; image: string; error: string; fatal: boolean }
+  | { type: 'fatal'; error: string }
+  | { type: 'cancel_requested' }
+  | { type: 'done'; succeeded: number; failed: number; total_duration_ms: number; cancelled: boolean }
+)
+
+export interface RingBraceletDonePayload {
+  jobId: string
+  exitCode: number | null
+  succeeded: number
+  failed: number
+  totalDurationMs: number
+  cancelledByUser: boolean
+  spawnError?: string
+}

@@ -31,6 +31,10 @@ import type {
   BatchStageUpdatePayload,
   BatchRenamePayload,
   BatchFindWatchPayload,
+  RingBraceletStartPayload,
+  RingBraceletStartResult,
+  RingBraceletEventPayload,
+  RingBraceletDonePayload,
 } from './ipc'
 import type { BatchDetailRecord, BatchSummaryRecord } from './batch'
 
@@ -79,6 +83,12 @@ declare global {
       invoke(channel: 'batch-registry:rename', payload: BatchRenamePayload): Promise<BatchDetailRecord | null>
       invoke(channel: 'batch-registry:find-watch', payload: BatchFindWatchPayload): Promise<BatchDetailRecord | null>
       invoke(channel: 'batch-registry:delete', payload: { id: string }): Promise<boolean>
+
+      // Ring & Bracelet asset generation (Phase 10C)
+      invoke(channel: 'ring-bracelet:start', payload: RingBraceletStartPayload): Promise<RingBraceletStartResult>
+      invoke(channel: 'ring-bracelet:cancel', payload: { jobId: string }): Promise<{ ok: boolean }>
+      on(channel: 'ring-bracelet:event', listener: (payload: RingBraceletEventPayload) => void): () => void
+      on(channel: 'ring-bracelet:done', listener: (payload: RingBraceletDonePayload) => void): () => void
     }
   }
 }

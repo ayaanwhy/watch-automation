@@ -7,6 +7,7 @@ import type { ChipTone } from '../ui/StatusChip'
 export const STAGE_LABELS: Record<StageType, string> = {
   preprocessing: 'Preprocessing',
   watch: 'Watch Processing',
+  editing: 'Editing',
   qa: 'QA',
   export: 'Export',
 }
