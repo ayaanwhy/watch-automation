@@ -328,3 +328,20 @@ export interface RingBraceletDonePayload {
   cancelledByUser: boolean
   spawnError?: string
 }
+
+// Ring and Bracelet remember separate last-used folders (product-keyed,
+// mirroring PreprocessingFolderPrefs' one-file-per-concern shape) rather
+// than sharing one slot — switching products shouldn't surface the other
+// product's folders.
+export interface RingBraceletFolderPrefs {
+  inputDir: string | null
+  outputDir: string | null
+}
+
+export interface RingBraceletFolderPrefsLoadPayload {
+  product: 'ring' | 'bracelet'
+}
+
+export interface RingBraceletFolderPrefsSavePayload extends RingBraceletFolderPrefs {
+  product: 'ring' | 'bracelet'
+}

@@ -99,3 +99,12 @@
   color: var(--info);
   font-weight: var(--weight-medium);
 }
+
+.optionDisabled {
+  color: var(--text-faint);
+  cursor: not-allowed;
+}
+
+.optionDisabled:hover {
+  background: none;
+}

@@ -4,6 +4,8 @@ import styles from './Select.module.css'
 export interface SelectOption<T extends string> {
   value: T
   label: string
+  // Visible but not selectable — e.g. a roadmap product not implemented yet.
+  disabled?: boolean
 }
 
 interface SelectProps<T extends string> {
@@ -61,11 +63,20 @@ export function Select<T extends string>({ label, options, value, onChange, disa
                 key={opt.value}
                 role="option"
                 aria-selected={opt.value === value}
-                className={`${styles.option} ${opt.value === value ? styles.optionActive : ''}`}
-                onClick={() => {
-                  onChange(opt.value)
-                  setOpen(false)
-                }}
+                aria-disabled={opt.disabled || undefined}
+                className={[
+                  styles.option,
+                  opt.value === value ? styles.optionActive : '',
+                  opt.disabled ? styles.optionDisabled : '',
+                ].join(' ').trim()}
+                onClick={
+                  opt.disabled
+                    ? undefined
+                    : () => {
+                        onChange(opt.value)
+                        setOpen(false)
+                      }
+                }
               >
                 {opt.label}
               </li>

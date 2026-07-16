@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { usePreprocessingJob } from '../context/PreprocessingJobContext'
+import { useRingBraceletJob } from '../context/RingBraceletJobContext'
 import { PreprocessingSummary } from '../components/PreprocessingSummary'
 import { BatchDetailsSection } from '../components/batch/BatchDetailsSection'
 import { StatusChip } from '../components/ui/StatusChip'
 import { Button } from '../components/ui/Button'
 import { ThumbnailGrid } from '../components/preprocessing/ThumbnailGrid'
 import { ImagePreviewPanel } from '../components/preprocessing/ImagePreviewPanel'
+import { RingBraceletImagePreviewPanel } from '../components/ringBracelet/RingBraceletImagePreviewPanel'
 import {
   BATCH_STATUS_LABELS,
   STAGE_LABELS,
@@ -18,6 +20,7 @@ import { joinPath } from '../lib/paths'
 import type { BatchDetailRecord, StageRecord } from '../types/batch'
 import type { PreprocessDonePayload } from '../types/ipc'
 import type { PreprocessingImageState } from '../context/PreprocessingJobContext'
+import type { RingBraceletImageState } from '../context/RingBraceletJobContext'
 import type { SessionFile } from '../types/session'
 import styles from './BatchDetails.module.css'
 
@@ -32,6 +35,9 @@ interface BatchDetailsProps {
     batch: BatchDetailRecord,
     outputDir: string
   ) => Promise<{ ok: boolean; error?: string }>
+  // Ring & Bracelet (Phase 10D) — same "run another" semantic, returning to
+  // the shared Editing setup screen with the same product preselected.
+  onRunAnotherEditing: (product: 'ring' | 'bracelet') => void
 }
 
 // Builds a PreprocessingSummary-shaped payload purely from a persisted stage
@@ -89,6 +95,15 @@ const WATCH_CONFIG_FIELDS: [string, string, string | undefined][] = [
   ['spreadsheetPath', 'Spreadsheet', undefined],
 ]
 
+// Phase 10D — "product" here is 'ring' | 'bracelet'; "splitY" is the
+// fallback vertical split used when no hole topology is found (see
+// shank_mask.py). Both are plain readConfigValue lookups, no special
+// formatting needed.
+const EDITING_CONFIG_FIELDS: [string, string, string | undefined][] = [
+  ['product', 'Product', undefined],
+  ['splitY', 'Fallback Split', undefined],
+]
+
 function ConfigGrid({
   config,
   fields,
@@ -136,8 +151,10 @@ export default function BatchDetails({
   onBack,
   onRunAnotherPreprocessing,
   onContinueToWatchProcessing,
+  onRunAnotherEditing,
 }: BatchDetailsProps) {
   const job = usePreprocessingJob()
+  const ringBraceletJob = useRingBraceletJob()
   const [batch, setBatch] = useState<BatchDetailRecord | null>(null)
   const [loading, setLoading] = useState(true)
   const [editingTitle, setEditingTitle] = useState(false)
@@ -211,6 +228,11 @@ export default function BatchDetails({
     onRunAnotherPreprocessing()
   }
 
+  function handleRunAnotherEditing(product: 'ring' | 'bracelet') {
+    ringBraceletJob.reset()
+    onRunAnotherEditing(product)
+  }
+
   function handleContinue(outputDir: string) {
     if (!batch || !onContinueToWatchProcessing) return Promise.resolve({ ok: false })
     return onContinueToWatchProcessing(batch, outputDir)
@@ -238,6 +260,8 @@ export default function BatchDetails({
   }
 
   const preprocessingStage = batch.stages.find(s => s.type === 'preprocessing')
+  const editingStage = batch.stages.find(s => s.type === 'editing')
+  const editingProduct = editingStage?.config.product === 'bracelet' ? 'bracelet' : 'ring'
   const completedAt = latestCompletedAt(batch.stages)
 
   // Unified Images data — whichever stage has actually produced something,
@@ -245,8 +269,13 @@ export default function BatchDetails({
   // when a pipeline has run through both. Preprocessing hasn't run or its
   // outputs don't exist yet → this simply stays empty; ThumbnailGrid and
   // ImagePreviewPanel already degrade to their own empty states for that.
+  // Ring & Bracelet (Phase 10D) is mutually exclusive with Watch/Preprocessing
+  // — its pipeline is always ['editing'] alone — so it's a separate variable
+  // rather than a third case shoehorned into PreprocessingImageState's
+  // single-outputPath shape.
   let imageInputDir = ''
   let images: PreprocessingImageState[] = []
+  let editingImages: RingBraceletImageState[] = []
   if (watchStage && watchStage.status !== 'not_started' && watchSession) {
     imageInputDir = watchStage.inputDir
     const queueBySku = new Map(watchSession.processingQueue.map(q => [q.sku, q]))
@@ -276,8 +305,22 @@ export default function BatchDetails({
       error: img.error,
       durationMs: img.durationMs,
     }))
+  } else if (editingStage && editingStage.images.length > 0) {
+    imageInputDir = editingStage.inputDir
+    editingImages = editingStage.images.map(img => ({
+      name: img.name,
+      status: img.status,
+      frontFullImage: img.assets?.frontFullImage ?? null,
+      frontImage: img.assets?.frontImage ?? null,
+      detected: img.assets?.detected ?? null,
+      error: img.error,
+      durationMs: img.durationMs,
+    }))
   }
+  const showingEditingImages = editingImages.length > 0
   const selectedImageState = images.find(img => img.name === selectedImage) ?? images[0] ?? null
+  const selectedEditingImageState =
+    editingImages.find(img => img.name === selectedImage) ?? editingImages[0] ?? null
 
   return (
     <div className={styles.page}>
@@ -411,6 +454,39 @@ export default function BatchDetails({
             </div>
           )}
 
+          {editingStage && editingStage.status !== 'not_started' && (
+            <div className={styles.stageBlock}>
+              <div className={styles.stageBlockLeft}>
+                <div className={styles.columnHeading}>Configuration</div>
+                <ConfigGrid config={editingStage.config} fields={EDITING_CONFIG_FIELDS} />
+              </div>
+              <div className={styles.stageBlockRight}>
+                <div className={styles.stageHeader}>
+                  <span className={styles.stageName}>{STAGE_LABELS.editing}</span>
+                  <StatusChip tone={stageStatusTone(editingStage.status)}>
+                    {STAGE_STATUS_LABELS[editingStage.status]}
+                  </StatusChip>
+                </div>
+                <StageTiming stage={editingStage} />
+                <div className={styles.metaRow}>
+                  <span>
+                    {editingStage.counts.succeeded}✓
+                    {editingStage.counts.failed > 0 ? ` · ${editingStage.counts.failed}✗` : ''} / {editingStage.counts.total}
+                  </span>
+                </div>
+                {(editingStage.status === 'completed' ||
+                  editingStage.status === 'failed' ||
+                  editingStage.status === 'cancelled') && (
+                  <div className={styles.actions}>
+                    <Button variant="ghost" onClick={() => handleRunAnotherEditing(editingProduct)}>
+                      Run Another Batch
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className={styles.metaRow}>
             <span>Created {new Date(batch.createdAt).toLocaleString()}</span>
             {completedAt && <span>Completed {new Date(completedAt).toLocaleString()}</span>}
@@ -422,14 +498,18 @@ export default function BatchDetails({
           <div className={styles.imagesLayout}>
             <div className={styles.gridArea}>
               <ThumbnailGrid
-                images={images}
+                images={showingEditingImages ? editingImages : images}
                 inputDir={imageInputDir}
-                selectedImage={selectedImageState?.name ?? null}
+                selectedImage={(showingEditingImages ? selectedEditingImageState : selectedImageState)?.name ?? null}
                 onSelect={setSelectedImage}
               />
             </div>
             <div className={styles.previewArea}>
-              <ImagePreviewPanel image={selectedImageState} inputDir={imageInputDir} />
+              {showingEditingImages ? (
+                <RingBraceletImagePreviewPanel image={selectedEditingImageState} inputDir={imageInputDir} />
+              ) : (
+                <ImagePreviewPanel image={selectedImageState} inputDir={imageInputDir} />
+              )}
             </div>
           </div>
         </BatchDetailsSection>

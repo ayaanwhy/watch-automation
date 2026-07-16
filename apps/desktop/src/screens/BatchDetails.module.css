@@ -208,6 +208,12 @@
   max-width: 460px;
 }
 
+/* Editing stage's own "Run Another Batch" (Phase 10D) — simpler than
+   PreprocessingSummary's card since there's no hand-off action to offer here. */
+.actions {
+  margin-top: 4px;
+}
+
 @media (max-width: 760px) {
   .stageBlock {
     grid-template-columns: 1fr;

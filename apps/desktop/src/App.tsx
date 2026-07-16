@@ -1,17 +1,21 @@
 import { useState } from 'react'
 import BatchSetup from './screens/BatchSetup'
+import EditingSetup from './screens/EditingSetup'
 import { AnnotationWorkspace } from './screens/AnnotationWorkspace'
 import Preprocessing from './screens/Preprocessing'
 import Settings from './screens/Settings'
 import Home from './screens/Home'
 import BatchDetails from './screens/BatchDetails'
+import { RingBraceletRunWorkspace } from './components/ringBracelet/RingBraceletRunWorkspace'
 import { AppShell } from './components/shell/AppShell'
 import { PreprocessingJobProvider } from './context/PreprocessingJobContext'
+import { RingBraceletJobProvider } from './context/RingBraceletJobContext'
 import { PreprocessingBatchSync } from './components/batch/PreprocessingBatchSync'
+import { RingBraceletBatchSync } from './components/batch/RingBraceletBatchSync'
 import { findStageStatus } from './components/batch/batchDisplay'
 import type { BatchState } from './types/annotation'
 import type { SessionFile } from './types/session'
-import type { AppView } from './types/navigation'
+import type { AppView, EditingProduct } from './types/navigation'
 import type { BatchDetailRecord, StageType } from './types/batch'
 
 interface AnnotationEntry {
@@ -25,6 +29,14 @@ interface AnnotationEntry {
 // created or reused — only when the workflow's execution action fires
 // (Preprocessing Start / Begin Annotation), so every entry path funnels
 // through the exact same resolution call.
+//
+// Deliberately NOT used for the Editing entry (Watch/Ring/Bracelet, Phase
+// 10D): which product — and therefore which StageType, 'watch' or 'editing'
+// — applies isn't known until the user is on the Editing setup screen, so
+// there is nothing correct to pre-stage here. Both createBatch() call sites
+// already fall back to their own correct defaultPipeline when pendingBatch
+// is null, so Editing simply never sets one rather than needing pipeline to
+// become optional.
 interface PendingBatch {
   pipeline: StageType[]
   title: string
@@ -39,11 +51,25 @@ export default function App() {
   const [view, setView] = useState<AppView>('home')
   const [pendingBatch, setPendingBatch] = useState<PendingBatch | null>(null)
 
+  // Which product the shared Editing setup screen shows (Phase 10D) — always
+  // has a value; only meaningful while view === 'editing'.
+  const [editingProduct, setEditingProduct] = useState<EditingProduct>('watch')
+  // Carries a custom title from Home's generic "Editing" launch through to
+  // whichever product screen the user lands on — see the PendingBatch
+  // comment above for why this isn't folded into pendingBatch instead.
+  const [pendingEditingTitle, setPendingEditingTitle] = useState('')
+
   // The batch backing the current/most-recent preprocessing run. Refreshed by
   // PreprocessingBatchSync whenever that job starts/finishes, so its derived
   // status/currentStage are fresh enough to drive Preprocessing.tsx's
   // Configure/Run switch and the Continue-to-Watch decision.
   const [preprocessBatch, setPreprocessBatch] = useState<BatchDetailRecord | null>(null)
+
+  // The batch backing the current/most-recent Ring/Bracelet run (Phase 10D)
+  // — mirrors preprocessBatch exactly, refreshed by RingBraceletBatchSync.
+  // Not used for Watch, which keeps its own watchBatchId/entry/screen state
+  // below, unchanged from before this phase.
+  const [editingBatch, setEditingBatch] = useState<BatchDetailRecord | null>(null)
 
   // The batch backing the current annotation session (Phase 9E.1) — set
   // whenever one is created/resumed/reopened, read by the "Complete Batch"
@@ -74,25 +100,46 @@ export default function App() {
   const [entry, setEntry] = useState<AnnotationEntry | null>(null)
 
   // Sidebar shortcuts are pure navigation into a workflow: they always seed a
-  // bare, untitled, single-stage pending spec and clear any stale hand-off
-  // badge/opened-batch reference — never carrying anything a prior Home
-  // launch or hand-off may have set — so behavior is identical regardless of
-  // whether the workflow was entered from Home or the sidebar.
-  function navigate(next: AppView) {
+  // bare, untitled, single-stage pending spec (or, for Editing, no spec at
+  // all — see PendingBatch) and clear any stale hand-off badge/opened-batch
+  // reference — never carrying anything a prior Home launch or hand-off may
+  // have set — so behavior is identical regardless of whether the workflow
+  // was entered from Home or the sidebar.
+  function navigate(next: AppView, product?: EditingProduct) {
     if (next === 'preprocessing') setPendingBatch({ pipeline: ['preprocessing'], title: '' })
-    if (next === 'watch') setPendingBatch({ pipeline: ['watch'], title: '' })
+    if (next === 'editing') {
+      setPendingBatch(null)
+      setPendingEditingTitle('')
+      if (product) setEditingProduct(product)
+      // Ring and Bracelet share this one piece of state (both are the same
+      // 'editing' StageType) — without clearing it here, switching from a
+      // completed/running Ring batch straight to Bracelet via the sidebar
+      // would show the Ring batch's Batch Details/Run workspace instead of a
+      // fresh Configure screen. Watch has no equivalent state to clear here
+      // (its own screen/entry are untouched, matching their existing,
+      // unchanged behavior).
+      setEditingBatch(null)
+    }
     setHandoffFolder(null)
     setOpenBatchId(null)
     setView(next)
   }
 
-  // Home's "Create & Open": stashes the user's chosen pipeline/title and
-  // navigates straight to the first stage's screen. No Batch exists yet.
-  function handleLaunchFromHome(pipeline: StageType[], title: string) {
-    setPendingBatch({ pipeline, title })
+  // Home's "Create & Open": Preprocessing resolves immediately (its pipeline
+  // is always the same); Editing does not — see PendingBatch's comment.
+  function handleLaunchFromHome(homeEntry: 'preprocessing' | 'editing', title: string) {
+    if (homeEntry === 'preprocessing') {
+      setPendingBatch({ pipeline: ['preprocessing'], title })
+      setPendingEditingTitle('')
+    } else {
+      setPendingBatch(null)
+      setPendingEditingTitle(title)
+      setEditingProduct('watch')
+      setEditingBatch(null)
+    }
     setHandoffFolder(null)
     setOpenBatchId(null)
-    setView(pipeline[0] === 'watch' ? 'watch' : 'preprocessing')
+    setView(homeEntry)
   }
 
   // Reopening a batch from Home (Phase 9E, hardened in 9E.1). Historical
@@ -100,10 +147,12 @@ export default function App() {
   // always fetches fresh, regardless of whether it happens to match whatever
   // App.tsx was already tracking. No blank screens and no path-selection
   // screen unless starting a genuinely new batch:
-  //   Preprocessing running  → the live Run workspace
-  //   Preprocessing terminal → Batch Details
-  //   Watch running          → the annotation workspace directly (not BatchSetup)
-  //   Watch terminal         → Batch Details
+  //   Preprocessing running    → the live Run workspace
+  //   Preprocessing terminal   → Batch Details
+  //   Watch running            → the annotation workspace directly (not BatchSetup)
+  //   Watch terminal           → Batch Details
+  //   Ring/Bracelet running    → the live Run workspace (Phase 10D)
+  //   Ring/Bracelet terminal   → Batch Details
   async function handleOpenBatch(id: string) {
     const detail = await window.api.invoke('batch-registry:get', { id })
     if (!detail) return
@@ -119,6 +168,19 @@ export default function App() {
 
     if (detail.status === 'in_progress' && detail.currentStage === 'watch') {
       await reopenLiveWatchBatch(detail)
+      return
+    }
+
+    if (detail.status === 'in_progress' && detail.currentStage === 'editing') {
+      const editingStage = detail.stages.find(s => s.type === 'editing')
+      const product = editingStage?.config.product
+      setEditingProduct(product === 'bracelet' ? 'bracelet' : 'ring')
+      setPendingBatch(null)
+      setPendingEditingTitle('')
+      setEditingBatch(detail)
+      setHandoffFolder(null)
+      setOpenBatchId(null)
+      setView('editing')
       return
     }
 
@@ -148,10 +210,11 @@ export default function App() {
           setPendingBatch(null)
           setHandoffFolder(null)
           setOpenBatchId(null)
+          setEditingProduct('watch')
           setWatchBatchId(detail.id)
           setEntry({ batch: batchState, initialSession: sessionResult.ok ? sessionResult.session : null })
           setScreen('annotation')
-          setView('watch')
+          setView('editing')
           return
         }
       }
@@ -167,16 +230,17 @@ export default function App() {
     setPendingBatch(null)
     setHandoffFolder(null)
     setOpenBatchId(null)
+    setEditingProduct('watch')
     setWatchBatchId(null)
     setScreen('setup')
     setEntry(null)
-    setView('watch')
+    setView('editing')
   }
 
-  // The single funnel for resolving which Batch a Preprocessing execution
-  // belongs to — Watch has its own resolution in handleBeginAnnotation below,
-  // since "Resume must never create a new batch" needs an extra lookup step
-  // that Preprocessing (which has no resume concept) doesn't.
+  // The single funnel for resolving which Batch a Preprocessing or
+  // Ring/Bracelet execution belongs to — Watch has its own resolution in
+  // handleBeginAnnotation below, since "Resume must never create a new
+  // batch" needs an extra lookup step that these don't.
   async function createBatch(defaultPipeline: StageType[], sourceDir: string, title: string): Promise<string> {
     if (pendingBatch?.continueBatchId) {
       const id = pendingBatch.continueBatchId
@@ -203,6 +267,20 @@ export default function App() {
     return id
   }
 
+  // Mirrors handleCreatePreprocessingBatch — the 'editing' StageType covers
+  // both products; which one is recorded on the stage config by
+  // ring-bracelet:start itself (see ringBraceletHandlers.ts), not here.
+  async function handleCreateRingBraceletBatch(
+    sourceDir: string,
+    title: string,
+    _product: 'ring' | 'bracelet'
+  ): Promise<string> {
+    const id = await createBatch(['editing'], sourceDir, title)
+    const detail = await window.api.invoke('batch-registry:get', { id })
+    setEditingBatch(detail)
+    return id
+  }
+
   // Clears whatever batch App.tsx was tracking and returns to a fresh
   // Preprocessing Configure screen — the same "Run another batch" semantic
   // Phase 9D introduced, now reachable identically from either the live
@@ -214,6 +292,20 @@ export default function App() {
     setHandoffFolder(null)
     setOpenBatchId(null)
     setView('preprocessing')
+  }
+
+  // Same semantic as handleRunAnotherPreprocessing, for Ring/Bracelet
+  // (Phase 10D) — returns to the shared Editing setup screen with the same
+  // product preselected, so "Run Another Batch" from a completed Ring batch
+  // doesn't dump the user back on Watch.
+  function handleRunAnotherEditing(product: 'ring' | 'bracelet') {
+    setEditingBatch(null)
+    setEditingProduct(product)
+    setPendingEditingTitle('')
+    setPendingBatch(null)
+    setHandoffFolder(null)
+    setOpenBatchId(null)
+    setView('editing')
   }
 
   // Redesigned around the Batch model (Phase 9C): this is a stage transition
@@ -248,9 +340,11 @@ export default function App() {
     })
     setHandoffFolder(result.preparedDir)
     setPendingBatch({ pipeline: batch.pipeline, title: batch.title, continueBatchId: batch.id })
+    setPendingEditingTitle('')
+    setEditingProduct('watch')
     setPreprocessBatch(null)
     setOpenBatchId(null)
-    setView('watch')
+    setView('editing')
     return { ok: true }
   }
 
@@ -347,6 +441,7 @@ export default function App() {
           onBack={() => setView('home')}
           onRunAnotherPreprocessing={handleRunAnotherPreprocessing}
           onContinueToWatchProcessing={handleContinueToWatchProcessing}
+          onRunAnotherEditing={handleRunAnotherEditing}
         />
       )
     }
@@ -364,6 +459,7 @@ export default function App() {
             onBack={() => setView('home')}
             onRunAnotherPreprocessing={handleRunAnotherPreprocessing}
             onContinueToWatchProcessing={handleContinueToWatchProcessing}
+            onRunAnotherEditing={handleRunAnotherEditing}
           />
         )
       }
@@ -376,40 +472,79 @@ export default function App() {
       )
     }
 
-    // view === 'watch'
-    return screen === 'annotation' && entry !== null ? (
-      <AnnotationWorkspace
-        batch={entry.batch}
-        initialSession={entry.initialSession}
-        onBack={handleBack}
-        onCompleteBatch={handleCompleteWatchBatch}
-      />
-    ) : (
-      <BatchSetup
-        initialBatchName={pendingBatch?.title ?? ''}
+    // view === 'editing'
+    if (editingProduct === 'watch') {
+      return screen === 'annotation' && entry !== null ? (
+        <AnnotationWorkspace
+          batch={entry.batch}
+          initialSession={entry.initialSession}
+          onBack={handleBack}
+          onCompleteBatch={handleCompleteWatchBatch}
+        />
+      ) : (
+        <EditingSetup
+          product="watch"
+          onProductChange={setEditingProduct}
+          initialBatchName={pendingBatch?.title ?? pendingEditingTitle}
+          onBeginAnnotation={handleBeginAnnotation}
+          handoffFolder={handoffFolder}
+          onCreateRingBraceletBatch={handleCreateRingBraceletBatch}
+        />
+      )
+    }
+
+    // editingProduct is 'ring' or 'bracelet'
+    const editingStageStatus = findStageStatus(editingBatch, 'editing')
+    if (editingStageStatus === 'completed' || editingStageStatus === 'failed' || editingStageStatus === 'cancelled') {
+      return (
+        <BatchDetails
+          batchId={editingBatch!.id}
+          onBack={() => setView('home')}
+          onRunAnotherPreprocessing={handleRunAnotherPreprocessing}
+          onContinueToWatchProcessing={handleContinueToWatchProcessing}
+          onRunAnotherEditing={handleRunAnotherEditing}
+        />
+      )
+    }
+    if (editingStageStatus === 'running') {
+      const stage = editingBatch?.stages.find(s => s.type === 'editing')
+      return <RingBraceletRunWorkspace inputDir={stage?.inputDir || ''} />
+    }
+    return (
+      <EditingSetup
+        product={editingProduct}
+        onProductChange={setEditingProduct}
+        initialBatchName={pendingEditingTitle}
         onBeginAnnotation={handleBeginAnnotation}
         handoffFolder={handoffFolder}
+        onCreateRingBraceletBatch={handleCreateRingBraceletBatch}
       />
     )
   }
 
   return (
-    // PreprocessingJobProvider wraps the whole shell so an in-progress
-    // preprocessing job (and its IPC subscription) survives navigation.
-    // PreprocessingBatchSync observes that job and refreshes preprocessBatch
-    // on both start and finish, even if the user has navigated away from the
-    // screen — it is unconditional, not gated on the current view, so
-    // revisitability holds for the Configure/Run switch and the
-    // Continue-to-Watch decision alike. Stage status itself is never written
-    // from here — the main process owns that (Phase 9C).
+    // PreprocessingJobProvider/RingBraceletJobProvider wrap the whole shell
+    // so an in-progress job (and its IPC subscription) survives navigation.
+    // *BatchSync observes each job and refreshes its batch on both start and
+    // finish, even if the user has navigated away from the screen — both are
+    // unconditional, not gated on the current view, so revisitability holds
+    // for the Configure/Run switch and the Continue-to-Watch decision alike.
+    // Stage status itself is never written from here — the main process owns
+    // that (Phase 9C).
     <PreprocessingJobProvider>
-      <PreprocessingBatchSync
-        batchId={preprocessBatch?.id ?? null}
-        onBatchUpdated={setPreprocessBatch}
-      />
-      <AppShell view={view} onNavigate={navigate}>
-        {renderContent()}
-      </AppShell>
+      <RingBraceletJobProvider>
+        <PreprocessingBatchSync
+          batchId={preprocessBatch?.id ?? null}
+          onBatchUpdated={setPreprocessBatch}
+        />
+        <RingBraceletBatchSync
+          batchId={editingBatch?.id ?? null}
+          onBatchUpdated={setEditingBatch}
+        />
+        <AppShell view={view} editingProduct={view === 'editing' ? editingProduct : null} onNavigate={navigate}>
+          {renderContent()}
+        </AppShell>
+      </RingBraceletJobProvider>
     </PreprocessingJobProvider>
   )
 }

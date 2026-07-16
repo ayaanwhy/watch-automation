@@ -1,11 +1,19 @@
 import { useEffect, useRef, useState, type UIEvent } from 'react'
-import { ThumbnailCell } from './ThumbnailCell'
+import { ThumbnailCell, type ThumbnailStatus } from './ThumbnailCell'
 import { joinPath, toFileUrl } from '../../lib/paths'
-import type { PreprocessingImageState } from '../../context/PreprocessingJobContext'
 import styles from './ThumbnailGrid.module.css'
 
+// The minimal shape this component actually needs — name and status are the
+// only fields ever read (src is computed here from inputDir + name). Any
+// job's image-state type structurally satisfies this without importing it,
+// so the same grid serves Preprocessing's and Ring & Bracelet's contexts.
+export interface ThumbnailGridImage {
+  name: string
+  status: ThumbnailStatus
+}
+
 interface ThumbnailGridProps {
-  images: PreprocessingImageState[]
+  images: ThumbnailGridImage[]
   inputDir: string
   selectedImage: string | null
   onSelect: (name: string) => void

@@ -35,6 +35,9 @@ import type {
   RingBraceletStartResult,
   RingBraceletEventPayload,
   RingBraceletDonePayload,
+  RingBraceletFolderPrefs,
+  RingBraceletFolderPrefsLoadPayload,
+  RingBraceletFolderPrefsSavePayload,
 } from './ipc'
 import type { BatchDetailRecord, BatchSummaryRecord } from './batch'
 
@@ -89,6 +92,8 @@ declare global {
       invoke(channel: 'ring-bracelet:cancel', payload: { jobId: string }): Promise<{ ok: boolean }>
       on(channel: 'ring-bracelet:event', listener: (payload: RingBraceletEventPayload) => void): () => void
       on(channel: 'ring-bracelet:done', listener: (payload: RingBraceletDonePayload) => void): () => void
+      invoke(channel: 'prefs:load-ring-bracelet-folders', payload: RingBraceletFolderPrefsLoadPayload): Promise<RingBraceletFolderPrefs>
+      invoke(channel: 'prefs:save-ring-bracelet-folders', payload: RingBraceletFolderPrefsSavePayload): Promise<void>
     }
   }
 }

@@ -3,33 +3,38 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { BatchCard } from '../components/batch/BatchCard'
-import { PIPELINE_TEMPLATES } from '../types/batch'
-import type { BatchEntry, BatchSummaryRecord, StageType } from '../types/batch'
+import type { BatchSummaryRecord } from '../types/batch'
 import styles from './Home.module.css'
 
+// Home's own entry-id vocabulary — no longer maps 1:1 onto a resolved
+// pipeline (Phase 10D): 'editing' can't resolve to a StageType[] yet, since
+// which product (and therefore which stage type — 'watch' or 'editing') is
+// chosen on the next screen, not here. See App.tsx's handleLaunchFromHome.
+type HomeEntryId = 'preprocessing' | 'editing'
+
 interface HomeProps {
-  // Stashes the chosen pipeline/title and navigates into the first stage's
-  // screen. No Batch is created here — creation happens at the workflow's
-  // execution action (Start / Begin Annotation), so this produces the exact
-  // same downstream result as entering the same workflow via the sidebar.
-  onLaunch: (pipeline: StageType[], title: string) => void
+  // Navigates into the chosen entry's screen with an optional custom title.
+  // No Batch is created here — creation happens at the workflow's execution
+  // action (Start / Begin Annotation), so this produces the exact same
+  // downstream result as entering the same workflow via the sidebar.
+  onLaunch: (entry: HomeEntryId, title: string) => void
   // Reopens an existing batch (Phase 9E) — an in-progress batch reopens into
   // its live stage; a finished one opens the permanent Batch Details screen.
   onOpenBatch: (id: string) => void
 }
 
-// The two single-stage batch types functional in 9B. Full-pipeline
-// (Preprocessing → Watch Processing) with stage transitions arrives in 9C.
-const ENTRIES: { id: BatchEntry; title: string; description: string }[] = [
+// Phase 10D — Watch Processing is no longer its own entry; Editing (Watch,
+// Ring, Bracelet — product chosen on the next screen) replaces it.
+const ENTRIES: { id: HomeEntryId; title: string; description: string }[] = [
   {
     id: 'preprocessing',
     title: 'Preprocessing',
     description: 'Background removal, segmentation, and upscaling of raw imagery.',
   },
   {
-    id: 'watch',
-    title: 'Watch Processing',
-    description: 'Match, annotate, and export a batch of measured watch images.',
+    id: 'editing',
+    title: 'Editing',
+    description: 'Generate finished assets for Watch, Ring, or Bracelet products.',
   },
 ]
 
@@ -38,7 +43,7 @@ const ENTRIES: { id: BatchEntry; title: string; description: string }[] = [
 export default function Home({ onLaunch, onOpenBatch }: HomeProps) {
   const [batches, setBatches] = useState<BatchSummaryRecord[]>([])
   const [creating, setCreating] = useState(false)
-  const [entry, setEntry] = useState<BatchEntry>('preprocessing')
+  const [entry, setEntry] = useState<HomeEntryId>('preprocessing')
   const [title, setTitle] = useState('')
 
   useEffect(() => {
@@ -46,7 +51,7 @@ export default function Home({ onLaunch, onOpenBatch }: HomeProps) {
   }, [])
 
   function handleCreate() {
-    onLaunch(PIPELINE_TEMPLATES[entry], title.trim())
+    onLaunch(entry, title.trim())
     setCreating(false)
     setTitle('')
     setEntry('preprocessing')

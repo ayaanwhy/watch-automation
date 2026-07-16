@@ -1,7 +1,16 @@
 import { ipcMain, app } from 'electron'
 import { readFile, writeFile, access } from 'node:fs/promises'
 import { join } from 'node:path'
-import type { LastBatchPrefs, SamTuningPrefs, UpscaleFactor, ProductType, PreprocessingFolderPrefs } from '../../src/types/ipc'
+import type {
+  LastBatchPrefs,
+  SamTuningPrefs,
+  UpscaleFactor,
+  ProductType,
+  PreprocessingFolderPrefs,
+  RingBraceletFolderPrefs,
+  RingBraceletFolderPrefsLoadPayload,
+  RingBraceletFolderPrefsSavePayload,
+} from '../../src/types/ipc'
 
 const PREFS_FILENAME = 'last-batch.json'
 const SAM_TUNING_PREFS_FILENAME = 'sam-tuning.json'
@@ -121,6 +130,45 @@ export function registerPrefsHandlers(): void {
   ipcMain.handle('prefs:save-preprocessing-folders', async (_event, payload: PreprocessingFolderPrefs): Promise<void> => {
     try {
       await writeFile(join(app.getPath('userData'), 'preprocessing-folders.json'), JSON.stringify(payload, null, 2), 'utf-8')
+    } catch { /* non-critical */ }
+  })
+
+  // ── Ring & Bracelet folder prefs (Phase 10D) ────────────────────────────────
+  // One file, product-keyed — mirrors the preprocessing-folders pattern but
+  // Ring and Bracelet remember separate folders rather than sharing a slot.
+  ipcMain.handle('prefs:load-ring-bracelet-folders', async (
+    _event,
+    payload: RingBraceletFolderPrefsLoadPayload,
+  ): Promise<RingBraceletFolderPrefs> => {
+    try {
+      const raw = await readFile(join(app.getPath('userData'), 'ring-bracelet-folders.json'), 'utf-8')
+      const stored = JSON.parse(raw) as Partial<Record<'ring' | 'bracelet', Partial<RingBraceletFolderPrefs>>>
+      const entry = stored[payload.product] ?? {}
+      const [inOk, outOk] = await Promise.all([
+        entry.inputDir  ? exists(entry.inputDir)  : Promise.resolve(false),
+        entry.outputDir ? exists(entry.outputDir) : Promise.resolve(false),
+      ])
+      return {
+        inputDir:  inOk  ? entry.inputDir!  : null,
+        outputDir: outOk ? entry.outputDir! : null,
+      }
+    } catch {
+      return { inputDir: null, outputDir: null }
+    }
+  })
+
+  ipcMain.handle('prefs:save-ring-bracelet-folders', async (
+    _event,
+    payload: RingBraceletFolderPrefsSavePayload,
+  ): Promise<void> => {
+    const filePath = join(app.getPath('userData'), 'ring-bracelet-folders.json')
+    try {
+      let stored: Partial<Record<'ring' | 'bracelet', Partial<RingBraceletFolderPrefs>>> = {}
+      try {
+        stored = JSON.parse(await readFile(filePath, 'utf-8'))
+      } catch { /* no existing file yet */ }
+      stored[payload.product] = { inputDir: payload.inputDir, outputDir: payload.outputDir }
+      await writeFile(filePath, JSON.stringify(stored, null, 2), 'utf-8')
     } catch { /* non-critical */ }
   })
 }

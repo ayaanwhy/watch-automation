@@ -204,6 +204,7 @@ export function registerRingBraceletHandlers(): void {
             assets: {
               ...(frontFullImage ? { frontFullImage } : {}),
               ...(frontImage ? { frontImage } : {}),
+              detected: Boolean(event['detected']),
             },
             error: null,
             durationMs: (event['duration_ms'] as number) ?? null,

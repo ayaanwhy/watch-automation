@@ -60,6 +60,12 @@ export interface StageRef {
 export interface StageImageAssets {
   frontFullImage?: string
   frontImage?: string
+  // Ring & Bracelet (Phase 10C/10D) — whether the shank mask found a real
+  // hole/rim topology (true) or fell back to a low-confidence estimate
+  // (false). Persisted here (not just in the live job's in-memory state) so
+  // Batch Details — the review step this flag exists for — can surface it
+  // for a historical batch too, not only a run still in progress.
+  detected?: boolean
 }
 
 // A single image's terminal outcome within a stage, persisted so a stage's
@@ -125,12 +131,3 @@ export interface BatchDetailRecord extends BatchSummaryRecord {
   stages: StageRecord[]
 }
 
-// Entry choices offered at batch creation, mapped to a starting pipeline.
-// QA/Export are intentionally absent until those stages exist.
-export type BatchEntry = 'full' | 'preprocessing' | 'watch'
-
-export const PIPELINE_TEMPLATES: Record<BatchEntry, StageType[]> = {
-  full: ['preprocessing', 'watch'],
-  preprocessing: ['preprocessing'],
-  watch: ['watch'],
-}

@@ -8,6 +8,11 @@ interface BeforeAfterSliderProps {
   afterSrc: string
   background: ComparisonBackground
   onBackgroundChange: (background: ComparisonBackground) => void
+  // Defaults preserve Preprocessing's existing original/processed framing;
+  // Ring & Bracelet (Phase 10D) relabels these to describe its own asset
+  // pair (frontFullImage/frontImage) without needing a separate component.
+  beforeLabel?: string
+  afterLabel?: string
 }
 
 const BACKGROUND_OPTIONS: { value: ComparisonBackground; label: string }[] = [
@@ -41,7 +46,14 @@ const BACKGROUND_CLASS: Record<ComparisonBackground, string> = {
 const AFTER_LOAD_MAX_RETRIES = 5
 const AFTER_LOAD_RETRY_MS = 400
 
-export function BeforeAfterSlider({ beforeSrc, afterSrc, background, onBackgroundChange }: BeforeAfterSliderProps) {
+export function BeforeAfterSlider({
+  beforeSrc,
+  afterSrc,
+  background,
+  onBackgroundChange,
+  beforeLabel = 'Original',
+  afterLabel = 'Processed',
+}: BeforeAfterSliderProps) {
   const [percent, setPercent] = useState(50)
   // The processed file is written by a separate Python process moments
   // before this component ever tries to load it — on some drives (observed
@@ -84,29 +96,29 @@ export function BeforeAfterSlider({ beforeSrc, afterSrc, background, onBackgroun
         <img
           className={styles.image}
           src={beforeSrc}
-          alt="Original"
+          alt={beforeLabel}
           draggable={false}
           style={{ clipPath: `inset(0 ${100 - percent}% 0 0)` }}
         />
         <img
           className={styles.image}
           src={afterSrcAttempt}
-          alt="Processed"
+          alt={afterLabel}
           draggable={false}
           style={{ clipPath: `inset(0 0 0 ${percent}%)` }}
           onLoad={() => setAfterFailed(false)}
           onError={handleAfterError}
         />
         {afterFailed && (
-          <div className={styles.loadError}>Processed image failed to load</div>
+          <div className={styles.loadError}>Image failed to load</div>
         )}
         <div className={styles.handle} style={{ left: `${percent}%` }} aria-hidden="true">
           <div className={styles.handleGrip}>
             <span className={styles.handleArrows}>◂▸</span>
           </div>
         </div>
-        <span className={`${styles.label} ${styles.labelLeft}`}>Original</span>
-        <span className={`${styles.label} ${styles.labelRight}`}>Processed</span>
+        <span className={`${styles.label} ${styles.labelLeft}`}>{beforeLabel}</span>
+        <span className={`${styles.label} ${styles.labelRight}`}>{afterLabel}</span>
         <input
           className={styles.rangeInput}
           type="range"

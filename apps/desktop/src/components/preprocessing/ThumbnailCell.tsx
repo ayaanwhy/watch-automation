@@ -1,17 +1,23 @@
 import type { CSSProperties } from 'react'
-import type { PreprocessingImageStatus } from '../../context/PreprocessingJobContext'
 import styles from './ThumbnailCell.module.css'
+
+// Defined locally (not imported from PreprocessingJobContext) so this
+// component has no dependency on any one job's context — Preprocessing and
+// Ring & Bracelet each define their own identically-shaped status union and
+// both satisfy this structurally, keeping the two job contexts decoupled
+// (Phase 10D) while still sharing the one presentational primitive.
+export type ThumbnailStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled'
 
 interface ThumbnailCellProps {
   name: string
-  status: PreprocessingImageStatus
+  status: ThumbnailStatus
   src: string
   selected: boolean
   onClick: () => void
   style?: CSSProperties
 }
 
-const STATUS_LABEL: Record<PreprocessingImageStatus, string> = {
+const STATUS_LABEL: Record<ThumbnailStatus, string> = {
   pending: 'Pending',
   processing: 'Processing…',
   completed: 'Completed',

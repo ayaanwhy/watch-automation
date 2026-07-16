@@ -161,5 +161,5 @@ def generate_wrap_mask(alpha: np.ndarray, split_y: float = 0.5) -> tuple[np.ndar
     grown = cv2.dilate((fg.astype(np.uint8) * 255),
                        cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k)))
     band = (grown > 0).astype(np.float64)
-    mask = (above * band * 255).astype(np.uint8)
+    mask = ((1.0 - above) * band * 255).astype(np.uint8)
     return mask, detected

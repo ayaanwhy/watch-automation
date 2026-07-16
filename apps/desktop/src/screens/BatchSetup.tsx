@@ -140,92 +140,88 @@ export default function BatchSetup({ onBeginAnnotation, initialBatchName = '', h
     loadResult?.ok && loadResult.match && loadResult.match.matched.length > 0 && sessionChecked
 
   return (
-    <div className={styles.page}>
-      <div className={styles.container}>
-        <h1 className={styles.title}>New Batch</h1>
+    <>
+      {handoffFolder && inputFolder === handoffFolder && (
+        <p className={styles.handoffMessage}>
+          ✓ Input folder prepared from Preprocessing. Choose a spreadsheet and output folder to continue.
+        </p>
+      )}
 
-        {handoffFolder && inputFolder === handoffFolder && (
-          <p className={styles.handoffMessage}>
-            ✓ Input folder prepared from Preprocessing. Choose a spreadsheet and output folder to continue.
-          </p>
-        )}
-
-        <div className={styles.fields}>
-          {/* Continuing an existing batch's Watch stage (hand-off from
-              Preprocessing) reuses that batch's identity — renaming isn't
-              part of this flow, so the field is hidden rather than shown
-              inert. It reappears for a genuinely new Watch batch. */}
-          {!(handoffFolder && inputFolder === handoffFolder) && (
-            <div className={styles.nameField}>
-              <label className={styles.nameLabel}>Batch Name (optional)</label>
-              <input
-                className={styles.nameInput}
-                type="text"
-                value={batchName}
-                onChange={e => setBatchName(e.target.value)}
-                placeholder="A name is generated if left blank"
-                spellCheck={false}
-              />
-            </div>
-          )}
-          <PathField
-            label="Input Folder"
-            value={inputFolder}
-            placeholder="Select folder containing watch images"
-            onPick={() => pickInputFolder()}
-            onDropPath={pickInputFolder}
-            badge={handoffFolder && inputFolder === handoffFolder ? 'Prepared ✓' : undefined}
-          />
-          <PathField
-            label="Spreadsheet"
-            value={spreadsheetPath}
-            placeholder="Select XLSX or CSV measurement file"
-            onPick={() => pickSpreadsheet()}
-            onDropPath={pickSpreadsheet}
-          />
-          <PathField
-            label="Output Folder"
-            value={outputFolder}
-            placeholder="Select folder for processed exports"
-            onPick={() => pickOutputFolder()}
-            onDropPath={pickOutputFolder}
-          />
-        </div>
-
-        <div className={styles.actions}>
-          <button
-            className={styles.validateButton}
-            onClick={handleValidate}
-            disabled={!canValidate || isLoading}
-          >
-            {loadingMsg ?? 'Validate'}
-          </button>
-        </div>
-
-        {pathResult !== null && <ValidationResults result={pathResult} />}
-        {loadResult !== null && <BatchSummary result={loadResult} />}
-
-        {showActions && (
-          existingSession !== null ? (
-            <ResumePrompt
-              session={existingSession}
-              total={loadResult!.match!.matched.length}
-              onResume={() => onBeginAnnotation(buildBatch(), existingSession, batchName)}
-              onFresh={() => onBeginAnnotation(buildBatch(), null, batchName)}
+      <div className={styles.fields}>
+        {/* Continuing an existing batch's Watch stage (hand-off from
+            Preprocessing) reuses that batch's identity — renaming isn't
+            part of this flow, so the field is hidden rather than shown
+            inert. It reappears for a genuinely new Watch batch. */}
+        {!(handoffFolder && inputFolder === handoffFolder) && (
+          <div className={styles.nameField}>
+            <label className={styles.nameLabel}>Batch Name (optional)</label>
+            <input
+              className={styles.nameInput}
+              type="text"
+              value={batchName}
+              onChange={e => setBatchName(e.target.value)}
+              placeholder="A name is generated if left blank"
+              spellCheck={false}
             />
-          ) : (
-            <div className={styles.actions}>
-              <button
-                className={styles.beginButton}
-                onClick={() => onBeginAnnotation(buildBatch(), null, batchName)}
-              >
-                Begin Annotation ({loadResult!.match!.matched.length} SKUs)
-              </button>
-            </div>
-          )
+          </div>
         )}
+        <PathField
+          label="Input Folder"
+          value={inputFolder}
+          placeholder="Select folder containing watch images"
+          onPick={() => pickInputFolder()}
+          onDropPath={pickInputFolder}
+          badge={handoffFolder && inputFolder === handoffFolder ? 'Prepared ✓' : undefined}
+        />
+        <PathField
+          label="Spreadsheet"
+          value={spreadsheetPath}
+          placeholder="Select XLSX or CSV measurement file"
+          onPick={() => pickSpreadsheet()}
+          onDropPath={pickSpreadsheet}
+        />
+        <PathField
+          label="Output Folder"
+          value={outputFolder}
+          placeholder="Select folder for processed exports"
+          onPick={() => pickOutputFolder()}
+          onDropPath={pickOutputFolder}
+        />
       </div>
-    </div>
+
+      <div className={styles.actions}>
+        <button
+          className={styles.validateButton}
+          onClick={handleValidate}
+          disabled={!canValidate || isLoading}
+        >
+          {loadingMsg ?? 'Validate'}
+        </button>
+      </div>
+
+      {pathResult !== null && <ValidationResults result={pathResult} />}
+      {loadResult !== null && <BatchSummary result={loadResult} />}
+
+      {showActions && (
+        existingSession !== null ? (
+          <ResumePrompt
+            session={existingSession}
+            total={loadResult!.match!.matched.length}
+            onResume={() => onBeginAnnotation(buildBatch(), existingSession, batchName)}
+            onFresh={() => onBeginAnnotation(buildBatch(), null, batchName)}
+          />
+        ) : (
+          <div className={styles.actions}>
+            <button
+              className={styles.beginButton}
+              onClick={() => onBeginAnnotation(buildBatch(), null, batchName)}
+            >
+              Begin Annotation ({loadResult!.match!.matched.length} SKUs)
+            </button>
+          </div>
+        )
+      )}
+    </>
   )
 }
 

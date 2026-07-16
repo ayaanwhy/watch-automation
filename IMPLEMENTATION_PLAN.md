@@ -694,22 +694,63 @@ Rings and Bracelets are usable end-to-end through the same batch-first workflow 
 
 ⸻
 
-Phase 10E — Validation & Production Hardening
+Phase 10E — Product-Specific Editing Refinement
 
 Objective
 
-Confirm Ring & Bracelet asset generation is production-ready.
+Refine the Ring & Bracelet editing pipeline so each product behaves according to its own editing guidelines while preserving the shared Editing architecture.
 
 Scope
 
-* QA
-* Performance validation
-* Regression testing
-* Large-batch verification
+* Separate Ring and Bracelet masking behavior where required.
+* Keep Bracelet as the proven baseline implementation.
+* Develop Ring-specific masking logic where bracelet assumptions break down.
+* Align generated assets with WPA's editing guidelines and orientation conventions.
+* Ensure frontFullImage and frontImage generation is correct for both product types.
 
 Deliverable:
 
-Ring & Bracelet asset generation validated for production use.
+Ring and Bracelet asset generation produces correct editing assets for each product while remaining under a shared Editing workflow.
+
+⸻
+
+Phase 10F — Workflow Experience & Review
+
+Objective
+
+Polish the Editing workflow so operators have a clear, intuitive experience throughout asset generation and review.
+
+Scope
+
+* Improve progress reporting for long-running operations.
+* Surface masking confidence and review indicators more clearly.
+* Replace the Editing product dropdown with segmented/tile selection.
+* Improve review interactions and generated asset comparison.
+* Refine the Editing UI to match the quality of the Watch workflow.
+
+Deliverable:
+
+Editing provides a polished, informative workflow with clear feedback during generation and review.
+
+⸻
+
+Phase 10G — Production Hardening
+
+Objective
+
+Validate and harden the Ring & Bracelet workflow for day-to-day production use.
+
+Scope
+
+* Validate against representative Ring and Bracelet production datasets.
+* Verify cancellation, recovery, reopening batches and historical batches.
+* Verify output correctness, asset naming and persistence.
+* Eliminate remaining workflow rough edges discovered through real-world testing.
+* Final production QA before Architecture Strengthening.
+
+Deliverable:
+
+Ring & Bracelet editing is considered production-ready for internal use and ready to enter the first Architecture Strengthening pass.
 
 ⸻
 
