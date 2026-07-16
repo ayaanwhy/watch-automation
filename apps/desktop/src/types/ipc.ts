@@ -1,5 +1,13 @@
 export interface OpenFileOptions {
   filters?: Array<{ name: string; extensions: string[] }>
+  // Identifies which picker this is (e.g. 'watch-spreadsheet') so its dialog
+  // remembers its own last-used location independently of every other
+  // picker — Phase 9E.1, replacing one shared/global remembered folder.
+  historyKey?: string
+}
+
+export interface OpenFolderOptions {
+  historyKey?: string
 }
 
 export interface BatchValidatePayload {
@@ -122,6 +130,10 @@ export type UpscaleFactor = 1 | 2 | 4
 
 export type ProductType = 'watch' | 'bracelet' | 'ring' | 'generic'
 
+// Phase 10A — which preprocessing stages to run. Not persisted (each run
+// defaults to both); recorded on the batch stage config purely for history.
+export type PreprocessOperation = 'background_removal' | 'upscale'
+
 export interface PreprocessingFolderPrefs {
   inputDir: string | null
   outputDir: string | null
@@ -140,6 +152,9 @@ export interface PreprocessStartPayload {
   pythonPath?: string
   scaleFactor?: 1 | 2 | 4
   objectType?: string
+  // Which stages to run (Phase 10A). Omitted/undefined means both — matches
+  // pre-10A behavior exactly for any caller that doesn't set this.
+  operations?: PreprocessOperation[]
   background?: string
   backgroundColorHex?: string
   outputPpi?: number
@@ -247,4 +262,13 @@ export interface BatchStageUpdatePayload {
 export interface BatchRenamePayload {
   id: string
   title: string
+}
+
+// Phase 9E.1 — lets "Resume" find the batch a Watch session already belongs
+// to (never creating a duplicate) using the same three fields already stored
+// on the stage, not a separately-persisted session key.
+export interface BatchFindWatchPayload {
+  inputFolder: string
+  outputFolder: string
+  spreadsheetPath: string
 }

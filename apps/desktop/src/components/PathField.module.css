@@ -40,6 +40,11 @@
   height: 40px;
 }
 
+.pathRowDragOver {
+  border: 1px dashed #1a1a1a;
+  background: #f5f5f5;
+}
+
 .pathDisplay {
   flex: 1;
   font-size: 13px;

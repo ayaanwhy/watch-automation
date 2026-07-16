@@ -23,7 +23,7 @@ function preparedDirFor(sourceDir: string): string {
 async function findSourceImages(sourceDir: string): Promise<string[]> {
   const entries = await readdir(sourceDir, { withFileTypes: true })
   return entries
-    .filter(e => e.isFile() && SUPPORTED_EXTENSIONS.has(extname(e.name).toLowerCase()))
+    .filter(e => e.isFile() && !e.name.startsWith('._') && SUPPORTED_EXTENSIONS.has(extname(e.name).toLowerCase()))
     .map(e => e.name)
     .sort()
 }

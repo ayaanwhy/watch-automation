@@ -10,9 +10,12 @@ interface PreprocessingRunWorkspaceProps {
 }
 
 // The live execution workspace — dark, matching Watch Processing's Annotation
-// design language. The thumbnail grid is the primary navigation surface;
-// PreprocessingProgress (unchanged) is reused rather than reimplemented,
-// absorbed here as the elapsed/overall-progress/cancel panel.
+// design language. The image preview is the primary focus while processing
+// (Phase 9E.2): a finished image's before/after comparison is available
+// immediately, live, not only once the whole batch completes. The thumbnail
+// grid is a narrower, virtualized navigation strip alongside it rather than
+// the dominant element — PreprocessingProgress (unchanged) sits above it,
+// reused rather than reimplemented.
 export function PreprocessingRunWorkspace({ inputDir }: PreprocessingRunWorkspaceProps) {
   const job = usePreprocessingJob()
 
@@ -25,7 +28,16 @@ export function PreprocessingRunWorkspace({ inputDir }: PreprocessingRunWorkspac
 
   return (
     <div className={styles.workspace}>
-      <div className={styles.gridStage}>
+      <div className={styles.previewArea}>
+        <ImagePreviewPanel image={selectedImage} inputDir={inputDir} />
+      </div>
+      <div className={styles.sidebar}>
+        <PreprocessingProgress
+          progress={job.progress}
+          cancelPhase={job.cancelPhase}
+          startedAt={job.startedAt}
+          onCancel={job.cancel}
+        />
         <div className={styles.gridArea}>
           <ThumbnailGrid
             images={job.images}
@@ -34,17 +46,6 @@ export function PreprocessingRunWorkspace({ inputDir }: PreprocessingRunWorkspac
             onSelect={setManualSelection}
           />
         </div>
-      </div>
-      <div className={styles.sidebar}>
-        <div className={styles.previewArea}>
-          <ImagePreviewPanel image={selectedImage} inputDir={inputDir} mode="run" />
-        </div>
-        <PreprocessingProgress
-          progress={job.progress}
-          cancelPhase={job.cancelPhase}
-          startedAt={job.startedAt}
-          onCancel={job.cancel}
-        />
       </div>
     </div>
   )

@@ -2,30 +2,39 @@ import { ipcMain, dialog, BrowserWindow } from 'electron'
 import { stat, readdir } from 'node:fs/promises'
 import { extname } from 'node:path'
 import { logger } from '../logger'
-import type { OpenFileOptions, BatchValidatePayload, BatchValidationResult } from '../../src/types/ipc'
+import { getRecentPath, setRecentPath } from '../services/folderHistory'
+import type { OpenFileOptions, OpenFolderOptions, BatchValidatePayload, BatchValidationResult } from '../../src/types/ipc'
 
 export function registerBatchHandlers(): void {
-  ipcMain.handle('dialog:openFolder', async (): Promise<string | null> => {
+  ipcMain.handle('dialog:openFolder', async (_event, options?: OpenFolderOptions): Promise<string | null> => {
     const window = BrowserWindow.getFocusedWindow()
     if (!window) return null
 
+    const defaultPath = options?.historyKey ? await getRecentPath(options.historyKey) : undefined
     const { canceled, filePaths } = await dialog.showOpenDialog(window, {
-      properties: ['openDirectory']
+      properties: ['openDirectory'],
+      ...(defaultPath ? { defaultPath } : {}),
     })
 
-    return canceled ? null : filePaths[0]
+    if (canceled || !filePaths[0]) return null
+    if (options?.historyKey) void setRecentPath(options.historyKey, filePaths[0])
+    return filePaths[0]
   })
 
   ipcMain.handle('dialog:openFile', async (_event, options: OpenFileOptions): Promise<string | null> => {
     const window = BrowserWindow.getFocusedWindow()
     if (!window) return null
 
+    const defaultPath = options?.historyKey ? await getRecentPath(options.historyKey) : undefined
     const { canceled, filePaths } = await dialog.showOpenDialog(window, {
       properties: ['openFile'],
-      filters: options?.filters ?? []
+      filters: options?.filters ?? [],
+      ...(defaultPath ? { defaultPath } : {}),
     })
 
-    return canceled ? null : filePaths[0]
+    if (canceled || !filePaths[0]) return null
+    if (options?.historyKey) void setRecentPath(options.historyKey, filePaths[0])
+    return filePaths[0]
   })
 
   ipcMain.handle('batch:validate', async (_event, payload: BatchValidatePayload): Promise<BatchValidationResult> => {
@@ -38,7 +47,7 @@ export function registerBatchHandlers(): void {
         errors.push('Input folder path is not a directory.')
       } else {
         const files = await readdir(payload.inputFolder)
-        imageCount = files.filter(f => extname(f).toLowerCase() === '.png').length
+        imageCount = files.filter(f => !f.startsWith('._') && extname(f).toLowerCase() === '.png').length
       }
     } catch {
       errors.push('Input folder does not exist.')

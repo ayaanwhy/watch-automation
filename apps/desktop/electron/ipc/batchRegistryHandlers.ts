@@ -5,6 +5,7 @@ import type {
   BatchCreatePayload,
   BatchStageUpdatePayload,
   BatchRenamePayload,
+  BatchFindWatchPayload,
 } from '../../src/types/ipc'
 
 // Thin handlers over the batch registry service (Phase 9B). All logic and
@@ -28,5 +29,13 @@ export function registerBatchRegistryHandlers(): void {
 
   ipcMain.handle('batch-registry:rename', async (_e, p: BatchRenamePayload): Promise<BatchDetailRecord | null> =>
     registry.renameBatch(p.id, p.title),
+  )
+
+  ipcMain.handle('batch-registry:find-watch', async (_e, p: BatchFindWatchPayload): Promise<BatchDetailRecord | null> =>
+    registry.findWatchBatch(p.inputFolder, p.outputFolder, p.spreadsheetPath),
+  )
+
+  ipcMain.handle('batch-registry:delete', async (_e, p: { id: string }): Promise<boolean> =>
+    registry.deleteBatch(p.id),
   )
 }

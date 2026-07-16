@@ -75,6 +75,18 @@ export function readConfigValue(config: Record<string, unknown>, key: string): s
   return String(value)
 }
 
+export type ModuleTone = 'blue' | 'purple' | 'neutral'
+
+// Which color a stage's "module" badge should use on a Batch card — Blue for
+// Preprocessing, Purple for Editing (Watch), neutral for stages that don't
+// have a defined module color yet (QA/Export). Independent of stageStatusTone,
+// which colors the status dot inside the same badge.
+export function stageModuleTone(type: StageType): ModuleTone {
+  if (type === 'preprocessing') return 'blue'
+  if (type === 'watch') return 'purple'
+  return 'neutral'
+}
+
 export function formatRelativeTime(iso: string): string {
   const then = Date.parse(iso)
   if (Number.isNaN(then)) return ''

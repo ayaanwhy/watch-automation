@@ -8,31 +8,26 @@
   background: #0a0a0a;
 }
 
-/* Takes all remaining width after the fixed-width sidebar and centers the
-   grid within it, so on very wide windows the grid doesn't stretch edge to
-   edge with the sidebar merely tacked on after it — instead the grid stays a
-   comfortable working width and the sidebar reads as intentionally docked to
-   the right edge, with balanced space rather than one large leftover gap. */
-.gridStage {
+/* Primary focus while processing (Phase 9E.2): takes the majority of the
+   width so the current/selected image — and its live comparison once
+   finished — is what the eye lands on, not the thumbnail strip. */
+.previewArea {
   flex: 1;
   min-width: 0;
   height: 100%;
-  display: flex;
-  justify-content: center;
-}
-
-.gridArea {
-  width: 100%;
-  max-width: 1000px;
-  height: 100%;
   background: #111;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
-  padding: 10px;
+  padding: 16px;
 }
 
+/* Secondary navigation column: a fixed-progress card on top, a virtualized
+   thumbnail strip filling the rest — scales naturally to any batch size
+   since ThumbnailGrid's own virtualization is untouched, just given a
+   narrower box to lay columns out in. */
 .sidebar {
-  width: 320px;
-  min-width: 260px;
+  width: 300px;
+  min-width: 240px;
   flex-shrink: 1;
   height: 100%;
   display: flex;
@@ -40,18 +35,17 @@
   gap: 16px;
 }
 
-.previewArea {
+.gridArea {
   flex: 1;
-  min-height: 220px;
-  background: #1c1c1e;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  min-height: 0;
+  background: #111;
   border-radius: 8px;
-  padding: 12px;
+  padding: 8px;
 }
 
 /* Mirrors AnnotationWorkspace's column-stack breakpoint: below this width the
-   grid + sidebar no longer fit side by side without clipping, so stack and
-   scroll instead — nothing is ever hidden. */
+   preview + sidebar no longer fit side by side without clipping, so stack
+   and scroll instead — nothing is ever hidden. */
 @media (max-width: 900px) {
   .workspace {
     flex-direction: column;
@@ -59,20 +53,14 @@
     min-height: 100vh;
     overflow-y: auto;
   }
-  .gridStage {
-    flex: none;
-    display: block;
-  }
-  .gridArea {
-    width: 100%;
-    max-width: 100%;
-    height: 50vh;
+  .previewArea {
+    min-height: 320px;
   }
   .sidebar {
     width: 100%;
     min-width: 0;
   }
-  .previewArea {
-    min-height: 260px;
+  .gridArea {
+    height: 45vh;
   }
 }

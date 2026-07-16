@@ -45,6 +45,13 @@ export default function App() {
   // Configure/Run switch and the Continue-to-Watch decision.
   const [preprocessBatch, setPreprocessBatch] = useState<BatchDetailRecord | null>(null)
 
+  // The batch backing the current annotation session (Phase 9E.1) — set
+  // whenever one is created/resumed/reopened, read by the "Complete Batch"
+  // action so it knows which batch's Watch stage to mark completed. Not used
+  // for any create-vs-reuse decision (that's resolved explicitly in
+  // handleBeginAnnotation/handleOpenBatch); purely "which batch is open."
+  const [watchBatchId, setWatchBatchId] = useState<string | null>(null)
+
   // The batch explicitly opened from Home (Phase 9E) — reopens a terminal
   // batch into the permanent Batch Details screen. Historical batches are
   // always fetched fresh from the registry by BatchDetails itself; this is
@@ -88,12 +95,15 @@ export default function App() {
     setView(pipeline[0] === 'watch' ? 'watch' : 'preprocessing')
   }
 
-  // Reopening a batch from Home (Phase 9E). Historical batches always load
-  // from the registry, never from renderer memory: this always fetches
-  // fresh, regardless of whether it happens to match whatever App.tsx was
-  // already tracking. An in-progress batch reopens into its live stage
-  // (existing screens, unchanged); anything else (terminal, or the rare
-  // never-actually-started edge case) opens the permanent Batch Details page.
+  // Reopening a batch from Home (Phase 9E, hardened in 9E.1). Historical
+  // batches always load from the registry, never from renderer memory: this
+  // always fetches fresh, regardless of whether it happens to match whatever
+  // App.tsx was already tracking. No blank screens and no path-selection
+  // screen unless starting a genuinely new batch:
+  //   Preprocessing running  → the live Run workspace
+  //   Preprocessing terminal → Batch Details
+  //   Watch running          → the annotation workspace directly (not BatchSetup)
+  //   Watch terminal         → Batch Details
   async function handleOpenBatch(id: string) {
     const detail = await window.api.invoke('batch-registry:get', { id })
     if (!detail) return
@@ -108,23 +118,7 @@ export default function App() {
     }
 
     if (detail.status === 'in_progress' && detail.currentStage === 'watch') {
-      const watchStage = detail.stages.find(s => s.type === 'watch')
-      if (watchStage) {
-        // Seeds BatchSetup's own existing restore-on-mount + auto-validate
-        // flow with THIS batch's folders — reusing that machinery exactly as
-        // it already exists rather than building a separate Watch-reopening
-        // path (the annotation workflow itself is not being redesigned).
-        await window.api.invoke('prefs:save-last-batch', {
-          inputFolder: watchStage.inputDir,
-          spreadsheetPath: (watchStage.config.spreadsheetPath as string) ?? null,
-          outputFolder: watchStage.outputDir,
-        })
-      }
-      setPendingBatch(null)
-      setScreen('setup')
-      setEntry(null)
-      setOpenBatchId(null)
-      setView('watch')
+      await reopenLiveWatchBatch(detail)
       return
     }
 
@@ -133,10 +127,56 @@ export default function App() {
     setView('batchDetails')
   }
 
-  // The single funnel for resolving which Batch an execution belongs to —
-  // used by both the Preprocessing Start handler and the Watch Begin
-  // Annotation handler, so every entry path (Home, sidebar, or a stage
-  // hand-off) produces identical downstream behavior.
+  // Reconstructs exactly what BatchSetup's own validate → match → session:load
+  // sequence would produce, then jumps straight into AnnotationWorkspace —
+  // reusing the same IPC contracts BatchSetup already relies on rather than
+  // building a parallel path, so the annotation workflow itself is untouched.
+  async function reopenLiveWatchBatch(detail: BatchDetailRecord): Promise<void> {
+    const watchStage = detail.stages.find(s => s.type === 'watch')
+    const inputFolder = watchStage?.inputDir ?? ''
+    const outputFolder = watchStage?.outputDir ?? ''
+    const spreadsheetPath =
+      watchStage && typeof watchStage.config.spreadsheetPath === 'string' ? watchStage.config.spreadsheetPath : ''
+
+    if (watchStage && inputFolder && outputFolder && spreadsheetPath) {
+      const validation = await window.api.invoke('batch:validate', { inputFolder, spreadsheetPath, outputFolder })
+      if (validation.ok) {
+        const load = await window.api.invoke('batch:load', { inputFolder, spreadsheetPath })
+        if (load.ok && load.match) {
+          const sessionResult = await window.api.invoke('session:load', { inputFolder, outputFolder, spreadsheetPath })
+          const batchState: BatchState = { inputFolder, outputFolder, spreadsheetPath, match: load.match }
+          setPendingBatch(null)
+          setHandoffFolder(null)
+          setOpenBatchId(null)
+          setWatchBatchId(detail.id)
+          setEntry({ batch: batchState, initialSession: sessionResult.ok ? sessionResult.session : null })
+          setScreen('annotation')
+          setView('watch')
+          return
+        }
+      }
+    }
+
+    // Paths no longer valid, or something's missing — degrade to BatchSetup
+    // rather than a blank/broken workspace. Seed its own restore-on-mount so
+    // the user immediately sees why (the same validation errors) instead of
+    // landing on an unexplained blank form.
+    if (inputFolder || outputFolder || spreadsheetPath) {
+      await window.api.invoke('prefs:save-last-batch', { inputFolder, spreadsheetPath, outputFolder })
+    }
+    setPendingBatch(null)
+    setHandoffFolder(null)
+    setOpenBatchId(null)
+    setWatchBatchId(null)
+    setScreen('setup')
+    setEntry(null)
+    setView('watch')
+  }
+
+  // The single funnel for resolving which Batch a Preprocessing execution
+  // belongs to — Watch has its own resolution in handleBeginAnnotation below,
+  // since "Resume must never create a new batch" needs an extra lookup step
+  // that Preprocessing (which has no resume concept) doesn't.
   async function createBatch(defaultPipeline: StageType[], sourceDir: string, title: string): Promise<string> {
     if (pendingBatch?.continueBatchId) {
       const id = pendingBatch.continueBatchId
@@ -214,12 +254,48 @@ export default function App() {
     return { ok: true }
   }
 
+  // Batch identity, hardened (Phase 9E.1): resolves which batch this
+  // execution belongs to via a strict, explicit precedence —
+  //   1. an explicit continuation (pendingBatch.continueBatchId — a hand-off
+  //      or a reopened in-progress batch) always wins and is never re-looked-up;
+  //   2. Resume (initialSession !== null — BatchSetup only ever passes a
+  //      session on its "Resume" button) must never create a new batch: find
+  //      the batch this session already belongs to by the exact same
+  //      inputFolder/outputFolder/spreadsheetPath already stored on its stage,
+  //      falling back to creating one only if truly none exists (e.g. an
+  //      orphaned session from before this fix);
+  //   3. anything else (Begin Annotation with no prior session, or explicit
+  //      "Start fresh") intentionally creates a brand new batch — this is the
+  //      one and only path that mints new Watch batches for a first-time or
+  //      deliberately-restarted run.
+  async function resolveWatchBatchId(
+    batch: BatchState,
+    initialSession: SessionFile | null,
+    title: string,
+  ): Promise<string> {
+    if (pendingBatch?.continueBatchId) {
+      const id = pendingBatch.continueBatchId
+      setPendingBatch(null)
+      return id
+    }
+    if (initialSession !== null) {
+      const existing = await window.api.invoke('batch-registry:find-watch', {
+        inputFolder: batch.inputFolder,
+        outputFolder: batch.outputFolder,
+        spreadsheetPath: batch.spreadsheetPath,
+      })
+      setPendingBatch(null)
+      if (existing) return existing.id
+    }
+    return createBatch(['watch'], batch.inputFolder, title)
+  }
+
   async function handleBeginAnnotation(
     batch: BatchState,
     initialSession: SessionFile | null,
     batchName: string,
   ) {
-    const id = await createBatch(['watch'], batch.inputFolder, batchName)
+    const id = await resolveWatchBatchId(batch, initialSession, batchName)
     void window.api.invoke('batch-registry:update-stage', {
       id,
       stageType: 'watch',
@@ -230,14 +306,34 @@ export default function App() {
         config: { spreadsheetPath: batch.spreadsheetPath },
       },
     })
+    setWatchBatchId(id)
     setHandoffFolder(null)
     setEntry({ batch, initialSession })
     setScreen('annotation')
   }
 
+  // Explicit "Complete Batch" (Phase 9E.1): once annotation/queue work is
+  // finished, marks the Watch stage completed and returns to Home. A
+  // completed batch always reopens into Batch Details from then on (handled
+  // automatically by handleOpenBatch's terminal fallthrough).
+  async function handleCompleteWatchBatch() {
+    if (!watchBatchId) return
+    if (!window.confirm('Mark this batch complete and return to Home?')) return
+    await window.api.invoke('batch-registry:update-stage', {
+      id: watchBatchId,
+      stageType: 'watch',
+      patch: { status: 'completed' },
+    })
+    setWatchBatchId(null)
+    setEntry(null)
+    setScreen('setup')
+    setView('home')
+  }
+
   function handleBack() {
     setScreen('setup')
     setEntry(null)
+    setWatchBatchId(null)
   }
 
   function renderContent() {
@@ -282,7 +378,12 @@ export default function App() {
 
     // view === 'watch'
     return screen === 'annotation' && entry !== null ? (
-      <AnnotationWorkspace batch={entry.batch} initialSession={entry.initialSession} onBack={handleBack} />
+      <AnnotationWorkspace
+        batch={entry.batch}
+        initialSession={entry.initialSession}
+        onBack={handleBack}
+        onCompleteBatch={handleCompleteWatchBatch}
+      />
     ) : (
       <BatchSetup
         initialBatchName={pendingBatch?.title ?? ''}

@@ -78,6 +78,11 @@ function buildArgs(runnerPath: string, payload: PreprocessStartPayload): string[
   ]
   if (payload.scaleFactor !== undefined)      args.push('--scale-factor',      String(payload.scaleFactor))
   if (payload.objectType !== undefined)       args.push('--object-type',       payload.objectType)
+  // Phase 10A — operations defaults to both when omitted, matching pre-10A
+  // behavior (background removal always ran) for any caller that doesn't
+  // set this field.
+  const operations = payload.operations ?? ['background_removal', 'upscale']
+  if (!operations.includes('background_removal')) args.push('--skip-background-removal')
   if (payload.background !== undefined)       args.push('--background',        payload.background)
   if (payload.backgroundColorHex !== undefined) args.push('--background-color', payload.backgroundColorHex)
   if (payload.outputPpi !== undefined)        args.push('--output-ppi',        String(payload.outputPpi))
@@ -217,6 +222,7 @@ export function registerPreprocessHandlers(): void {
           config: {
             scaleFactor: payload.scaleFactor ?? 1,
             objectType: payload.objectType ?? 'generic',
+            operations: payload.operations ?? ['background_removal', 'upscale'],
             samPointsPerSide: payload.samPointsPerSide,
             samPointsPerBatch: payload.samPointsPerBatch,
             samPredIouThresh: payload.samPredIouThresh,

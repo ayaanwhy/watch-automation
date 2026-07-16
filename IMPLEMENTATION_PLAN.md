@@ -605,11 +605,125 @@ The application presents a cohesive production workflow with persistent batch ma
 
 ⸻
 
-Phase 10 — Backend Refinement
+Phase 10 — Ring & Bracelet Asset Generation
 
 Goal
 
-Optimize the application’s architecture, reliability, and performance for large-scale production use without changing user-facing workflows.
+Extend WatchAutomation beyond Watches by introducing Ring and Bracelet asset generation — built on a preprocessing pipeline that becomes product-agnostic, and on a dedicated AI-assisted masking pipeline investigated and integrated specifically for this phase.
+
+This phase is restructured into milestones that build the feature incrementally: a universal preprocessing pipeline first, then AI investigation, integration, workflow UI, and production hardening.
+
+⸻
+
+Phase 10A — Universal Preprocessing Pipeline
+
+Objective
+
+Make preprocessing product-agnostic so it can serve as the upstream pipeline for any future product type, not just Watches.
+
+Scope
+
+* Introduce configurable execution modes:
+  * Upscale only
+  * Background Removal only
+  * Both
+* Ensure preprocessing can become the upstream pipeline for any future product type.
+
+Deliverable:
+
+A product-agnostic preprocessing pipeline with selectable execution modes.
+
+⸻
+
+Phase 10B — Ring & Bracelet AI Investigation
+
+Objective
+
+Study the existing AI masking module and design its integration into WPA before any production work begins.
+
+Scope
+
+* Study the existing AI masking module.
+* Identify required inputs/outputs.
+* Determine reusable components.
+* Design integration into WPA.
+
+No production integration yet.
+
+Deliverable:
+
+A validated integration design for the Ring & Bracelet masking model.
+
+⸻
+
+Phase 10C — Ring & Bracelet Asset Generator Integration
+
+Objective
+
+Integrate the masking model to generate Ring and Bracelet assets.
+
+Scope
+
+* Integrate the masking model.
+* Generate:
+  * frontFullImage
+  * frontImage
+
+Keep preprocessing and asset generation cleanly separated.
+
+Deliverable:
+
+A working Ring & Bracelet asset generator producing frontFullImage and frontImage outputs.
+
+⸻
+
+Phase 10D — Ring & Bracelet Workflow UI
+
+Objective
+
+Bring Rings and Bracelets into the application as first-class editing workflows.
+
+Scope
+
+* Enable the Rings and Bracelets editing entries.
+* Build the workflow, progress, review and batch experience consistent with Watches.
+
+Deliverable:
+
+Rings and Bracelets are usable end-to-end through the same batch-first workflow experience as Watches.
+
+⸻
+
+Phase 10E — Validation & Production Hardening
+
+Objective
+
+Confirm Ring & Bracelet asset generation is production-ready.
+
+Scope
+
+* QA
+* Performance validation
+* Regression testing
+* Large-batch verification
+
+Deliverable:
+
+Ring & Bracelet asset generation validated for production use.
+
+⸻
+
+Success Criteria
+
+Rings and Bracelets can be processed end-to-end — from raw imagery through AI-assisted masking to finished assets — using the same batch-first workflow as Watches, on a preprocessing pipeline that is now product-agnostic.
+
+⸻
+
+Phase 11 — Architecture Strengthening — Run 1
+
+Goal
+
+Multiple product workflows now exist side by side (Watches, and Rings & Bracelets from Phase 10). Strengthen the platform's architecture, reliability, and performance for large-scale production use across all of them, without changing user-facing workflows.
 
 Deliverables
 
@@ -703,16 +817,15 @@ Prepare for future modules by improving:
 
 Success Criteria
 
-The application operates reliably on large real-world datasets, remains responsive during extended processing sessions, and provides a stable foundation for future AI-assisted features.
+The application operates reliably on large real-world datasets across multiple product workflows, remains responsive during extended processing sessions, and provides a stable foundation for the AI-assisted annotation work in Phase 12.
 
-____
+⸻
 
-
-Phase 11 — AI Boundary Provider Foundation
+Phase 12 — AI-Assisted Watch Annotation & Boundary Detection
 
 Goal
 
-Prepare for future automated dial detection.
+Introduce AI-assisted boundary detection for Watch annotation — first as a standardized provider abstraction decoupled from any specific detection method, then as a real AI prediction that pre-populates guides for user review.
 
 Deliverables
 
@@ -738,19 +851,7 @@ Store:
 * boundarySource
 * confidence score
 
-Success Criteria
-
-Processing engine no longer depends on manual annotation.
-
 ⸻
-
-Phase 12 — AI-Assisted Annotation
-
-Goal
-
-Allow AI to pre-populate boundary guides.
-
-Deliverables
 
 AI Boundary Provider
 
@@ -769,41 +870,39 @@ Confidence Display
 
 Display prediction confidence.
 
+⸻
+
 Success Criteria
 
-Users spend significantly less time annotating.
+* Processing engine no longer depends on manual annotation.
+* Users spend significantly less time annotating.
 
 ⸻
 
-Phase 13 — Fully Automated Processing
+Phase 13 — Earring Asset Generation
 
 Goal
 
-Support zero-touch batch processing.
+Introduce Earring asset generation as another product-specific asset generator built on the universal preprocessing pipeline established in Phase 10.
 
 Deliverables
 
-Automated Boundary Detection
+Processing Pipeline
 
-Generate boundaries automatically.
+* Upscale
+* Background Removal
+* Trim
+* Resize to 2000px height while preserving aspect ratio
 
-Confidence Routing
+Output
 
-High confidence:
+* PNG
+* Transparent background
 
-* Auto process
+Filename:
 
-Low confidence:
-
-* Send for review
-
-Batch Automation
-
-Folder
-→ Detect
-→ Process
-→ Export
+SKU;frontImage.png
 
 Success Criteria
 
-Large batches can be processed without manual intervention.
+Earring imagery can be processed end-to-end into finished, production-ready assets using the same product-agnostic preprocessing foundation introduced in Phase 10.

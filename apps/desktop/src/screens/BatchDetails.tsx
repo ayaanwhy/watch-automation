@@ -59,15 +59,31 @@ function latestCompletedAt(stages: StageRecord[]): string | null {
   return timestamps.reduce((latest, t) => (Date.parse(t) > Date.parse(latest) ? t : latest))
 }
 
+// Phase 10A — "objectType" is presented as "Target" here purely as a label;
+// the underlying config key/persistence stays objectType, unchanged.
 const PREPROCESSING_CONFIG_FIELDS: [string, string, string | undefined][] = [
   ['scaleFactor', 'Upscale Factor', '×'],
-  ['objectType', 'Product Type', undefined],
+  ['objectType', 'Target', undefined],
+  ['operations', 'Operations', undefined],
   ['samPointsPerSide', 'SAM Points/Side', undefined],
   ['samPointsPerBatch', 'SAM Points/Batch', undefined],
   ['samPredIouThresh', 'SAM Pred IoU', undefined],
   ['samStabilityScoreThresh', 'SAM Stability Score', undefined],
   ['samMaxMasks', 'SAM Max Masks', undefined],
 ]
+
+// Phase 10A — operations is stored as an array (['background_removal', 'upscale']);
+// a plain String(value) would render it as a comma-joined raw string, so it
+// gets a small dedicated label instead of the generic readConfigValue path.
+const OPERATION_LABELS: Record<string, string> = {
+  background_removal: 'Background Removal',
+  upscale: 'Upscaling',
+}
+
+function formatOperations(value: unknown): string | null {
+  if (!Array.isArray(value) || value.length === 0) return null
+  return value.map(op => OPERATION_LABELS[op as string] ?? String(op)).join(' + ')
+}
 
 const WATCH_CONFIG_FIELDS: [string, string, string | undefined][] = [
   ['spreadsheetPath', 'Spreadsheet', undefined],
@@ -82,7 +98,7 @@ function ConfigGrid({
 }) {
   const entries: { label: string; value: string; suffix: string }[] = []
   for (const [key, label, suffix] of fields) {
-    const value = readConfigValue(config, key)
+    const value = key === 'operations' ? formatOperations(config[key]) : readConfigValue(config, key)
     if (value !== null) entries.push({ label, value, suffix: suffix ?? '' })
   }
   if (entries.length === 0) return null
@@ -266,60 +282,56 @@ export default function BatchDetails({
   return (
     <div className={styles.page}>
       <div className={styles.container}>
-        <button className={styles.backLink} onClick={onBack}>← Home</button>
+        <div className={styles.stickyTop}>
+          <button className={styles.backLink} onClick={onBack}>← Home</button>
 
-        <div className={styles.header}>
-          {editingTitle ? (
-            <div className={styles.editRow}>
-              <input
-                className={styles.editInput}
-                value={titleDraft}
-                onChange={e => setTitleDraft(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') void handleSaveTitle()
-                  if (e.key === 'Escape') {
+          <div className={styles.header}>
+            {editingTitle ? (
+              <div className={styles.editRow}>
+                <input
+                  className={styles.editInput}
+                  value={titleDraft}
+                  onChange={e => setTitleDraft(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') void handleSaveTitle()
+                    if (e.key === 'Escape') {
+                      setEditingTitle(false)
+                      setTitleDraft(batch.title)
+                    }
+                  }}
+                  autoFocus
+                  spellCheck={false}
+                />
+                <Button size="sm" variant="ghost" onClick={handleSaveTitle}>Save</Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
                     setEditingTitle(false)
                     setTitleDraft(batch.title)
-                  }
-                }}
-                autoFocus
-                spellCheck={false}
-              />
-              <Button size="sm" variant="ghost" onClick={handleSaveTitle}>Save</Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  setEditingTitle(false)
-                  setTitleDraft(batch.title)
-                }}
-              >
-                Cancel
-              </Button>
-            </div>
-          ) : (
-            <div className={styles.titleGroup}>
-              <h1 className={styles.title}>{batch.title}</h1>
-              <button
-                className={styles.editButton}
-                onClick={() => setEditingTitle(true)}
-                aria-label="Rename batch"
-                title="Rename"
-              >
-                ✎
-              </button>
-            </div>
-          )}
-          <StatusChip tone={batchStatusTone(batch.status)}>{BATCH_STATUS_LABELS[batch.status]}</StatusChip>
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            ) : (
+              <div className={styles.titleGroup}>
+                <h1 className={styles.title}>{batch.title}</h1>
+                <button
+                  className={styles.editButton}
+                  onClick={() => setEditingTitle(true)}
+                  aria-label="Rename batch"
+                  title="Rename"
+                >
+                  ✎
+                </button>
+              </div>
+            )}
+            <StatusChip tone={batchStatusTone(batch.status)}>{BATCH_STATUS_LABELS[batch.status]}</StatusChip>
+          </div>
         </div>
 
         <BatchDetailsSection title="Overview">
-          <div className={styles.metaRow}>
-            <span>Created {new Date(batch.createdAt).toLocaleString()}</span>
-            {completedAt && <span>Completed {new Date(completedAt).toLocaleString()}</span>}
-            <span>Duration {batch.durationMs !== null ? formatDurationLong(batch.durationMs) : '—'}</span>
-          </div>
-
           <div className={styles.pipelineRow}>
             {batch.pipeline.map(type => {
               const stage = batch.stages.find(s => s.type === type)
@@ -335,59 +347,75 @@ export default function BatchDetails({
 
           {preprocessingStage && preprocessingStage.status !== 'not_started' && (
             <div className={styles.stageBlock}>
-              <div className={styles.stageHeader}>
-                <span className={styles.stageName}>{STAGE_LABELS.preprocessing}</span>
-                <StatusChip tone={stageStatusTone(preprocessingStage.status)}>
-                  {STAGE_STATUS_LABELS[preprocessingStage.status]}
-                </StatusChip>
+              <div className={styles.stageBlockLeft}>
+                <div className={styles.columnHeading}>Configuration</div>
+                <ConfigGrid config={preprocessingStage.config} fields={PREPROCESSING_CONFIG_FIELDS} />
               </div>
-              <ConfigGrid config={preprocessingStage.config} fields={PREPROCESSING_CONFIG_FIELDS} />
-              <StageTiming stage={preprocessingStage} />
-              <div className={styles.summaryWrap}>
-                <PreprocessingSummary
-                  donePayload={buildDonePayload(preprocessingStage)}
-                  fatalError={preprocessingStage.status === 'failed' ? preprocessingStage.error : null}
-                  onReset={handleRunAnother}
-                  onContinueToWatchProcessing={
-                    onContinueToWatchProcessing && batch.currentStage === 'watch'
-                      ? () => handleContinue(preprocessingStage.outputDir ?? '')
-                      : undefined
-                  }
-                />
+              <div className={styles.stageBlockRight}>
+                <div className={styles.stageHeader}>
+                  <span className={styles.stageName}>{STAGE_LABELS.preprocessing}</span>
+                  <StatusChip tone={stageStatusTone(preprocessingStage.status)}>
+                    {STAGE_STATUS_LABELS[preprocessingStage.status]}
+                  </StatusChip>
+                </div>
+                <StageTiming stage={preprocessingStage} />
+                <div className={styles.summaryWrap}>
+                  <PreprocessingSummary
+                    donePayload={buildDonePayload(preprocessingStage)}
+                    fatalError={preprocessingStage.status === 'failed' ? preprocessingStage.error : null}
+                    onReset={handleRunAnother}
+                    onContinueToWatchProcessing={
+                      onContinueToWatchProcessing && batch.currentStage === 'watch'
+                        ? () => handleContinue(preprocessingStage.outputDir ?? '')
+                        : undefined
+                    }
+                  />
+                </div>
               </div>
             </div>
           )}
 
           {watchStage && watchStage.status !== 'not_started' && (
             <div className={styles.stageBlock}>
-              <div className={styles.stageHeader}>
-                <span className={styles.stageName}>{STAGE_LABELS.watch}</span>
-                <StatusChip tone={stageStatusTone(watchStage.status)}>
-                  {STAGE_STATUS_LABELS[watchStage.status]}
-                </StatusChip>
+              <div className={styles.stageBlockLeft}>
+                <div className={styles.columnHeading}>Configuration</div>
+                <ConfigGrid config={watchStage.config} fields={WATCH_CONFIG_FIELDS} />
               </div>
-              <ConfigGrid config={watchStage.config} fields={WATCH_CONFIG_FIELDS} />
-              <StageTiming stage={watchStage} />
-              {watchSession ? (
-                <div className={styles.metaRow}>
-                  <span>{watchSession.annotations.length} matched</span>
-                  <span>
-                    {watchSession.annotations.filter(a => a.status === 'annotated').length} annotated
-                  </span>
-                  <span>
-                    {watchSession.processingQueue.filter(q => q.status === 'complete').length} exported
-                  </span>
-                  {watchSession.processingQueue.some(q => q.status === 'failed') && (
-                    <span>{watchSession.processingQueue.filter(q => q.status === 'failed').length} failed</span>
-                  )}
+              <div className={styles.stageBlockRight}>
+                <div className={styles.stageHeader}>
+                  <span className={styles.stageName}>{STAGE_LABELS.watch}</span>
+                  <StatusChip tone={stageStatusTone(watchStage.status)}>
+                    {STAGE_STATUS_LABELS[watchStage.status]}
+                  </StatusChip>
                 </div>
-              ) : (
-                <div className={styles.metaRow}>
-                  <span>Session details unavailable.</span>
-                </div>
-              )}
+                <StageTiming stage={watchStage} />
+                {watchSession ? (
+                  <div className={styles.metaRow}>
+                    <span>{watchSession.annotations.length} matched</span>
+                    <span>
+                      {watchSession.annotations.filter(a => a.status === 'annotated').length} annotated
+                    </span>
+                    <span>
+                      {watchSession.processingQueue.filter(q => q.status === 'complete').length} exported
+                    </span>
+                    {watchSession.processingQueue.some(q => q.status === 'failed') && (
+                      <span>{watchSession.processingQueue.filter(q => q.status === 'failed').length} failed</span>
+                    )}
+                  </div>
+                ) : (
+                  <div className={styles.metaRow}>
+                    <span>Session details unavailable.</span>
+                  </div>
+                )}
+              </div>
             </div>
           )}
+
+          <div className={styles.metaRow}>
+            <span>Created {new Date(batch.createdAt).toLocaleString()}</span>
+            {completedAt && <span>Completed {new Date(completedAt).toLocaleString()}</span>}
+            <span>Duration {batch.durationMs !== null ? formatDurationLong(batch.durationMs) : '—'}</span>
+          </div>
         </BatchDetailsSection>
 
         <BatchDetailsSection title="Images">
@@ -401,7 +429,7 @@ export default function BatchDetails({
               />
             </div>
             <div className={styles.previewArea}>
-              <ImagePreviewPanel image={selectedImageState} inputDir={imageInputDir} mode="details" />
+              <ImagePreviewPanel image={selectedImageState} inputDir={imageInputDir} />
             </div>
           </div>
         </BatchDetailsSection>

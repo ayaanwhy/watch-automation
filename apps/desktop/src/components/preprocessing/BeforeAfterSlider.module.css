@@ -1,19 +1,69 @@
 .frame {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  gap: 10px;
   width: 100%;
   height: 100%;
+  min-height: 0;
+}
+
+.backgroundToggle {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-self: center;
+  gap: 2px;
+  padding: 2px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+}
+
+.bgOption {
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.5);
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.bgOption:hover {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.bgOptionActive {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
 }
 
 .box {
   position: relative;
+  flex: 1;
+  min-height: 0;
   width: 100%;
-  height: 100%;
-  max-height: 60vh;
-  background: #000;
   border-radius: 8px;
   overflow: hidden;
+}
+
+.bgTransparent {
+  background-color: #4a4a4a;
+  background-image:
+    linear-gradient(45deg, #6b6b6b 25%, transparent 25%),
+    linear-gradient(-45deg, #6b6b6b 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #6b6b6b 75%),
+    linear-gradient(-45deg, transparent 75%, #6b6b6b 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+}
+
+.bgWhite {
+  background-color: #fff;
+}
+
+.bgBlack {
+  background-color: #000;
 }
 
 .image {
@@ -24,7 +74,6 @@
   /* Common display region for both images regardless of their actual
      dimensions — never assumes before/after share a size. */
   object-fit: contain;
-  background: #000;
   user-select: none;
 }
 
@@ -33,7 +82,8 @@
   top: 0;
   bottom: 0;
   width: 2px;
-  background: rgba(255, 255, 255, 0.9);
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
   transform: translateX(-1px);
   pointer-events: none;
 }
@@ -42,12 +92,23 @@
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 28px;
-  height: 28px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   background: #fff;
+  border: 2px solid rgba(0, 0, 0, 0.15);
   transform: translate(-50%, -50%);
-  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.handleArrows {
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: #1a1a1a;
+  line-height: 1;
 }
 
 .label {
@@ -58,7 +119,21 @@
   font-weight: 600;
   letter-spacing: 0.03em;
   color: #fff;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+.loadError {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(180, 40, 40, 0.85);
   border-radius: 4px;
   pointer-events: none;
 }
@@ -78,8 +153,18 @@
   appearance: none;
 }
 
+/* Invisible (opacity: 0 on .rangeInput above) — exists only as a native
+   hit/drag affordance for the underlying <input>, which already spans the
+   full box via .rangeInput's own inset:0/width:100%/height:100%. A normal,
+   small thumb size is required for WebKit/Blink's native pointer-tracking
+   to work at all: stretching this pseudo-element to 100%/100% (the prior
+   value) breaks native dragging outright — the drag registers a single
+   jump to 0 and stops tracking further pointer movement entirely. The
+   *visible* divider is the separate .handle element below, positioned only
+   by `left: ${percent}%` from React state — this pseudo-element never
+   drives anything visual. */
 .rangeInput::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 100%;
-  height: 100%;
+  width: 20px;
+  height: 20px;
 }

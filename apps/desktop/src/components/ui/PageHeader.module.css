@@ -6,6 +6,17 @@
   margin-bottom: var(--space-8);
 }
 
+.sticky {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--bg);
+  padding-top: var(--space-12);
+  padding-bottom: var(--space-5);
+  margin-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
 .text {
   display: flex;
   flex-direction: column;

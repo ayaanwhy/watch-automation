@@ -345,6 +345,24 @@
   opacity: 0.85;
 }
 
+.completeButton {
+  width: 100%;
+  padding: 8px 0;
+  font-size: 12px;
+  font-weight: 500;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 7px;
+  cursor: pointer;
+  letter-spacing: 0.01em;
+}
+
+.completeButton:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
 .submitButton:disabled {
   opacity: 0.3;
   cursor: not-allowed;

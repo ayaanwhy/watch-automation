@@ -9,7 +9,7 @@
 // this file only reads/writes and keeps index summaries in sync with details.
 
 import { app } from 'electron'
-import { readFile, writeFile, rename, mkdir } from 'node:fs/promises'
+import { readFile, writeFile, rename, mkdir, unlink } from 'node:fs/promises'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { logger } from '../logger'
@@ -134,4 +134,53 @@ export async function renameBatch(id: string, title: string): Promise<BatchDetai
   upsertSummary(index, updated)
   await writeIndex(index)
   return updated
+}
+
+// Finds the batch a Watch stage already belongs to, identified by the exact
+// same three fields the stage itself stores (inputDir/outputDir/spreadsheet
+// path) — never by re-deriving a session hash or adding a new persisted
+// field. Used so "Resume" can reuse an existing batch instead of minting a
+// duplicate (Phase 9E.1). Scoped to batches whose pipeline includes 'watch'
+// (bounded, not every batch in the registry); most-recently-created match
+// wins if more than one somehow qualifies.
+export async function findWatchBatch(
+  inputFolder: string,
+  outputFolder: string,
+  spreadsheetPath: string,
+): Promise<BatchDetailRecord | null> {
+  const index = await readIndex()
+  const candidates = index.batches
+    .filter(b => b.pipeline.includes('watch'))
+    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
+
+  for (const candidate of candidates) {
+    const detail = await getBatch(candidate.id)
+    const stage = detail?.stages.find(s => s.type === 'watch')
+    if (
+      stage &&
+      stage.inputDir === inputFolder &&
+      stage.outputDir === outputFolder &&
+      stage.config.spreadsheetPath === spreadsheetPath
+    ) {
+      return detail!
+    }
+  }
+  return null
+}
+
+// Removes only the registry's own bookkeeping (index entry + detail file) —
+// never touches generated outputs or any user asset, which the registry
+// never wrote to in the first place.
+export async function deleteBatch(id: string): Promise<boolean> {
+  const index = await readIndex()
+  const existed = index.batches.some(b => b.id === id)
+  index.batches = index.batches.filter(b => b.id !== id)
+  await writeIndex(index)
+  try {
+    await unlink(detailPath(id))
+  } catch {
+    // Detail file already gone — fine, the index entry is what mattered.
+  }
+  logger.info(`batch-registry — deleted ${id}`)
+  return existed
 }

@@ -6,6 +6,9 @@ from typing import Any
 from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 CONFIG = {
+    # Phase 10A — declares that this plugin actually consumes SAM 2 masks,
+    # so the runner pays for segmentation only when a plugin needs it.
+    "requires_masks": True,
     "export_masks": True,
     "export_parts": True,
     # Edit this list to choose what gets removed from the watch image.

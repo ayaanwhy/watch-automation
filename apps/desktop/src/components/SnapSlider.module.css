@@ -2,6 +2,11 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  /* Compact and centered rather than spanning the full form width, so the
+     available stops read as a grouped control instead of a stretched bar. */
+  max-width: 260px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .label {

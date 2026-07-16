@@ -21,7 +21,17 @@ function joinPath(dir: string, file: string): string {
 
 // ── Inner component — accesses both annotation and queue contexts ─────────────
 
-function AnnotationContent({ createdAt, onBack, onShowDashboard }: { createdAt: string; onBack(): void; onShowDashboard(): void }) {
+function AnnotationContent({
+  createdAt,
+  onBack,
+  onShowDashboard,
+  onCompleteBatch,
+}: {
+  createdAt: string
+  onBack(): void
+  onShowDashboard(): void
+  onCompleteBatch(): void
+}) {
   const ctx = useAnnotation()
   const queue = useQueue()
   const { currentAnnotation, currentIndex, mode, batch } = ctx
@@ -71,7 +81,12 @@ function AnnotationContent({ createdAt, onBack, onShowDashboard }: { createdAt: 
         measureBy={measureBy}
         mode={mode}
       />
-      <InfoPanel onSubmit={handleSubmit} onBack={onBack} onShowDashboard={onShowDashboard} />
+      <InfoPanel
+        onSubmit={handleSubmit}
+        onBack={onBack}
+        onShowDashboard={onShowDashboard}
+        onCompleteBatch={onCompleteBatch}
+      />
       <ProcessingQueue />
     </div>
   )
@@ -83,9 +98,13 @@ interface AnnotationWorkspaceProps {
   batch: BatchState
   initialSession: SessionFile | null
   onBack(): void
+  // Explicit "Complete Batch" action (Phase 9E.1) — marks the Watch stage
+  // completed and returns to Home; owned by App.tsx since it's the one that
+  // knows which Batch this session belongs to.
+  onCompleteBatch(): void
 }
 
-export function AnnotationWorkspace({ batch, initialSession, onBack }: AnnotationWorkspaceProps) {
+export function AnnotationWorkspace({ batch, initialSession, onBack, onCompleteBatch }: AnnotationWorkspaceProps) {
   const createdAt = useRef(initialSession?.createdAt ?? new Date().toISOString()).current
   const [view, setView] = useState<'annotation' | 'dashboard'>('annotation')
 
@@ -100,6 +119,7 @@ export function AnnotationWorkspace({ batch, initialSession, onBack }: Annotatio
               createdAt={createdAt}
               onBack={onBack}
               onShowDashboard={() => setView('dashboard')}
+              onCompleteBatch={onCompleteBatch}
             />
           )}
         </ErrorBoundary>

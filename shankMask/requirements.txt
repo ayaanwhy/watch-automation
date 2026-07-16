@@ -1,0 +1,44 @@
+# VTO Preprocessing backend — Python dependencies
+#
+# Same stack and versions we already run (pinned to our known-good environment).
+# Nothing is bundled here; the partner installs with:  pip install -r requirements.txt
+#
+# The BiRefNet ONNX model is NOT shipped in this repo. Download it separately and
+# point BIREFNET_MODEL at it (see models/README.md). BiRefNet is MIT-licensed.
+
+# ── Core API ─────────────────────────────────────────────
+fastapi==0.136.3
+uvicorn[standard]==0.48.0
+python-multipart==0.0.29
+
+# ── Image / model inference ──────────────────────────────
+onnxruntime-gpu==1.26.0          # runs on CPU too; swap to onnxruntime if no GPU
+opencv-python-headless==4.13.0.92
+numpy==2.4.6
+Pillow==12.2.0
+mediapipe==0.10.35               # carried for parity with our stack
+
+# ── Detector calls (partner VTO API) ─────────────────────
+httpx==0.28.1
+requests==2.34.2
+
+# ── Optional (parity with our server; unused by the slim backend) ──
+boto3                            # only if cloud asset upload is enabled
+PyJWT                            # only if token minting is enabled
+
+# ── Optional background-removal backends (benchmark / swap BiRefNet) ──
+# Install only if you want to test these. They are imported lazily, so the slim
+# backend runs fine without them. Enable in the console (Settings > Background
+# removal) or set BG_MODEL=ben2.
+#
+#   BEN2 (MIT, Confidence-Guided Matting — strong on chains/thin metal):
+#     pip install torch
+#     pip install git+https://github.com/PramaLLC/BEN2.git
+#
+# Add more matting backends by registering them in pipeline/matting.py.
+#
+#   SAM-HQ object support (optional, for Segmented studio / jewellery profile):
+#     pip install git+https://github.com/SysCV/sam-hq.git
+#     # download a SAM-HQ checkpoint separately, e.g. sam_hq_vit_b.pth
+#
+# Add more segmentation backends by registering them in pipeline/segmentation.py.

@@ -50,6 +50,8 @@ import threading
 import time
 from pathlib import Path
 
+from PIL import Image
+
 # Ensure the project root is on sys.path regardless of how Electron invokes us.
 _HERE = Path(__file__).resolve().parent
 if str(_HERE) not in sys.path:
@@ -208,6 +210,9 @@ def _parse_args() -> argparse.Namespace:
                    help="Real-ESRGAN upscale factor (default: 1 = skip upscale).")
     p.add_argument("--object-type", default="watch",
                    help="Plugin to apply: watch, bracelet, ring, or generic.")
+    p.add_argument("--skip-background-removal", action="store_true", default=False,
+                   help="Skip BiRefNet background removal (and, transitively, mask "
+                        "generation and the object-type plugin) — upscale-only mode.")
     p.add_argument("--background", default="Alpha",
                    help="Output background mode: 'Alpha' for transparency, or a hex color.")
     p.add_argument("--background-color", default="#ffffff",
@@ -308,7 +313,11 @@ def main() -> int:
 
     images = sorted(
         p for p in input_dir.iterdir()
-        if p.is_file() and p.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp"}
+        # Skip macOS "._name" AppleDouble sidecar files — never real images,
+        # but they carry a real image extension and would otherwise be fed
+        # straight into the pipeline and fail to decode.
+        if p.is_file() and not p.name.startswith("._")
+        and p.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp"}
     )
     if not images:
         emit({"type": "fatal", "error": f"No supported images found in {input_dir}"})
@@ -320,6 +329,22 @@ def main() -> int:
     # Access the (possibly patched) SAM config for diagnostics.
     import config as _cfg
     sam_cfg = _cfg.SAM
+
+    # ── Lazy service imports — must come after _patch_config_if_needed ────────
+    from stage0.background_remover import BackgroundRemover
+    from services.upscaler import upscale_image, get_last_upscale_diag
+    from services.sam_segmenter import segment_image
+    from services.plugin_loader import load_plugin, process_with_plugin
+
+    # ── Resolve the object-type plugin once, up front ─────────────────────────
+    # object_type is fixed for the whole run, so there is no reason to reload
+    # the plugin per image. requires_masks is a plugin-declared capability
+    # (Phase 10A) — only plugins that actually consume masks (currently just
+    # watch.py) pay for SAM 2 segmentation. Absence defaults to False, so
+    # ring/bracelet/generic — which already discarded their masks unused —
+    # simply stop paying for them.
+    _plugin = load_plugin(args.object_type)
+    _requires_masks = bool(getattr(_plugin, "CONFIG", {}).get("requires_masks", False))
 
     # ── Profiling output file ─────────────────────────────────────────────────
     # Written in line-buffered mode so every section is visible on disk
@@ -342,16 +367,11 @@ def main() -> int:
         f"  output_dir   : {output_dir}\n"
         f"  images       : {len(images)}\n"
         f"  scale_factor : {args.scale_factor}\n"
-        f"  object_type  : {args.object_type}\n"
+        f"  object_type  : {args.object_type} (requires_masks={_requires_masks})\n"
+        f"  skip_bg_removal : {args.skip_background_removal}\n"
         f"  background   : {args.background}\n"
         f"  edge_mode    : {args.edge_mode}\n\n"
     )
-
-    # ── Lazy service imports — must come after _patch_config_if_needed ────────
-    from stage0.background_remover import BackgroundRemover
-    from services.upscaler import upscale_image, get_last_upscale_diag
-    from services.sam_segmenter import segment_image
-    from services.plugin_loader import process_with_plugin
 
     # ── Prepare output directory tree ─────────────────────────────────────────
     temp_dir = output_dir / "temp"
@@ -476,131 +496,150 @@ def main() -> int:
                         f"\n  t_encode_ms        : {_d.get('t_encode_ms', '?')}"
                     )
 
-            # Safe checkpoint — before BiRefNet.
-            if _CANCEL_EVENT.is_set():
-                cancelled = True
-                break
+            # Universal preprocessing (Phase 10A): background removal — and,
+            # transitively, mask generation and the object-type plugin — only
+            # run when the caller actually asked for them. Upscale-only runs
+            # skip straight to Stage 5 with the (optionally upscaled) source
+            # image untouched.
+            if not args.skip_background_removal:
+                # Safe checkpoint — before BiRefNet.
+                if _CANCEL_EVENT.is_set():
+                    cancelled = True
+                    break
 
-            # Stage 2 — background removal via BiRefNet
-            rss["before_birefnet"] = _rss_mb()
-            with _stage(index, total, input_path.name, "birefnet", timings):
-                with _quiet():
-                    rgba = remover.remove_background(
-                        upscaled_path,
-                        mask_blur=args.mask_blur,
-                        mask_offset=args.mask_offset,
-                        invert_output=False,
-                        refine_foreground=args.refine_foreground,
-                        edge_mode=args.edge_mode,
-                        edge_strength=args.edge_strength,
-                        background=args.background,
-                        background_color=args.background_color,
-                        artifact_name=input_path.stem,
-                    )
-            rss["after_birefnet"] = _rss_mb()
+                # Stage 2 — background removal via BiRefNet
+                rss["before_birefnet"] = _rss_mb()
+                with _stage(index, total, input_path.name, "birefnet", timings):
+                    with _quiet():
+                        rgba = remover.remove_background(
+                            upscaled_path,
+                            mask_blur=args.mask_blur,
+                            mask_offset=args.mask_offset,
+                            invert_output=False,
+                            refine_foreground=args.refine_foreground,
+                            edge_mode=args.edge_mode,
+                            edge_strength=args.edge_strength,
+                            background=args.background,
+                            background_color=args.background_color,
+                            artifact_name=input_path.stem,
+                        )
+                rss["after_birefnet"] = _rss_mb()
 
-            # Safe checkpoint — before SAM.
-            if _CANCEL_EVENT.is_set():
-                cancelled = True
-                break
+                # Mask generation + the object-type plugin only run for
+                # plugins that declare requires_masks=True (Phase 10A). Every
+                # other plugin already discarded its masks unused, so this is
+                # a pure GPU-time savings, not an output-affecting change —
+                # final_rgba below is byte-identical to what those plugins
+                # already produced.
+                if _requires_masks:
+                    # Safe checkpoint — before SAM.
+                    if _CANCEL_EVENT.is_set():
+                        cancelled = True
+                        break
 
-            # SAM 2 lazy-loads its model weights on first use (see
-            # _load_generator in services/sam_segmenter.py). Announce that
-            # one-time cost once, for renderer visibility only — this does
-            # not change when or how SAM 2 loads, and the checkpoint above
-            # is unchanged.
-            if not sam2_load_announced:
-                emit({"type": "initializing", "stage": "loading_sam2"})
-                sam2_load_announced = True
+                    # SAM 2 lazy-loads its model weights on first use (see
+                    # _load_generator in services/sam_segmenter.py). Announce that
+                    # one-time cost once, for renderer visibility only — this does
+                    # not change when or how SAM 2 loads, and the checkpoint above
+                    # is unchanged.
+                    if not sam2_load_announced:
+                        emit({"type": "initializing", "stage": "loading_sam2"})
+                        sam2_load_announced = True
 
-            # Stage 3 — SAM 2 automatic segmentation
-            # Resolve effective SAM params — CLI overrides take precedence over config.py.
-            _sam_pps   = args.sam_points_per_side
-            _sam_ppb   = args.sam_points_per_batch
-            _sam_iou   = args.sam_pred_iou_thresh
-            _sam_stab  = args.sam_stability_score_thresh
-            _sam_mm    = (bool(args.sam_multimask_output) if args.sam_multimask_output is not None else None)
-            _sam_maxm  = args.sam_max_masks
+                    # Stage 3 — SAM 2 automatic segmentation
+                    # Resolve effective SAM params — CLI overrides take precedence over config.py.
+                    _sam_pps   = args.sam_points_per_side
+                    _sam_ppb   = args.sam_points_per_batch
+                    _sam_iou   = args.sam_pred_iou_thresh
+                    _sam_stab  = args.sam_stability_score_thresh
+                    _sam_mm    = (bool(args.sam_multimask_output) if args.sam_multimask_output is not None else None)
+                    _sam_maxm  = args.sam_max_masks
 
-            _sam_rss_before = _rss_mb()
-            _sam_t0 = time.perf_counter()
-            rss["before_sam"] = _sam_rss_before
-            with _stage(index, total, input_path.name, "sam", timings):
-                with _quiet():
-                    masks = segment_image(
-                        rgba,
-                        points_per_side=_sam_pps,
-                        points_per_batch=_sam_ppb,
-                        pred_iou_thresh=_sam_iou,
-                        stability_score_thresh=_sam_stab,
-                        max_masks=_sam_maxm,
-                        multimask_output=_sam_mm,
-                    )
-            rss["after_sam"] = _rss_mb()
+                    _sam_rss_before = _rss_mb()
+                    _sam_t0 = time.perf_counter()
+                    rss["before_sam"] = _sam_rss_before
+                    with _stage(index, total, input_path.name, "sam", timings):
+                        with _quiet():
+                            masks = segment_image(
+                                rgba,
+                                points_per_side=_sam_pps,
+                                points_per_batch=_sam_ppb,
+                                pred_iou_thresh=_sam_iou,
+                                stability_score_thresh=_sam_stab,
+                                max_masks=_sam_maxm,
+                                multimask_output=_sam_mm,
+                            )
+                    rss["after_sam"] = _rss_mb()
 
-            # Print SAM 2 diagnostics once (after first load completes).
-            if not sam2_diag_printed:
-                sam2_diag_printed = True
-                # Compute the effective resolution passed to SAM (mirrors
-                # _resize_for_sam: longest side clamped to max_image_size).
-                _w, _h = rgba.size
-                _largest = max(_w, _h)
-                if _largest <= sam_cfg.max_image_size:
-                    _sam_w, _sam_h = _w, _h
+                    # Print SAM 2 diagnostics once (after first load completes).
+                    if not sam2_diag_printed:
+                        sam2_diag_printed = True
+                        # Compute the effective resolution passed to SAM (mirrors
+                        # _resize_for_sam: longest side clamped to max_image_size).
+                        _w, _h = rgba.size
+                        _largest = max(_w, _h)
+                        if _largest <= sam_cfg.max_image_size:
+                            _sam_w, _sam_h = _w, _h
+                        else:
+                            _sc = sam_cfg.max_image_size / _largest
+                            _sam_w = max(1, int(_w * _sc))
+                            _sam_h = max(1, int(_h * _sc))
+                        # Derive device using the same priority order as _best_device().
+                        try:
+                            import torch as _torch
+                            _sam_dev = ("cuda" if _torch.cuda.is_available()
+                                        else "mps" if _torch.backends.mps.is_available()
+                                        else "cpu")
+                        except Exception:
+                            _sam_dev = "unknown"
+                        _sam_first_ms = int((time.perf_counter() - _sam_t0) * 1000)
+                        # Effective values: override if provided, else config.py default.
+                        _eff_pps  = _sam_pps  if _sam_pps  is not None else sam_cfg.points_per_side
+                        _eff_ppb  = _sam_ppb  if _sam_ppb  is not None else sam_cfg.points_per_batch
+                        _eff_maxm = _sam_maxm if _sam_maxm is not None else sam_cfg.max_masks
+                        _eff_mm   = _sam_mm   if _sam_mm   is not None else True
+                        _grid_pts = _eff_pps ** 2
+                        _batches  = -(-_grid_pts // _eff_ppb)  # ceiling div
+                        _plog(
+                            f"\n[PROFILE] SAM 2 init (first image includes model load)"
+                            f"\n  checkpoint        : {sam_cfg.checkpoint}"
+                            f"\n  device            : {_sam_dev}"
+                            f"\n  points_per_side   : {_eff_pps}"
+                            f"\n  points_per_batch  : {_eff_ppb}"
+                            f"\n  grid_points_total : {_grid_pts}"
+                            f"\n  forward_passes    : {_batches} per image"
+                            f"\n  max_masks         : {_eff_maxm}"
+                            f"\n  multimask_output  : {_eff_mm}"
+                            f"\n  max_image_size    : {sam_cfg.max_image_size}"
+                            f"\n  effective_res     : {_sam_w}×{_sam_h} (this image: {input_path.name})"
+                            f"\n  first_sam_ms      : {_sam_first_ms:,} (includes model load)"
+                            f"\n  rss_before        : {_sam_rss_before:.1f} MB"
+                            f"\n  rss_after         : {rss['after_sam']:.1f} MB"
+                            f"\n  rss_delta         : +{rss['after_sam'] - _sam_rss_before:.1f} MB"
+                        )
+
+                    # Safe checkpoint — before plugin.
+                    if _CANCEL_EVENT.is_set():
+                        cancelled = True
+                        break
+
+                    # Stage 4 — object-type plugin
+                    rss["before_plugin"] = _rss_mb()
+                    with _stage(index, total, input_path.name, "plugin", timings):
+                        with _quiet():
+                            plugin_result = process_with_plugin(
+                                rgba,
+                                masks,
+                                object_type=args.object_type,
+                            )
+                    rss["after_plugin"] = _rss_mb()
+                    final_rgba = plugin_result.get("processed_image", rgba)
                 else:
-                    _sc = sam_cfg.max_image_size / _largest
-                    _sam_w = max(1, int(_w * _sc))
-                    _sam_h = max(1, int(_h * _sc))
-                # Derive device using the same priority order as _best_device().
-                try:
-                    import torch as _torch
-                    _sam_dev = ("cuda" if _torch.cuda.is_available()
-                                else "mps" if _torch.backends.mps.is_available()
-                                else "cpu")
-                except Exception:
-                    _sam_dev = "unknown"
-                _sam_first_ms = int((time.perf_counter() - _sam_t0) * 1000)
-                # Effective values: override if provided, else config.py default.
-                _eff_pps  = _sam_pps  if _sam_pps  is not None else sam_cfg.points_per_side
-                _eff_ppb  = _sam_ppb  if _sam_ppb  is not None else sam_cfg.points_per_batch
-                _eff_maxm = _sam_maxm if _sam_maxm is not None else sam_cfg.max_masks
-                _eff_mm   = _sam_mm   if _sam_mm   is not None else True
-                _grid_pts = _eff_pps ** 2
-                _batches  = -(-_grid_pts // _eff_ppb)  # ceiling div
-                _plog(
-                    f"\n[PROFILE] SAM 2 init (first image includes model load)"
-                    f"\n  checkpoint        : {sam_cfg.checkpoint}"
-                    f"\n  device            : {_sam_dev}"
-                    f"\n  points_per_side   : {_eff_pps}"
-                    f"\n  points_per_batch  : {_eff_ppb}"
-                    f"\n  grid_points_total : {_grid_pts}"
-                    f"\n  forward_passes    : {_batches} per image"
-                    f"\n  max_masks         : {_eff_maxm}"
-                    f"\n  multimask_output  : {_eff_mm}"
-                    f"\n  max_image_size    : {sam_cfg.max_image_size}"
-                    f"\n  effective_res     : {_sam_w}×{_sam_h} (this image: {input_path.name})"
-                    f"\n  first_sam_ms      : {_sam_first_ms:,} (includes model load)"
-                    f"\n  rss_before        : {_sam_rss_before:.1f} MB"
-                    f"\n  rss_after         : {rss['after_sam']:.1f} MB"
-                    f"\n  rss_delta         : +{rss['after_sam'] - _sam_rss_before:.1f} MB"
-                )
-
-            # Safe checkpoint — before plugin.
-            if _CANCEL_EVENT.is_set():
-                cancelled = True
-                break
-
-            # Stage 4 — object-type plugin
-            rss["before_plugin"] = _rss_mb()
-            with _stage(index, total, input_path.name, "plugin", timings):
-                with _quiet():
-                    plugin_result = process_with_plugin(
-                        rgba,
-                        masks,
-                        object_type=args.object_type,
-                    )
-            rss["after_plugin"] = _rss_mb()
-            final_rgba = plugin_result.get("processed_image", rgba)
+                    final_rgba = rgba
+            else:
+                # Stage 2-4 skipped entirely — the (optionally upscaled)
+                # source image is the final output, unmodified.
+                final_rgba = Image.open(upscaled_path)
 
             # Safe checkpoint — before save.
             if _CANCEL_EVENT.is_set():

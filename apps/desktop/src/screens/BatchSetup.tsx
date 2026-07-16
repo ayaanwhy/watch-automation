@@ -34,27 +34,28 @@ export default function BatchSetup({ onBeginAnnotation, initialBatchName = '', h
     setSessionChecked(false)
   }
 
-  async function pickInputFolder() {
-    const path = await window.api.invoke('dialog:openFolder')
+  async function pickInputFolder(explicitPath?: string) {
+    const path = explicitPath ?? await window.api.invoke('dialog:openFolder', { historyKey: 'watch-input' })
     if (path !== null) {
       setInputFolder(path)
       clearResults()
     }
   }
 
-  async function pickSpreadsheet() {
+  async function pickSpreadsheet(explicitPath?: string) {
     const options: OpenFileOptions = {
+      historyKey: 'watch-spreadsheet',
       filters: [{ name: 'Spreadsheet', extensions: ['xlsx', 'csv'] }]
     }
-    const path = await window.api.invoke('dialog:openFile', options)
+    const path = explicitPath ?? await window.api.invoke('dialog:openFile', options)
     if (path !== null) {
       setSpreadsheetPath(path)
       clearResults()
     }
   }
 
-  async function pickOutputFolder() {
-    const path = await window.api.invoke('dialog:openFolder')
+  async function pickOutputFolder(explicitPath?: string) {
+    const path = explicitPath ?? await window.api.invoke('dialog:openFolder', { historyKey: 'watch-output' })
     if (path !== null) {
       setOutputFolder(path)
       clearResults()
@@ -171,20 +172,23 @@ export default function BatchSetup({ onBeginAnnotation, initialBatchName = '', h
             label="Input Folder"
             value={inputFolder}
             placeholder="Select folder containing watch images"
-            onPick={pickInputFolder}
+            onPick={() => pickInputFolder()}
+            onDropPath={pickInputFolder}
             badge={handoffFolder && inputFolder === handoffFolder ? 'Prepared ✓' : undefined}
           />
           <PathField
             label="Spreadsheet"
             value={spreadsheetPath}
             placeholder="Select XLSX or CSV measurement file"
-            onPick={pickSpreadsheet}
+            onPick={() => pickSpreadsheet()}
+            onDropPath={pickSpreadsheet}
           />
           <PathField
             label="Output Folder"
             value={outputFolder}
             placeholder="Select folder for processed exports"
-            onPick={pickOutputFolder}
+            onPick={() => pickOutputFolder()}
+            onDropPath={pickOutputFolder}
           />
         </div>
 

@@ -2,7 +2,9 @@
   min-height: 100%;
   display: flex;
   justify-content: center;
-  padding: var(--space-12) var(--space-6);
+  /* Top padding lives on PageHeader's sticky variant instead, so spacing
+     stays identical whether the header is stuck or not. */
+  padding: 0 var(--space-6) var(--space-12);
 }
 
 .container {

@@ -9,7 +9,10 @@ export interface DiscoveredImages {
 
 export function discoverImages(folderPath: string): DiscoveredImages {
   const files = readdirSync(folderPath);
-  const pngFiles = files.filter(f => extname(f).toLowerCase() === ".png");
+  // macOS writes hidden "._name" AppleDouble sidecar files alongside real
+  // ones (e.g. on FAT/network volumes, or after a zip/unzip); these are
+  // never real images and must never be treated as SKUs.
+  const pngFiles = files.filter(f => !f.startsWith("._") && extname(f).toLowerCase() === ".png");
   const totalCount = pngFiles.length;
 
   const allSkus = pngFiles.map(f => basename(f, extname(f)));

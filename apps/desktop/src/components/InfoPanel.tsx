@@ -14,9 +14,10 @@ interface InfoPanelProps {
   onSubmit(): void
   onBack(): void
   onShowDashboard(): void
+  onCompleteBatch(): void
 }
 
-export function InfoPanel({ onSubmit, onBack, onShowDashboard }: InfoPanelProps) {
+export function InfoPanel({ onSubmit, onBack, onShowDashboard, onCompleteBatch }: InfoPanelProps) {
   const { batch, annotations, currentIndex, mode, currentAnnotation, currentRow, annotatedCount, navigate, setMode } =
     useAnnotation()
   const { items: queueItems } = useQueue()
@@ -128,6 +129,9 @@ export function InfoPanel({ onSubmit, onBack, onShowDashboard }: InfoPanelProps)
         )}
         <button className={styles.submitButton} onClick={onSubmit} disabled={missingWidth}>
           Submit
+        </button>
+        <button className={styles.completeButton} onClick={onCompleteBatch}>
+          Complete Batch
         </button>
       </div>
     </div>

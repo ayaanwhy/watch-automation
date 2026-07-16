@@ -1,9 +1,25 @@
 import { useState } from 'react'
 import styles from './BeforeAfterSlider.module.css'
 
+export type ComparisonBackground = 'transparent' | 'white' | 'black'
+
 interface BeforeAfterSliderProps {
   beforeSrc: string
   afterSrc: string
+  background: ComparisonBackground
+  onBackgroundChange: (background: ComparisonBackground) => void
+}
+
+const BACKGROUND_OPTIONS: { value: ComparisonBackground; label: string }[] = [
+  { value: 'transparent', label: 'Transparency' },
+  { value: 'white', label: 'White' },
+  { value: 'black', label: 'Black' },
+]
+
+const BACKGROUND_CLASS: Record<ComparisonBackground, string> = {
+  transparent: 'bgTransparent',
+  white: 'bgWhite',
+  black: 'bgBlack',
 }
 
 // Draggable before/after comparison. Both images are laid into the SAME
@@ -13,22 +29,81 @@ interface BeforeAfterSliderProps {
 // range input drives the split — invisible but capturing all pointer and
 // keyboard interaction — so dragging and arrow-key nudging work for free
 // without hand-rolled pointer-event logic.
-export function BeforeAfterSlider({ beforeSrc, afterSrc }: BeforeAfterSliderProps) {
+//
+// Both images carry complementary clip-paths — "before" visible on
+// [0%, percent], "after" visible on [percent%, 100%] — so exactly one of
+// them is ever rendered at a given point, never both stacked. This matters
+// because "after" (a background-removed PNG) is typically majority
+// transparent: clipping only "after" while leaving "before" fully
+// unclipped underneath let "before" bleed straight through "after"'s
+// transparent regions everywhere, not just outside the reveal — the two
+// images visually blended instead of one replacing the other (9E hotfix).
+const AFTER_LOAD_MAX_RETRIES = 5
+const AFTER_LOAD_RETRY_MS = 400
+
+export function BeforeAfterSlider({ beforeSrc, afterSrc, background, onBackgroundChange }: BeforeAfterSliderProps) {
   const [percent, setPercent] = useState(50)
+  // The processed file is written by a separate Python process moments
+  // before this component ever tries to load it — on some drives (observed
+  // on an external USB SSD) the write is complete but the file isn't yet
+  // visible to a second process's file loader for a brief window. A bounded
+  // retry (not a longer initial delay) handles that transient race without
+  // masking a genuinely missing file, which still settles into afterFailed.
+  const [afterRetry, setAfterRetry] = useState(0)
+  const [afterFailed, setAfterFailed] = useState(false)
+
+  function handleAfterError() {
+    if (afterRetry < AFTER_LOAD_MAX_RETRIES) {
+      setTimeout(() => setAfterRetry(afterRetry + 1), AFTER_LOAD_RETRY_MS)
+    } else {
+      setAfterFailed(true)
+    }
+  }
+
+  // Cache-busts each retry — re-requesting the exact same file:// URL after
+  // a failed load can otherwise resolve from the browser's negative cache
+  // instead of re-checking disk.
+  const afterSrcAttempt = afterRetry === 0 ? afterSrc : `${afterSrc}?retry=${afterRetry}`
 
   return (
     <div className={styles.frame}>
-      <div className={styles.box}>
-        <img className={styles.image} src={beforeSrc} alt="Original" draggable={false} />
+      <div className={styles.backgroundToggle} role="group" aria-label="Preview background">
+        {BACKGROUND_OPTIONS.map(opt => (
+          <button
+            key={opt.value}
+            type="button"
+            className={`${styles.bgOption} ${background === opt.value ? styles.bgOptionActive : ''}`}
+            onClick={() => onBackgroundChange(opt.value)}
+            aria-pressed={background === opt.value}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+      <div className={`${styles.box} ${styles[BACKGROUND_CLASS[background]]}`}>
         <img
           className={styles.image}
-          src={afterSrc}
-          alt="Processed"
+          src={beforeSrc}
+          alt="Original"
           draggable={false}
           style={{ clipPath: `inset(0 ${100 - percent}% 0 0)` }}
         />
+        <img
+          className={styles.image}
+          src={afterSrcAttempt}
+          alt="Processed"
+          draggable={false}
+          style={{ clipPath: `inset(0 0 0 ${percent}%)` }}
+          onLoad={() => setAfterFailed(false)}
+          onError={handleAfterError}
+        />
+        {afterFailed && (
+          <div className={styles.loadError}>Processed image failed to load</div>
+        )}
         <div className={styles.handle} style={{ left: `${percent}%` }} aria-hidden="true">
-          <div className={styles.handleGrip} />
+          <div className={styles.handleGrip}>
+            <span className={styles.handleArrows}>◂▸</span>
+          </div>
         </div>
         <span className={`${styles.label} ${styles.labelLeft}`}>Original</span>
         <span className={`${styles.label} ${styles.labelRight}`}>Processed</span>

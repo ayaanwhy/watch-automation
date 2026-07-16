@@ -2,12 +2,12 @@
   min-height: 100vh;
   background: #0a0a0a;
   color: #e5e5e5;
-  padding: 24px;
+  padding: 0 24px 24px;
   box-sizing: border-box;
 }
 
 .container {
-  max-width: 1100px;
+  max-width: 1200px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -19,6 +19,22 @@
   font-size: 14px;
   padding: 40px 0;
   text-align: center;
+}
+
+/* Sticky page heading (Phase 9E.2) — back link + title/rename + status stay
+   pinned; only the sections below scroll. Carries its own top padding so
+   spacing is identical stuck or not (mirrors PageHeader's sticky variant). */
+.stickyTop {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: #0a0a0a;
+  padding-top: 24px;
+  padding-bottom: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .backLink {
@@ -41,6 +57,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  padding-bottom: 14px;
 }
 
 .titleGroup {
@@ -113,12 +130,31 @@
   gap: 10px;
 }
 
+/* Overview per-stage block (Phase 9E.2): configuration on the left,
+   summary/timing/status on the right — reduces wasted horizontal space
+   compared to a single stacked column. */
 .stageBlock {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.stageBlockLeft,
+.stageBlockRight {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding-top: 14px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  min-width: 0;
+}
+
+.columnHeading {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.3);
 }
 
 .stageHeader {
@@ -135,14 +171,15 @@
 
 .configGrid {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px 28px;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .configRow {
   display: flex;
   align-items: baseline;
-  gap: 6px;
+  justify-content: space-between;
+  gap: 10px;
   font-size: 13px;
 }
 
@@ -155,6 +192,7 @@
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   word-break: break-all;
+  text-align: right;
 }
 
 .timingRow {
@@ -167,31 +205,40 @@
 /* PreprocessingSummary is a light card by design (reused unchanged); this
    simply gives it a sensible resting place within the dark Overview section. */
 .summaryWrap {
-  max-width: 480px;
+  max-width: 460px;
 }
 
+@media (max-width: 760px) {
+  .stageBlock {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+/* Images (Phase 9E.2): grid ~1/3, comparison viewer ~2/3 and significantly
+   taller — the viewer is now the primary visual element, not a small side
+   preview. */
 .imagesLayout {
   display: flex;
   gap: 16px;
-  height: 460px;
+  height: 640px;
 }
 
 .gridArea {
-  flex: 1;
-  min-width: 0;
+  flex: 0 1 32%;
+  min-width: 240px;
   background: #111;
   border-radius: 8px;
   padding: 10px;
 }
 
 .previewArea {
-  width: 360px;
-  min-width: 280px;
-  flex-shrink: 1;
+  flex: 1;
+  min-width: 0;
   background: #111;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
-  padding: 12px;
+  padding: 16px;
 }
 
 @media (max-width: 900px) {
@@ -200,11 +247,11 @@
     height: auto;
   }
   .gridArea {
+    flex: none;
+    min-width: 0;
     height: 320px;
   }
   .previewArea {
-    width: 100%;
-    min-width: 0;
-    height: 320px;
+    height: 480px;
   }
 }

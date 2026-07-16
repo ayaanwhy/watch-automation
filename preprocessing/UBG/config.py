@@ -18,7 +18,7 @@ class UpscaleConfig:
 class EdgeConfig:
     # Choose: "none", "sharpen", or "soften".
     mode: str = "sharpen"
-    strength: float = 1
+    strength: float = 1.5
 
 
 @dataclass(frozen=True)

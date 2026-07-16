@@ -3,7 +3,9 @@
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding: 48px 24px;
+  /* Top padding lives on the sticky title row instead, so spacing stays
+     identical whether it's stuck or not. */
+  padding: 0 24px 48px;
 }
 
 .container {
@@ -15,7 +17,14 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 32px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--bg);
+  padding-top: 48px;
+  padding-bottom: 20px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .title {
@@ -44,6 +53,12 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+.helperText {
+  margin: -8px 0 0;
+  font-size: 12px;
+  color: #888;
 }
 
 .errorBanner {
@@ -94,17 +109,6 @@
   color: #555;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-}
-
-.select {
-  height: 40px;
-  padding: 0 10px;
-  font-size: 13px;
-  color: #1a1a1a;
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  cursor: pointer;
 }
 
 .textInput {

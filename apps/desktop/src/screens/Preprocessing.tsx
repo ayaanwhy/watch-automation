@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { PathField } from '../components/PathField'
-import { PythonInterpreterStatus } from '../components/PythonInterpreterStatus'
 import { SnapSlider } from '../components/SnapSlider'
+import { Select } from '../components/ui/Select'
 import { PreprocessingRunWorkspace } from '../components/preprocessing/PreprocessingRunWorkspace'
 import { findStageStatus } from '../components/batch/batchDisplay'
 import { usePythonInterpreter } from '../hooks/usePythonInterpreter'
@@ -11,7 +11,7 @@ import { usePreprocessingFolders } from '../hooks/usePreprocessingFolders'
 import { useProductType } from '../hooks/useProductType'
 import { usePreprocessingJob } from '../context/PreprocessingJobContext'
 import type { BatchDetailRecord } from '../types/batch'
-import type { ProductType, UpscaleFactor } from '../types/ipc'
+import type { PreprocessOperation, ProductType, UpscaleFactor } from '../types/ipc'
 import styles from './Preprocessing.module.css'
 
 const UPSCALE_OPTIONS: { value: UpscaleFactor; label: string }[] = [
@@ -20,12 +20,34 @@ const UPSCALE_OPTIONS: { value: UpscaleFactor; label: string }[] = [
   { value: 4, label: '4×' },
 ]
 
-const PRODUCT_TYPE_OPTIONS: { value: ProductType; label: string }[] = [
+// "Product Type" is now presented as a preprocessing Target (Phase 10A) —
+// the underlying field/hook/prefs storage stay named objectType/ProductType
+// (unchanged backend naming/persistence); this is a UI-only rename. Generic
+// is no longer offered here — it remains a Python-side internal fallback
+// only, not a user-facing target.
+const TARGET_OPTIONS: { value: ProductType; label: string }[] = [
   { value: 'watch',    label: 'Watch' },
-  { value: 'bracelet', label: 'Bracelet' },
   { value: 'ring',     label: 'Ring' },
-  { value: 'generic',  label: 'Generic' },
+  { value: 'bracelet', label: 'Bracelet' },
 ]
+
+// Phase 10A — which preprocessing stages to run. Not persisted: every run
+// defaults to Both, matching pre-10A behavior. Represented in the UI as one
+// Select (so the choice is unambiguous), translated to the underlying
+// operations array at the point job.start() is called.
+type OperationsChoice = 'both' | 'background_removal' | 'upscale'
+
+const OPERATIONS_OPTIONS: { value: OperationsChoice; label: string }[] = [
+  { value: 'both',                label: 'Background Removal + Upscaling' },
+  { value: 'background_removal',  label: 'Background Removal Only' },
+  { value: 'upscale',             label: 'Upscaling Only' },
+]
+
+const OPERATIONS_BY_CHOICE: Record<OperationsChoice, PreprocessOperation[]> = {
+  both:                ['background_removal', 'upscale'],
+  background_removal:  ['background_removal'],
+  upscale:              ['upscale'],
+}
 
 interface PreprocessingProps {
   // The batch backing the current/most recent run, or null before one
@@ -46,12 +68,17 @@ interface PreprocessingProps {
 
 export default function Preprocessing({ batch, initialBatchName = '', onCreateBatch }: PreprocessingProps) {
   const [batchName, setBatchName] = useState(initialBatchName)
+  // Phase 10A — unpersisted by design; always starts back at the default.
+  const [opsChoice, setOpsChoice] = useState<OperationsChoice>('both')
   // Bridges the brief async window between clicking Start and the batch's
   // status actually flipping to 'running' (batch creation + job spawn are
   // both awaited round trips) — Configure has no other reason to disable
   // once a batch is genuinely running, since Run takes over entirely then.
   const [starting, setStarting] = useState(false)
   const folders = usePreprocessingFolders()
+  // Interpreter status/override UI now lives only in Settings (single source
+  // of truth for that control) — this hook is still used here purely for
+  // canStart's validity check and to forward an override path to job.start().
   const python  = usePythonInterpreter()
   const upscale = useUpscaleFactor()
   const product = useProductType()
@@ -61,15 +88,15 @@ export default function Preprocessing({ batch, initialBatchName = '', onCreateBa
   const stageStatus = findStageStatus(batch, 'preprocessing')
   const disabled = starting
 
-  async function pickInputDir() {
+  async function pickInputDir(explicitPath?: string) {
     if (disabled) return
-    const path = await window.api.invoke('dialog:openFolder')
+    const path = explicitPath ?? await window.api.invoke('dialog:openFolder', { historyKey: 'preprocessing-input' })
     if (path !== null) folders.setInputDir(path)
   }
 
-  async function pickOutputDir() {
+  async function pickOutputDir(explicitPath?: string) {
     if (disabled) return
-    const path = await window.api.invoke('dialog:openFolder')
+    const path = explicitPath ?? await window.api.invoke('dialog:openFolder', { historyKey: 'preprocessing-output' })
     if (path !== null) folders.setOutputDir(path)
   }
 
@@ -85,12 +112,17 @@ export default function Preprocessing({ batch, initialBatchName = '', onCreateBa
     setStarting(true)
     const batchId = await onCreateBatch(folders.inputDir, batchName)
     const overridePath = python.override.trim()
+    const operations = OPERATIONS_BY_CHOICE[opsChoice]
     await job.start({
       inputDir:  folders.inputDir,
       outputDir: folders.outputDir,
       batchId,
-      scaleFactor: upscale.scaleFactor,
+      // Upscale Factor is disabled (and moot) when operations excludes
+      // upscale — force 1 so the recorded/forwarded value never implies a
+      // factor that won't actually run.
+      scaleFactor: operations.includes('upscale') ? upscale.scaleFactor : 1,
       objectType: product.productType,
+      operations,
       ...(overridePath !== '' ? { pythonPath: overridePath } : {}),
       samPointsPerSide:         sam.prefs.pointsPerSide,
       samPointsPerBatch:        sam.prefs.pointsPerBatch,
@@ -135,14 +167,23 @@ export default function Preprocessing({ batch, initialBatchName = '', onCreateBa
             label="Input Folder"
             value={folders.inputDir}
             placeholder="Select folder containing source images"
-            onPick={pickInputDir}
+            onPick={() => pickInputDir()}
+            onDropPath={pickInputDir}
             disabled={disabled}
           />
           <PathField
             label="Output Folder"
             value={folders.outputDir}
             placeholder="Select folder for processed output"
-            onPick={pickOutputDir}
+            onPick={() => pickOutputDir()}
+            onDropPath={pickOutputDir}
+            disabled={disabled}
+          />
+          <Select
+            label="Operations"
+            options={OPERATIONS_OPTIONS}
+            value={opsChoice}
+            onChange={setOpsChoice}
             disabled={disabled}
           />
           <SnapSlider
@@ -150,26 +191,18 @@ export default function Preprocessing({ batch, initialBatchName = '', onCreateBa
             options={UPSCALE_OPTIONS}
             value={upscale.scaleFactor}
             onChange={upscale.set}
-            disabled={disabled}
+            disabled={disabled || opsChoice === 'background_removal'}
           />
-          <div className={styles.selectField}>
-            <label className={styles.selectLabel}>Product Type</label>
-            <select
-              className={styles.select}
-              value={product.productType}
-              onChange={e => product.set(e.target.value as ProductType)}
-              disabled={disabled}
-            >
-              {PRODUCT_TYPE_OPTIONS.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          </div>
-          <PythonInterpreterStatus
-            resolvedPath={python.resolvedPath}
-            resolving={python.resolving}
-            override={python.override}
-            onOverrideChange={python.setOverride}
+          {opsChoice === 'upscale' && upscale.scaleFactor === 1 && (
+            <p className={styles.helperText}>
+              1× upscaling copies images without modification.
+            </p>
+          )}
+          <Select
+            label="Target"
+            options={TARGET_OPTIONS}
+            value={product.productType}
+            onChange={product.set}
             disabled={disabled}
           />
         </div>

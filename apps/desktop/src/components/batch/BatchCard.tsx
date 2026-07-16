@@ -9,14 +9,22 @@ import {
   batchStatusTone,
   formatDuration,
   formatRelativeTime,
+  stageModuleTone,
   stageStatusTone,
 } from './batchDisplay'
 import styles from './BatchCard.module.css'
+
+const MODULE_BADGE_CLASS: Record<'blue' | 'purple' | 'neutral', string> = {
+  blue: styles.moduleBlue,
+  purple: styles.modulePurple,
+  neutral: styles.moduleNeutral,
+}
 
 interface BatchCardProps {
   batch: BatchSummaryRecord
   onOpen: () => void
   onRenamed: (updated: BatchSummaryRecord) => void
+  onDeleted: (id: string) => void
 }
 
 // Glance-complete execution-history card: status, title, pipeline (with each
@@ -25,10 +33,11 @@ interface BatchCardProps {
 // opens it into Batch Details (Phase 9E) or its live stage; the ✎ affordance
 // still renames in place without opening it — the auto-generated title
 // remains the default but is never permanent.
-export function BatchCard({ batch, onOpen, onRenamed }: BatchCardProps) {
+export function BatchCard({ batch, onOpen, onRenamed, onDeleted }: BatchCardProps) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(batch.title)
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const { counts } = batch
   const hasCounts = counts.total > 0
@@ -53,6 +62,21 @@ export function BatchCard({ batch, onOpen, onRenamed }: BatchCardProps) {
   function handleCancel() {
     setDraft(batch.title)
     setEditing(false)
+  }
+
+  async function handleDelete() {
+    // Never touches generated outputs or user assets — only this batch's
+    // own registry bookkeeping (index entry + detail file).
+    if (!window.confirm(`Delete "${batch.title}"? This only removes it from history — no files are deleted.`)) {
+      return
+    }
+    setDeleting(true)
+    try {
+      await window.api.invoke('batch-registry:delete', { id: batch.id })
+      onDeleted(batch.id)
+    } finally {
+      setDeleting(false)
+    }
   }
 
   // Card itself stays a plain container (not a <button>) so the ✎ button can
@@ -115,6 +139,18 @@ export function BatchCard({ batch, onOpen, onRenamed }: BatchCardProps) {
                 >
                   ✎
                 </button>
+                <button
+                  className={styles.editButton}
+                  onClick={e => {
+                    e.stopPropagation()
+                    void handleDelete()
+                  }}
+                  disabled={deleting}
+                  aria-label="Delete batch"
+                  title="Delete"
+                >
+                  🗑
+                </button>
               </span>
               <StatusChip tone={batchStatusTone(batch.status)}>
                 {BATCH_STATUS_LABELS[batch.status]}
@@ -125,7 +161,10 @@ export function BatchCard({ batch, onOpen, onRenamed }: BatchCardProps) {
 
         <div className={styles.pipeline}>
           {batch.stageStatuses.map(s => (
-            <span key={s.type} className={styles.stage}>
+            <span
+              key={s.type}
+              className={`${styles.stage} ${MODULE_BADGE_CLASS[stageModuleTone(s.type)]}`}
+            >
               <span className={`${styles.dot} ${styles[stageStatusTone(s.status)]}`} aria-hidden="true" />
               {STAGE_LABELS[s.type]}
             </span>

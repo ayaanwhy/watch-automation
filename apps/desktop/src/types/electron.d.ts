@@ -1,5 +1,6 @@
 import type {
   OpenFileOptions,
+  OpenFolderOptions,
   BatchValidatePayload,
   BatchValidationResult,
   BatchLoadPayload,
@@ -29,13 +30,14 @@ import type {
   BatchCreatePayload,
   BatchStageUpdatePayload,
   BatchRenamePayload,
+  BatchFindWatchPayload,
 } from './ipc'
 import type { BatchDetailRecord, BatchSummaryRecord } from './batch'
 
 declare global {
   interface Window {
     api: {
-      invoke(channel: 'dialog:openFolder'): Promise<string | null>
+      invoke(channel: 'dialog:openFolder', options?: OpenFolderOptions): Promise<string | null>
       invoke(channel: 'dialog:openFile', options: OpenFileOptions): Promise<string | null>
       invoke(channel: 'batch:validate', payload: BatchValidatePayload): Promise<BatchValidationResult>
       invoke(channel: 'batch:load', payload: BatchLoadPayload): Promise<BatchLoadResult>
@@ -75,6 +77,8 @@ declare global {
       invoke(channel: 'batch-registry:get', payload: { id: string }): Promise<BatchDetailRecord | null>
       invoke(channel: 'batch-registry:update-stage', payload: BatchStageUpdatePayload): Promise<BatchDetailRecord | null>
       invoke(channel: 'batch-registry:rename', payload: BatchRenamePayload): Promise<BatchDetailRecord | null>
+      invoke(channel: 'batch-registry:find-watch', payload: BatchFindWatchPayload): Promise<BatchDetailRecord | null>
+      invoke(channel: 'batch-registry:delete', payload: { id: string }): Promise<boolean>
     }
   }
 }

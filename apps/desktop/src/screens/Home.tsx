@@ -56,10 +56,15 @@ export default function Home({ onLaunch, onOpenBatch }: HomeProps) {
     setBatches(prev => prev.map(b => (b.id === updated.id ? updated : b)))
   }
 
+  function handleDeleted(id: string) {
+    setBatches(prev => prev.filter(b => b.id !== id))
+  }
+
   return (
     <div className={styles.page}>
       <div className={styles.container}>
         <PageHeader
+          sticky
           title="Home"
           subtitle="Your batches — create a new one or reopen previous work."
           actions={
@@ -111,7 +116,13 @@ export default function Home({ onLaunch, onOpenBatch }: HomeProps) {
         ) : (
           <div className={styles.list}>
             {batches.map(b => (
-              <BatchCard key={b.id} batch={b} onOpen={() => onOpenBatch(b.id)} onRenamed={handleRenamed} />
+              <BatchCard
+                key={b.id}
+                batch={b}
+                onOpen={() => onOpenBatch(b.id)}
+                onRenamed={handleRenamed}
+                onDeleted={handleDeleted}
+              />
             ))}
           </div>
         )}

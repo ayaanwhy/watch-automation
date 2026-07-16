@@ -23,6 +23,7 @@ export default function Settings() {
     <div className={styles.page}>
       <div className={styles.container}>
         <PageHeader
+          sticky
           title="Settings"
           subtitle="Application-wide configuration."
         />
