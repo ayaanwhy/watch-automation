@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react'
 import { usePreprocessingJob } from '../context/PreprocessingJobContext'
 import { useRingBraceletJob } from '../context/RingBraceletJobContext'
 import { PreprocessingSummary } from '../components/PreprocessingSummary'
+import type { EditingHandoffOptions } from '../components/preprocessing/EditingHandoffDialog'
 import { BatchDetailsSection } from '../components/batch/BatchDetailsSection'
 import { StatusChip } from '../components/ui/StatusChip'
 import { Button } from '../components/ui/Button'
-import { ThumbnailGrid } from '../components/preprocessing/ThumbnailGrid'
+import { SegmentedControl } from '../components/ui/SegmentedControl'
+import { ThumbnailGrid, findAdjacentImage } from '../components/preprocessing/ThumbnailGrid'
 import { ImagePreviewPanel } from '../components/preprocessing/ImagePreviewPanel'
 import { RingBraceletImagePreviewPanel } from '../components/ringBracelet/RingBraceletImagePreviewPanel'
+import { FullscreenViewer } from '../components/ui/FullscreenViewer'
 import {
   BATCH_STATUS_LABELS,
   STAGE_LABELS,
@@ -17,7 +20,7 @@ import {
   readConfigValue,
 } from '../components/batch/batchDisplay'
 import { joinPath } from '../lib/paths'
-import type { BatchDetailRecord, StageRecord } from '../types/batch'
+import type { BatchDetailRecord, BatchMode, StageRecord } from '../types/batch'
 import type { PreprocessDonePayload } from '../types/ipc'
 import type { PreprocessingImageState } from '../context/PreprocessingJobContext'
 import type { RingBraceletImageState } from '../context/RingBraceletJobContext'
@@ -31,9 +34,13 @@ interface BatchDetailsProps {
   // batch App.tsx was tracking — the same semantic "Run another batch" has
   // always had, just reachable from here too now.
   onRunAnotherPreprocessing: () => void
-  onContinueToWatchProcessing?: (
+  // Generalized (Phase 10F) from the original Watch-only "Continue to Watch
+  // Processing" — options are collected by EditingHandoffDialog before this
+  // is called (see PreprocessingSummary).
+  onEditingHandoff?: (
     batch: BatchDetailRecord,
-    outputDir: string
+    outputDir: string,
+    options: EditingHandoffOptions
   ) => Promise<{ ok: boolean; error?: string }>
   // Ring & Bracelet (Phase 10D) — same "run another" semantic, returning to
   // the shared Editing setup screen with the same product preselected.
@@ -104,6 +111,13 @@ const EDITING_CONFIG_FIELDS: [string, string, string | undefined][] = [
   ['splitY', 'Fallback Split', undefined],
 ]
 
+// Testing/Production is editable after creation (Phase 10F correction) —
+// same options shape as Home's filter / CreateBatchModal's picker.
+const MODE_OPTIONS: { value: BatchMode; label: string }[] = [
+  { value: 'production', label: 'Production' },
+  { value: 'testing', label: 'Testing' },
+]
+
 function ConfigGrid({
   config,
   fields,
@@ -150,7 +164,7 @@ export default function BatchDetails({
   batchId,
   onBack,
   onRunAnotherPreprocessing,
-  onContinueToWatchProcessing,
+  onEditingHandoff,
   onRunAnotherEditing,
 }: BatchDetailsProps) {
   const job = usePreprocessingJob()
@@ -160,6 +174,7 @@ export default function BatchDetails({
   const [editingTitle, setEditingTitle] = useState(false)
   const [titleDraft, setTitleDraft] = useState('')
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  const [fullscreen, setFullscreen] = useState(false)
 
   // Watch stages have no meaningful counts/images of their own in the
   // registry (Watch's live progress is tracked in QueueContext/AnnotationContext,
@@ -223,6 +238,16 @@ export default function BatchDetails({
     setEditingTitle(false)
   }
 
+  // Testing/Production is editable after creation (Phase 10F correction) —
+  // persists immediately; Home's own filter reflects it the next time Home
+  // fetches the batch list (it always fetches fresh on mount, so no separate
+  // live-sync push is needed between the two screens).
+  async function handleSetMode(mode: BatchMode) {
+    if (!batch) return
+    const updated = await window.api.invoke('batch-registry:set-mode', { id: batch.id, mode })
+    if (updated) setBatch(updated)
+  }
+
   function handleRunAnother() {
     job.reset()
     onRunAnotherPreprocessing()
@@ -233,9 +258,9 @@ export default function BatchDetails({
     onRunAnotherEditing(product)
   }
 
-  function handleContinue(outputDir: string) {
-    if (!batch || !onContinueToWatchProcessing) return Promise.resolve({ ok: false })
-    return onContinueToWatchProcessing(batch, outputDir)
+  function handleEditingHandoff(outputDir: string, options: EditingHandoffOptions) {
+    if (!batch || !onEditingHandoff) return Promise.resolve({ ok: false })
+    return onEditingHandoff(batch, outputDir, options)
   }
 
   if (loading) {
@@ -326,7 +351,10 @@ export default function BatchDetails({
     <div className={styles.page}>
       <div className={styles.container}>
         <div className={styles.stickyTop}>
-          <button className={styles.backLink} onClick={onBack}>← Home</button>
+          {/* Generic label (Phase 10F correction) — onBack's destination now
+              varies by entry point (Home, or the Preprocessing listing when
+              reached from a live preprocessing run's terminal state). */}
+          <button className={styles.backLink} onClick={onBack}>← Back</button>
 
           <div className={styles.header}>
             {editingTitle ? (
@@ -370,7 +398,15 @@ export default function BatchDetails({
                 </button>
               </div>
             )}
-            <StatusChip tone={batchStatusTone(batch.status)}>{BATCH_STATUS_LABELS[batch.status]}</StatusChip>
+            <div className={styles.headerRight}>
+              <SegmentedControl
+                aria-label="Batch mode"
+                options={MODE_OPTIONS}
+                value={batch.mode ?? 'production'}
+                onChange={handleSetMode}
+              />
+              <StatusChip tone={batchStatusTone(batch.status)}>{BATCH_STATUS_LABELS[batch.status]}</StatusChip>
+            </div>
           </div>
         </div>
 
@@ -407,9 +443,17 @@ export default function BatchDetails({
                     donePayload={buildDonePayload(preprocessingStage)}
                     fatalError={preprocessingStage.status === 'failed' ? preprocessingStage.error : null}
                     onReset={handleRunAnother}
-                    onContinueToWatchProcessing={
-                      onContinueToWatchProcessing && batch.currentStage === 'watch'
-                        ? () => handleContinue(preprocessingStage.outputDir ?? '')
+                    onEditingHandoff={
+                      // Phase 10F: was gated on `batch.currentStage === 'watch'`,
+                      // a leftover from pre-10D combined-pipeline Home templates
+                      // that no longer exist — nothing can satisfy that anymore
+                      // (pipeline is fixed at creation and never grows), so the
+                      // hand-off had become permanently unreachable. Gating on
+                      // the preprocessing stage's own completion (same check
+                      // PreprocessingSummary already makes internally) is what
+                      // this condition always meant to express.
+                      onEditingHandoff && preprocessingStage.status === 'completed'
+                        ? (options) => handleEditingHandoff(preprocessingStage.outputDir ?? '', options)
                         : undefined
                     }
                   />
@@ -498,7 +542,11 @@ export default function BatchDetails({
           <div className={styles.imagesLayout}>
             <div className={styles.gridArea}>
               <ThumbnailGrid
-                images={showingEditingImages ? editingImages : images}
+                images={
+                  showingEditingImages
+                    ? editingImages.map(img => ({ ...img, lowConfidence: img.detected === false }))
+                    : images
+                }
                 inputDir={imageInputDir}
                 selectedImage={(showingEditingImages ? selectedEditingImageState : selectedImageState)?.name ?? null}
                 onSelect={setSelectedImage}
@@ -506,13 +554,44 @@ export default function BatchDetails({
             </div>
             <div className={styles.previewArea}>
               {showingEditingImages ? (
-                <RingBraceletImagePreviewPanel image={selectedEditingImageState} inputDir={imageInputDir} />
+                <RingBraceletImagePreviewPanel
+                  image={selectedEditingImageState}
+                  inputDir={imageInputDir}
+                  onExpand={() => setFullscreen(true)}
+                />
               ) : (
-                <ImagePreviewPanel image={selectedImageState} inputDir={imageInputDir} />
+                <ImagePreviewPanel
+                  image={selectedImageState}
+                  inputDir={imageInputDir}
+                  onExpand={() => setFullscreen(true)}
+                />
               )}
             </div>
           </div>
         </BatchDetailsSection>
+
+        {fullscreen && (() => {
+          const activeList = showingEditingImages ? editingImages : images
+          const activeName = (showingEditingImages ? selectedEditingImageState : selectedImageState)?.name ?? null
+          const prevName = findAdjacentImage(activeList, activeName, -1)
+          const nextName = findAdjacentImage(activeList, activeName, 1)
+          return (
+            <FullscreenViewer
+              title={activeName ?? undefined}
+              onClose={() => setFullscreen(false)}
+              onPrev={() => prevName && setSelectedImage(prevName)}
+              onNext={() => nextName && setSelectedImage(nextName)}
+              hasPrev={prevName !== null}
+              hasNext={nextName !== null}
+            >
+              {showingEditingImages ? (
+                <RingBraceletImagePreviewPanel image={selectedEditingImageState} inputDir={imageInputDir} />
+              ) : (
+                <ImagePreviewPanel image={selectedImageState} inputDir={imageInputDir} />
+              )}
+            </FullscreenViewer>
+          )
+        })()}
       </div>
     </div>
   )

@@ -1,0 +1,96 @@
+.dialog {
+  border: none;
+  padding: 0;
+  margin: 0;
+  width: 100vw;
+  height: 100vh;
+  max-width: 100vw;
+  max-height: 100vh;
+  background: #0a0a0a;
+  display: flex;
+  flex-direction: column;
+}
+
+.dialog::backdrop {
+  background: rgba(0, 0, 0, 0.92);
+}
+
+.chrome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  padding: 14px 20px;
+}
+
+.title {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.closeButton {
+  font-size: 15px;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.6);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 4px;
+}
+
+.closeButton:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  padding: 0 64px 24px;
+}
+
+/* Fills the fullscreen stage with whatever preview panel is passed as
+   children — that panel's own CSS already stretches to 100%/flex:1 all the
+   way down to the comparison slider (ImagePreviewPanel → BeforeAfterSlider
+   → .box → .image); the only missing link was this wrapper never telling
+   its direct child to grow into the available space. */
+.content > * {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.navButton {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.navButton:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.navButton:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
+
+.navPrev {
+  left: 16px;
+}
+
+.navNext {
+  right: 16px;
+}

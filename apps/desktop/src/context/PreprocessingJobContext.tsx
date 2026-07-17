@@ -55,7 +55,12 @@ interface PreprocessingJobContextValue {
   cancelPhase: CancelPhase
   donePayload: PreprocessDonePayload | null
   startedAt: number | null
-  start(payload: PreprocessStartPayload): Promise<void>
+  // Resolves true only once the job has actually started (jobId assigned,
+  // phase → 'running') — the caller (Preprocessing.tsx, Phase 10F) uses this
+  // to decide whether to navigate to the dedicated workspace screen, rather
+  // than navigating unconditionally and leaving a failed start stranded
+  // there with no retry-friendly Configure form in view.
+  start(payload: PreprocessStartPayload): Promise<boolean>
   cancel(): Promise<void>
   reset(): void
 }
@@ -186,7 +191,7 @@ export function PreprocessingJobProvider({ children }: PreprocessingJobProviderP
     }
   }, [])
 
-  const start = useCallback(async (payload: PreprocessStartPayload) => {
+  const start = useCallback(async (payload: PreprocessStartPayload): Promise<boolean> => {
     setStartError(null)
     setFatalError(null)
     setCancelPhase('none')
@@ -197,11 +202,12 @@ export function PreprocessingJobProvider({ children }: PreprocessingJobProviderP
     const result = await window.api.invoke('preprocess:start', payload)
     if (!result.ok) {
       setStartError(result.error)
-      return
+      return false
     }
     jobIdRef.current = result.jobId
     setStartedAt(Date.now())
     setPhase('running')
+    return true
   }, [])
 
   const cancel = useCallback(async () => {

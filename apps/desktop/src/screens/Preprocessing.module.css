@@ -131,3 +131,24 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* "Recent Preprocessing Batches" listing panel (Phase 10F) */
+.recentPanel {
+  margin-top: 40px;
+}
+
+.recentHeading {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-subtle, #666);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 12px;
+}
+
+.recentList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+

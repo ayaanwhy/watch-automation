@@ -225,23 +225,39 @@ export interface SamTuningPrefs {
   multimaskOutput: boolean
 }
 
-// ── Watch Processing hand-off preparation ───────────────────────────────────
-// Triggered only when the user clicks "Continue to Watch Processing" after a
-// successful preprocessing run. Trims each image to its non-transparent
-// bounding box, rotates it 90° counter-clockwise, and writes the result into
-// a new sibling folder — the original preprocessing output is never modified.
+// ── Preprocessing → Editing hand-off preparation (Phase 10F) ────────────────
+// Triggered from the EditingHandoffDialog after a successful preprocessing
+// run, for any destination product (Watch/Ring/Bracelet) — generalized from
+// the original Watch-only "Continue to Watch Processing" one-click action.
+// Optionally trims each image to its non-transparent bounding box and/or
+// rotates it, writing the result into a new sibling folder — the original
+// preprocessing output is never modified. trim=true/rotate='ccw' reproduces
+// the original hardcoded Watch behavior exactly.
 
-export interface PrepareForWatchProcessingPayload {
+export type EditingHandoffRotate = 'none' | 'cw' | 'ccw' | '180'
+
+export interface EditingHandoffPayload {
   sourceDir: string
+  trim: boolean
+  rotate: EditingHandoffRotate
 }
 
-export type PrepareForWatchProcessingResult =
+export type EditingHandoffResult =
   | { ok: true; preparedDir: string; imageCount: number; skippedCount: number }
   | { ok: false; error: string }
 
 export interface PrepareProgressPayload {
   completed: number
   total: number
+}
+
+// Remembers the user's last-used Trim/Rotate/Destination choices (Phase
+// 10F) — one shared slot, not per-product, since the dialog itself already
+// lets the destination vary per use.
+export interface EditingHandoffOptionsPrefs {
+  trim: boolean
+  rotate: EditingHandoffRotate
+  destination: 'watch' | 'ring' | 'bracelet'
 }
 
 // ── Batch registry (Phase 9B) ───────────────────────────────────────────────
@@ -251,6 +267,7 @@ export interface BatchCreatePayload {
   sourceDir: string
   pipeline: import('./batch').StageType[]
   title?: string
+  mode?: import('./batch').BatchMode
 }
 
 export interface BatchStageUpdatePayload {
@@ -262,6 +279,12 @@ export interface BatchStageUpdatePayload {
 export interface BatchRenamePayload {
   id: string
   title: string
+}
+
+// Testing/Production is editable after creation (Phase 10F correction).
+export interface BatchSetModePayload {
+  id: string
+  mode: import('./batch').BatchMode
 }
 
 // Phase 9E.1 — lets "Resume" find the batch a Watch session already belongs
@@ -287,8 +310,9 @@ export interface RingBraceletStartPayload {
   // to — mirrors PreprocessStartPayload.batchId's role for preprocessing.
   batchId?: string
   pythonPath?: string
-  // Recorded on the stage config; the runner's own algorithm behavior does
-  // not depend on it (generate_wrap_mask doesn't distinguish ring/bracelet).
+  // Recorded on the stage config and forwarded to the runner as --product
+  // (Phase 10E), which selects between shank_mask.py (bracelet) and
+  // ring_mask.py (ring) — see runner.py's module docstring.
   product: 'ring' | 'bracelet'
   // Fallback vertical split used when no hole topology is found. Optional
   // renderer override on an unchanged default (0.5), same pattern as SAM

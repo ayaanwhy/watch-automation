@@ -1,16 +1,15 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { PathField } from '../components/PathField'
 import { SnapSlider } from '../components/SnapSlider'
 import { Select } from '../components/ui/Select'
-import { PreprocessingRunWorkspace } from '../components/preprocessing/PreprocessingRunWorkspace'
-import { findStageStatus } from '../components/batch/batchDisplay'
+import { BatchCard } from '../components/batch/BatchCard'
 import { usePythonInterpreter } from '../hooks/usePythonInterpreter'
 import { useSamTuning } from '../hooks/useSamTuning'
 import { useUpscaleFactor } from '../hooks/useUpscaleFactor'
 import { usePreprocessingFolders } from '../hooks/usePreprocessingFolders'
 import { useProductType } from '../hooks/useProductType'
 import { usePreprocessingJob } from '../context/PreprocessingJobContext'
-import type { BatchDetailRecord } from '../types/batch'
+import type { BatchSummaryRecord } from '../types/batch'
 import type { PreprocessOperation, ProductType, UpscaleFactor } from '../types/ipc'
 import styles from './Preprocessing.module.css'
 
@@ -50,30 +49,41 @@ const OPERATIONS_BY_CHOICE: Record<OperationsChoice, PreprocessOperation[]> = {
 }
 
 interface PreprocessingProps {
-  // The batch backing the current/most recent run, or null before one
-  // exists. Used only to decide Configure vs. Run here — a terminal status
-  // is handled one level up in App.tsx, which renders the canonical
-  // BatchDetails screen instead (Phase 9E; the same screen a batch reopened
-  // from Home uses), so this component never needs to render that itself.
-  batch: BatchDetailRecord | null
   // Seeds the optional batch-name field — set when this screen was entered
   // via Home's "Create & Open" with a custom title; empty for sidebar entry.
   initialBatchName?: string
-  // Creates (or resolves, when continuing an existing batch) the Batch
-  // backing this run. Called at Start, before the job spawns, so its id can
-  // be forwarded to job.start() — the main process writes that batch's
-  // preprocessing-stage status directly as the run progresses.
+  // Creates the Batch backing this run. Called at Start, before the job
+  // spawns, so its id can be forwarded to job.start() — the main process
+  // writes that batch's preprocessing-stage status directly as the run
+  // progresses.
   onCreateBatch: (sourceDir: string, title: string) => Promise<string>
+  // Reopens a batch from the "Recent Preprocessing Batches" panel — the same
+  // handler Home's own batch list uses, so a running batch opens the
+  // dedicated workspace and a terminal one opens Batch Details, identically
+  // regardless of which screen it was opened from.
+  onOpenBatch: (id: string) => void
+  // Navigates to the dedicated PreprocessingWorkspace screen once job.start()
+  // has actually succeeded (Phase 10F correction — this listing screen never
+  // renders the live run inline anymore). Not called on a failed start, so a
+  // rejected start (e.g. "already running") leaves the operator on this
+  // Configure form with startError visible, rather than stranded on an empty
+  // workspace.
+  onStarted: () => void
 }
 
-export default function Preprocessing({ batch, initialBatchName = '', onCreateBatch }: PreprocessingProps) {
+// Preprocessing's listing/launcher screen (Phase 10F correction): Configure
+// form + recent-batch history, always. It never renders the live run
+// inline — that's PreprocessingWorkspace.tsx's job. This keeps "start a
+// batch" and "watch a batch run" as two distinct, separately-navigable
+// screens rather than one component silently switching modes underneath
+// the user, which was the previous (undesired) behavior.
+export default function Preprocessing({ initialBatchName = '', onCreateBatch, onOpenBatch, onStarted }: PreprocessingProps) {
   const [batchName, setBatchName] = useState(initialBatchName)
   // Phase 10A — unpersisted by design; always starts back at the default.
   const [opsChoice, setOpsChoice] = useState<OperationsChoice>('both')
-  // Bridges the brief async window between clicking Start and the batch's
-  // status actually flipping to 'running' (batch creation + job spawn are
-  // both awaited round trips) — Configure has no other reason to disable
-  // once a batch is genuinely running, since Run takes over entirely then.
+  // Bridges the brief async window between clicking Start and navigating to
+  // the workspace screen (batch creation + job spawn are both awaited round
+  // trips).
   const [starting, setStarting] = useState(false)
   const folders = usePreprocessingFolders()
   // Interpreter status/override UI now lives only in Settings (single source
@@ -85,8 +95,28 @@ export default function Preprocessing({ batch, initialBatchName = '', onCreateBa
   const sam     = useSamTuning()
   const job     = usePreprocessingJob()
 
-  const stageStatus = findStageStatus(batch, 'preprocessing')
   const disabled = starting
+
+  // "Recent Preprocessing Batches" — running and completed batches stay
+  // visible/reopenable from this listing. Fetched once on mount; this
+  // component remounts fresh every time navigation returns to 'preprocessing'
+  // (App.tsx only renders it for that view), so a plain mount-time fetch is
+  // enough to always reflect current state — no live subscription needed.
+  const [recentBatches, setRecentBatches] = useState<BatchSummaryRecord[]>([])
+
+  useEffect(() => {
+    void window.api.invoke('batch-registry:list').then(list =>
+      setRecentBatches(list.filter(b => b.pipeline.includes('preprocessing')))
+    )
+  }, [])
+
+  function handleRecentRenamed(updated: BatchSummaryRecord) {
+    setRecentBatches(prev => prev.map(b => (b.id === updated.id ? updated : b)))
+  }
+
+  function handleRecentDeleted(id: string) {
+    setRecentBatches(prev => prev.filter(b => b.id !== id))
+  }
 
   async function pickInputDir(explicitPath?: string) {
     if (disabled) return
@@ -113,7 +143,7 @@ export default function Preprocessing({ batch, initialBatchName = '', onCreateBa
     const batchId = await onCreateBatch(folders.inputDir, batchName)
     const overridePath = python.override.trim()
     const operations = OPERATIONS_BY_CHOICE[opsChoice]
-    await job.start({
+    const started = await job.start({
       inputDir:  folders.inputDir,
       outputDir: folders.outputDir,
       batchId,
@@ -132,16 +162,9 @@ export default function Preprocessing({ batch, initialBatchName = '', onCreateBa
       samMultimaskOutput:       sam.prefs.multimaskOutput,
     })
     setStarting(false)
+    if (started) onStarted()
   }
 
-  if (stageStatus === 'running') {
-    const stage = batch?.stages.find(s => s.type === 'preprocessing')
-    return <PreprocessingRunWorkspace inputDir={stage?.inputDir || folders.inputDir} />
-  }
-
-  // ── Configure ────────────────────────────────────────────────────────────
-  // (App.tsx never renders this component for a terminal batch status, so
-  // stageStatus here is always 'none' | 'not_started' | 'configuring'.)
   return (
     <div className={styles.page}>
       <div className={styles.container}>
@@ -216,6 +239,23 @@ export default function Preprocessing({ batch, initialBatchName = '', onCreateBa
             {starting ? 'Starting…' : 'Start'}
           </button>
         </div>
+
+        {recentBatches.length > 0 && (
+          <div className={styles.recentPanel}>
+            <div className={styles.recentHeading}>Recent Preprocessing Batches</div>
+            <div className={styles.recentList}>
+              {recentBatches.map(b => (
+                <BatchCard
+                  key={b.id}
+                  batch={b}
+                  onOpen={() => onOpenBatch(b.id)}
+                  onRenamed={handleRecentRenamed}
+                  onDeleted={handleRecentDeleted}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

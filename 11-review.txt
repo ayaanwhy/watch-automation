@@ -1,0 +1,682 @@
+I've launched five parallel research agents covering: repo structure & shankMask audit, Electron main-process architecture, renderer architecture & dead code, Python pipeline & plugin architecture, and robustness/logging/temp-file management. I'll synthesize their findings into a comprehensive architecture review and implementation plan once they're all back — no code changes until you've approved that plan.
+
+_________________________
+
+1. Top-level and second-level repo structure
+Root (/Users/apple/PycharmProjects/watchAutomation), excluding node_modules/.git:
+
+Path	What it is
+apps/desktop	The Electron app (main process electron/, renderer src/) — @wpa/desktop workspace package. This is the actively-developed product.
+packages/processing	@wpa/processing — reusable TS "watch processing engine" workspace package (see #4).
+preprocessing/UBG	Python "Universal Background/Preprocessing" service (background removal, upscaling, SAM segmentation) invoked by the desktop app via electron_runner.py.
+preprocessing/RingBracelet	Python Ring & Bracelet asset generator (runner.py), invoked by the desktop app.
+shankMask/	Full copy of a third-party reference project (FastAPI app, Docker, detectors, pipeline, storage) studied in "Phase 10B." Candidate for deletion — see #2.
+src/cli	Contains one file, src/cli/processWatch.ts — a standalone CLI wrapper that imports packages/processing directly by relative path (../../packages/processing/src/index.js), not via the built @wpa/processing package. This is a second, thinner "entry point" into the same processing engine that apps/desktop also consumes — arguably a duplicate/legacy access path rather than duplicate logic. Root-level src/ (one subfolder, one file) is itself an odd sibling to apps/ and packages/.
+tests/	Root-level Vitest test suite (4 files) — see #6. No other test directories exist elsewhere in the repo (verified via find for *.test.ts/*.spec.ts/__tests__).
+sampledata/	Contains only .DS_Store at the top plus one file used by a test fixture (sampledata/TH1710451W.png, referenced from tests/knownGoodProcessing.test.ts) — effectively a single-purpose fixtures folder mislabeled as generic "sample data," and mixing an OS junk file.
+AGENTS.md, CLAUDE.md, DECISIONS.md, IMPLEMENTATION_PLAN.md, PROJECT_BRIEF.md, PROJECT_SPEC.md	Root-level docs (see #5).
+package.json, package-lock.json, tsconfig.json, vitest.config.ts	Root-level config (see #5).
+.claude/, .idea/, .npm-cache/	Tooling/IDE dirs — none tracked in git (confirmed via git ls-files, zero hits).
+.DS_Store (root)	macOS junk, untracked-appearing but should be gitignored (it is, via **/.DS_Store).
+Flags:
+
+Duplicate "processing" homes: packages/processing (TS, the canonical @wpa/processing engine) vs. preprocessing/ (Python, a differently-named but confusingly similar directory doing unrelated segmentation/background work) vs. shankMask/pipeline (Python, third-party, a third "processing pipeline" of sorts). Names are close enough (processing / preprocessing) to cause confusion despite being unrelated technologies/purposes.
+Duplicate Python script homes: preprocessing/UBG, preprocessing/RingBracelet, and shankMask/ all hold Python — three separate Python trees with no shared root or shared tooling config. (No stray .py files exist outside these three dirs — confirmed.)
+Root-level src/cli is a single-file directory sitting alongside apps/ and packages/ — a plausible "grab bag of one" that duplicates access to packages/processing.
+No directory name mismatches were found otherwise (each top-level dir's name matches its contents).
+2. shankMask/ — full audit
+No README or top-level docs exist in shankMask/ (find preprocessing shankMask -maxdepth 1 -iname "README*" returned nothing for shankMask).
+
+Structure:
+
+
+shankMask/
+  Dockerfile
+  app.py                 # FastAPI server entrypoint
+  config.py, settings.py
+  seed.py
+  requirements.txt
+  detectors/             # base.py, manual.py, normalize.py, partner_http.py (+ __pycache__, tracked in git)
+  pipeline/               # anchors.py, assets.py, background.py, matting.py, refine.py, segmentation.py, wrap.py (+ __pycache__, tracked in git)
+  storage/
+    models/               # ear-medium-*, finger-medium-*, neck-medium-*, wrist-t1-* — each with image.png/thumb.png/info.json(/mask.png)
+    products/_processed/  # sample processed product images/masks/thumbs/info.json (e.g. ben2-test-ring-*, brace303-*)
+148 files are git-tracked under shankMask/ (via git ls-files shankMask | wc -l), including compiled __pycache__/*.pyc files and all the binary sample images/masks under storage/ — i.e., the whole reference project including its generated artifacts and cache files was committed, not just source.
+
+Every reference to "shankMask" found in the repo (grep -rn "shankMask" . excluding shankMask/ itself, node_modules, .git) — all four hits are in one file, preprocessing/RingBracelet/shank_mask.py:
+
+Line 3: """Shank/wrap occlusion mask generation for Ring & Bracelet assets. Ported from the shankMask project's ``pipeline/wrap.py`` (Phase 10B investigation).
+Lines 4-9: Only the mask-generation algorithm is reused here — it is pure OpenCV/NumPy morphology with no ML model, no file I/O, and no network dependency, so it lifts out as-is. Everything else about shankMask (its FastAPI server, Docker setup, HTTP endpoints, storage layer, manifest system, and live VTO/on-model compositing) is intentionally not reused — WPA owns orchestration, batching, file I/O, and asset generation itself; this module is a pure function library for one step of that pipeline.
+Line 12: Verified (Phase 10C extraction) against shankMask's own precomputed reference output for a real bracelet sample — see the project's test fixtures/manual verification notes for that comparison.
+Line 157 (inline comment): # Original shankMask convention considered the area above the cut to be the ...
+No hits in IMPLEMENTATION_PLAN.md, PROJECT_BRIEF.md, PROJECT_SPEC.md, DECISIONS.md, AGENTS.md, or CLAUDE.md. No import shankMask / from shankMask anywhere in apps/desktop, preprocessing, packages, or src (grep returned zero). ring_mask.py does not mention shankMask at all — its docstring instead frames it as "independently developed" (per runner.py's docstring) with its own, different geometric model (crown-up ring topology vs. bracelet loop-hole topology).
+
+What's explicitly claimed as ported vs. not, per shank_mask.py's own docstring:
+
+Ported: only the generate_wrap_mask() algorithm (pure OpenCV/NumPy morphology, no I/O, no ML model, no network dependency).
+Explicitly NOT reused (per the same docstring): shankMask's FastAPI server, Docker setup, HTTP endpoints, storage layer, manifest system, live VTO/on-model compositing.
+No code anywhere imports or invokes shankMask/app.py, shankMask/detectors/*, shankMask/pipeline/* (other than wrap.py's algorithm being manually re-derived, not imported, into shank_mask.py), or shankMask/storage/*. The storage/models and storage/products/_processed sample assets under shankMask/ are not referenced by path from anywhere in apps/desktop, preprocessing/, or packages/.
+I'm not concluding safe-to-delete — but the only textual link between the live app and shankMask/ is the historical attribution comment in shank_mask.py, and no runtime code path imports or shells out to anything under shankMask/.
+
+3. preprocessing/ structure
+preprocessing/UBG/:
+
+
+UBG/
+  .gitignore              # ignores models/, __pycache__/, output/, temp/, *.pth/*.pt/*.safetensors — but see below, some are tracked anyway
+  PATCHES.md               # documents compat patches to third-party deps (BasicSR/TorchVision)
+  benchmark_sam.py, config.py, download_models.py, electron_runner.py,
+  patch_basicsr_compat.py, test.py, requirements.txt
+  docs/                     # 3 .docx manuals (Beginner/User/Project Summary) — Word docs committed in a code dir
+  models/                   # BiRefNet_dynamic/, RealESRGAN_x2plus.pth, RealESRGAN_x4plus.pth, sam2/ — large model weight binaries
+  plugins/                  # __init__.py, bracelet.py, generic.py, ring.py, watch.py  (+ __pycache__/*.pyc x12, tracked)
+  services/                 # __init__.py, plugin_loader.py, sam_segmenter.py, upscaler.py (+ __pycache__/*.pyc, tracked)
+  stage0/                   # background_remover.py, BiRefNet/ (BiRefNet_config.py, birefnet.py, safetensors weight) (+ __pycache__, tracked)
+  profiling/                # 34 timestamped profile_YYYYMMDD_HHMMSS.txt files — generated diagnostic output
+  __pycache__/               # config, electron_runner, test .pyc files at UBG root (tracked)
+  .DS_Store
+Plugins (preprocessing/UBG/plugins/): __init__.py, bracelet.py, generic.py, ring.py, watch.py (product-type-specific preprocessing plugins), plus a __pycache__/ with compiled artifacts for Python 3.10/3.11/3.12 (12 .pyc files).
+
+preprocessing/RingBracelet/:
+
+
+RingBracelet/
+  __init__.py              # empty
+  ring_mask.py              # "experimental, currently unused" per its own docstring
+  shank_mask.py              # ported-algorithm module (see #2)
+  runner.py                  # orchestrator/CLI entry, invoked by apps/desktop/electron/ipc/ringBraceletHandlers.ts
+  __pycache__/shank_mask.cpython-311.pyc   # tracked in git
+Stray/scratch artifacts flagged as likely-shouldn't-be-tracked:
+
+preprocessing/UBG/__pycache__/, preprocessing/UBG/plugins/__pycache__/, preprocessing/UBG/services/__pycache__/, preprocessing/UBG/stage0/__pycache__/, preprocessing/UBG/stage0/BiRefNet/__pycache__/, and preprocessing/RingBracelet/__pycache__/ — all compiled bytecode, and per git ls-files at least the RingBracelet one is git-tracked (UBG's own .gitignore covers __pycache__/ inside UBG/ itself, but preprocessing/RingBracelet/ has no local .gitignore, so its .pyc got committed).
+preprocessing/UBG/profiling/ — 34 timestamped .txt profiling dumps spanning 2026-07-01 through 2026-07-17 sitting in the tree (root .gitignore does exclude preprocessing/UBG/profiling/*.txt going forward, but the directory itself, full of generated diagnostic output, still lives inside the source tree).
+preprocessing/UBG/docs/*.docx — three Word manuals committed alongside source code (root .gitignore has a blanket *.docx rule, worth confirming these aren't tracked already vs. grandfathered in).
+preprocessing/UBG/models/ and preprocessing/RingBracelet — model weight binaries (.pth, .safetensors) sitting in the repo despite UBG/.gitignore nominally excluding models/.
+preprocessing/UBG/.DS_Store, preprocessing/UBG/models/.DS_Store, preprocessing/UBG/models/BiRefNet_dynamic/.DS_Store — macOS junk.
+preprocessing/UBG/test.py — a loose top-level test script (compiled .pyc present too), not part of any test framework directory, sitting beside production modules.
+4. packages/processing
+
+packages/processing/
+  README.md
+  package.json           # name "@wpa/processing", main ./dist/index.cjs, exports "." and "./data"
+  tsup.config.ts
+  dist/                  # data.cjs, index.cjs (build output)
+  src/
+    index.ts
+    data/                  # imageDiscovery.ts, index.ts, skuMatcher.ts, spreadsheetParser.ts
+    processing/            # compressionEngine.ts, constants.ts, exportEngine.ts, processWatch.ts, scalingEngine.ts, shadowEngine.ts, spliceEngine.ts
+    types/                  # data.ts, processing.ts
+Per its own README: "Reusable watch processing engine for WPA... UI, backend APIs, queues, and future Sandbox integration should consume this package instead of reimplementing processing logic."
+
+Consumers: grep -rl "@wpa/processing" --include=package.json . returns exactly apps/desktop/package.json (declares "@wpa/processing": "*" as a dependency) and the package's own package.json/the root package.json (workspace glob, not a direct consumer reference). So the only declared workspace consumer is apps/desktop. However, src/cli/processWatch.ts (root-level, see #1) also consumes the same engine's source directly via relative import (../../packages/processing/src/index.js) rather than through the package name — a second, informal consumer bypassing the package boundary.
+
+5. Root-level loose files
+File	Classification
+.DS_Store	Other — macOS junk (gitignored)
+.gitignore	Config
+AGENTS.md	Documentation
+CLAUDE.md	Documentation (note: gitignored per root .gitignore's #Docs section — tracked copy may be stale/local-only)
+DECISIONS.md	Documentation
+IMPLEMENTATION_PLAN.md	Documentation
+PROJECT_BRIEF.md	Documentation (large, 54KB)
+PROJECT_SPEC.md	Documentation
+package-lock.json	Config
+package.json	Config (root workspace manifest, workspaces: ["packages/*", "apps/*"])
+tsconfig.json	Config
+vitest.config.ts	Config
+Nothing unexpected at root — no stray scripts, data files, or logs sitting loose. PROJECT_BRIEF.md and IMPLEMENTATION_PLAN.md are unusually large for root docs but are clearly categorized as documentation.
+
+6. tests/ directory
+
+tests/
+  batchModel.test.ts
+  dataLayer.test.ts
+  knownGoodProcessing.test.ts
+  processingPipeline.test.ts
+This is the only test directory in the repo (no __tests__, no co-located *.test.ts elsewhere, no tests inside packages/processing or apps/desktop despite those being where the tested logic largely lives — i.e., tests are centralized at root rather than colocated with the packages they cover).
+
+batchModel.test.ts — describe('formatBatchTitle'), describe('createBatchDetail'), describe('computeCurrentStage / computeNextStage'), describe('deriveBatchStatus'), describe('applyStagePatch'): covers batch-title formatting, batch-detail seeding, stage progression derivation, status derivation, and stage-patch merging — logic that lives in apps/desktop/electron/services/batchModel.ts.
+dataLayer.test.ts — describe("parseSpreadsheet"), describe("discoverImages"), describe("matchSkus"): covers spreadsheet parsing (XLSX/CSV, column validation, duplicate detection), image discovery from folders, and SKU matching — logic from packages/processing/src/data/*.
+knownGoodProcessing.test.ts — describe("known-good processing fixtures"): runs the full processing pipeline against known-good fixture images (one real sample sampledata/TH1710451W.png, two synthetically generated fixtures written to a .tmp-known-good-tests scratch dir under process.cwd()) and checks outputs.
+processingPipeline.test.ts — describe("phase 0 processing pipeline"): covers splice/scale/center/compress/export end-to-end, near-zero strap compression edge case, oversized-segment clipping to the 2000px canvas, and shadow generation (build/tint/offset/mask) — exercising packages/processing/src/processing/* engines directly.
+
+_________________________
+
+Phase 11 Architecture Review — apps/desktop/electron/
+1. Full inventory of apps/desktop/electron/
+Root:
+
+apps/desktop/electron/main.ts (78 lines) — app entry point, window creation, handler registration at startup.
+apps/desktop/electron/preload.ts (12 lines) — exposes window.api.invoke/window.api.on via contextBridge.
+apps/desktop/electron/logger.ts (37 lines) — file-based logger (see §4).
+ipc/ (9 files):
+
+File	Lines	Channels registered
+batchHandlers.ts	89	dialog:openFolder (9), dialog:openFile (26), batch:validate (42)
+batchRegistryHandlers.ts	46	batch-registry:create (15), batch-registry:list (19), batch-registry:get (23), batch-registry:update-stage (27), batch-registry:rename (31), batch-registry:set-mode (35), batch-registry:find-watch (39), batch-registry:delete (43)
+dataHandlers.ts	38	batch:load (7)
+prefsHandlers.ts	194	prefs:load-last-batch (29), prefs:save-last-batch (50), prefs:load-sam-tuning (61), prefs:save-sam-tuning (70), prefs:load-editing-handoff-options (79), prefs:save-editing-handoff-options (88), prefs:load-upscale-factor (95), prefs:save-upscale-factor (106), prefs:load-product-type (113), prefs:save-product-type (124), prefs:load-preprocessing-folders (133), prefs:save-preprocessing-folders (150), prefs:load-ring-bracelet-folders (159), prefs:save-ring-bracelet-folders (180)
+preprocessHandlers.ts	476	preprocess:start (109), preprocess:cancel (425), preprocess:resolve-python (448), preprocess:prepare-for-editing-handoff (458)
+processHandlers.ts	58	process:watch (55)
+queueHandlers.ts	170	queue:add (83), queue:retry (126), queue:get (138), queue:restore (142)
+ringBraceletHandlers.ts	351	ring-bracelet:start (66), ring-bracelet:cancel (334)
+sessionHandlers.ts	158	session:save (36), session:load (54)
+services/ (5 files) — one-line responsibility each:
+
+File	Lines	Responsibility
+batchModel.ts	168	Pure (no fs/electron) derivation logic for batch/stage state — status, current/next stage, counts rollup, duration; unit-tested directly from tests/batchModel.test.ts.
+batchRegistry.ts	214	Persistence layer for the batch registry (userData/batches/index.json + per-batch detail files); wraps batchModel.ts's pure functions with read/write/atomic-write I/O.
+folderHistory.ts	39	Per-dialog "last used folder" memory, stored in userData/folder-history.json; backs batchHandlers.ts's open dialogs only.
+pythonResolver.ts	124	Discovers/validates a Conda/venv Python interpreter with torch/sam2/basicsr for the preprocessing subprocess; in-memory cached.
+workflowPreparation.ts	177	Trims (alpha bounding box) and/or rotates a completed preprocessing output folder into a new <sourceDir> - Ready sibling folder for Editing handoff.
+2. Duplicated logic across IPC handlers — preprocessHandlers.ts vs ringBraceletHandlers.ts
+These two files are near-identical in structure (476 vs 351 lines) and share the following copy-pasted blocks essentially line-for-line, only renamed (preprocess↔ring-bracelet, PreprocessStartPayload↔RingBraceletStartPayload, stage 'preprocessing'↔'editing'):
+
+ActiveJob interface — preprocessHandlers.ts:25-50 vs ringBraceletHandlers.ts:21-32. Identical shape (jobId, process, batchId, cancelRequested, succeeded, failed, totalDurationMs, fatalError, allImages, imageResults), preprocessHandlers just has more comments.
+activeJob/jobStarting module-level singleton state — preprocessHandlers.ts:52-56 vs ringBraceletHandlers.ts:34-38.
+notifyRenderer helper — preprocessHandlers.ts:58-62 vs ringBraceletHandlers.ts:40-44. Byte-for-byte identical.
+getRunnerPath pattern — preprocessHandlers.ts:64-71 vs ringBraceletHandlers.ts:46-50. Same app.getAppPath()/../../preprocessing/<module>/<script> construction, only the subpath differs.
+Concurrent-start guard + jobId minting — preprocessHandlers.ts:114-121 vs ringBraceletHandlers.ts:71-76. Identical if (activeJob !== null || jobStarting) return {...} / jobStarting = true / Date.now()-based jobId pattern.
+Input/output directory validation — preprocessHandlers.ts:126-144 vs ringBraceletHandlers.ts:81-97. Identical stat(inputDir)/stat(dirname(outputDir)) try/catch blocks, identical error message templates.
+Python resolution block — preprocessHandlers.ts:146-169 vs ringBraceletHandlers.ts:103-121. Identical payload.pythonPath ? validatePythonPath : resolvePreprocessingPython branching (ring-bracelet's own comment at line 99-102 explicitly says it's reusing preprocessing's resolver "to avoid duplication" — ironic, since the branching logic itself is duplicated even though the resolver call target is shared).
+Runner-script existence check — preprocessHandlers.ts:171-177 vs ringBraceletHandlers.ts:123-128.
+Spawn block — preprocessHandlers.ts:179-193 vs ringBraceletHandlers.ts:130-141. Identical stdio: ['pipe','pipe','pipe'], env: process.env.
+activeJob = {...} construction + start log line — preprocessHandlers.ts:195-208 vs ringBraceletHandlers.ts:143-156.
+NDJSON processLine parser — preprocessHandlers.ts:239-286 vs ringBraceletHandlers.ts:174-224. Identical JSON.parse try/catch + malformed-line warn, identical 'done'/'fatal'/'start'/'complete'/'error' event-type branches on activeJob. Only difference: ring-bracelet's 'complete' handler additionally captures frontFullImage/frontImage/detected into an assets field (lines 197-209) that preprocessHandlers doesn't have.
+stdout line-buffering — preprocessHandlers.ts:288-293 vs ringBraceletHandlers.ts:226-231. Identical.
+stderr → logger.warn forwarding — preprocessHandlers.ts:296-301 vs ringBraceletHandlers.ts:233-238. Identical.
+child.on('close', ...) handler — preprocessHandlers.ts:307-383 vs ringBraceletHandlers.ts:241-298. This is the block that had the counts bug. Identical structure: null-out activeJob, flush trailing buffer, derive cancelledByUser from EXIT_CANCELLED, reconcile images array from allImages/imageResults, compute counts from the reconciled array (this is the Phase 10G fix comment, copy-pasted verbatim at preprocessHandlers.ts:348-353 and ringBraceletHandlers.ts:263-268), await updateStage(...), build donePayload, notifyRenderer, log completion.
+child.on('error', ...) handler — preprocessHandlers.ts:386-407 vs ringBraceletHandlers.ts:301-321. Identical spawn-failure handling.
+finally { jobStarting = false } — preprocessHandlers.ts:411-416 vs ringBraceletHandlers.ts:325-327.
+:cancel handler — preprocessHandlers.ts:425-443 vs ringBraceletHandlers.ts:334-350. Identical cooperative-cancel-via-stdin pattern, identical error handling and log lines (ringBraceletHandlers.ts:331-333's comment explicitly acknowledges this is copied "for consistency of the cancellation contract").
+Assessment: Roughly 80-85% of ringBraceletHandlers.ts is a structural clone of preprocessHandlers.ts. The only genuine domain-specific differences are: buildArgs (different CLI flags per runner), the assets/frontFullImage/frontImage capture in the 'complete' event, and the stage name ('preprocessing' vs 'editing'). This is a strong candidate for extraction into a shared "subprocess job runner" module (e.g. a factory taking { channelPrefix, stageType, getRunnerPath, buildArgs, onComplete } and returning register*Handlers), which would also prevent the counts-bug class of defect from being able to diverge between the two files again.
+
+3. Temp/intermediate file writing
+Grep of mkdir/writeFile/tmpdir across electron/ (full results in the search above). Classifying every hit as app-owned (under app.getPath('userData')) vs user-folder-adjacent (scratch data written next to a folder the user selected):
+
+App-owned (userData) — correctly isolated, no concern:
+
+logger.ts:6,22 — userData/logs/
+sessionHandlers.ts:19,38,44 — userData/sessions/
+batchRegistry.ts:36,68,85 — userData/batches/
+folderHistory.ts:15,35 — userData/folder-history.json
+prefsHandlers.ts (all writeFile calls, lines 52/72/90/108/126/152/191) — assorted userData/*.json prefs files
+User-folder-adjacent — the one confirmed offender (objective 7 target):
+
+workflowPreparation.ts:26-30 (preparedDirFor) constructs join(dirname(sourceDir), basename(sourceDir) + ' - Ready') — a sibling of the user's own preprocessing output folder, not anything under userData. Consumed at:
+workflowPreparation.ts:130 — const preparedDir = preparedDirFor(sourceDir)
+workflowPreparation.ts:136-137 — rm(preparedDir, {recursive:true,force:true}) then mkdir(preparedDir, {recursive:true}) — this folder is destructively cleared and recreated on every run, directly next to user data, without confirmation beyond the Editing Handoff dialog. The comment at lines 22-25 explicitly documents this as deliberate ("Sibling folder, never nested inside sourceDir... easy to find in Finder/Explorer right next to it"), i.e. it's UX-intentional, not accidental — but it is exactly what objective 7 wants moved to an app-managed temp dir (with the final - Ready folder perhaps copied to a user-chosen or sibling location only once complete, rather than being the working/output location itself).
+Invoked from preprocessHandlers.ts:458-475 (preprocess:prepare-for-editing-handoff handler) — the only call site.
+No other offenders found. Confirmed via a repo-wide grep for dirname(/basename(sourceDir)/- Ready patterns (§3 search above) — nothing else in electron/ or apps/desktop/src/ constructs a sibling/adjacent output path. preprocess:start/ring-bracelet:start's outputDir and queueHandlers/processHandlers's output paths are all the user's explicitly-chosen final destination, not scratch artifacts, so they're out of scope for this objective.
+
+pythonResolver.ts imports node:os (homedir, platform) but never tmpdir — no unused-temp-API concern there, just noting it was the only node:os import hit besides workflowPreparation.ts's none.
+
+4. Current logging — electron/logger.ts (37 lines, full file read)
+API surface (lines 28-37):
+
+
+export const logger = {
+  info(message: string): void
+  warn(message: string): void
+  error(message: string, err?: unknown): void
+}
+Three levels only — no debug, no trace, no structured/contextual logging (no ability to attach a payload object, correlation ID, or jobId as a separate field — everything is string-interpolated into message by each call site).
+
+Output destination: File only — appendFile(logFilePath(), line, 'utf-8') (line 17), where logFilePath() (line 9-11) is userData/logs/wpa-<YYYY-MM-DD>.log, one file per calendar day, lazily mkdir'd on first write (lines 13, 19-24). Not also written to console/stdout — so in dev, nothing appears in the terminal/DevTools unless the developer separately tails the log file. Every write failure is silently swallowed (.catch(() => {}), line 17, and the mkdir catch at line 24) — a disk-full or permissions failure is invisible.
+
+Format: Plain text, not structured/JSON: [${new Date().toISOString()}] [${level}] ${message}\n (line 16). No JSON encoding, no separate fields for level/timestamp/context that a log viewer or aggregator could parse reliably — e.g. a message containing \n would corrupt the line-based format. error() appends err.message (or String(err)) inline into the same string (lines 32-35), discarding the stack trace entirely — no err.stack is ever logged anywhere in the codebase.
+
+Missing for objective's "Logging & Diagnostics" goals:
+
+No structured/JSON output.
+No log levels beyond info/warn/error (no debug for verbose diagnostics, no explicit "fatal"/"perf" tier).
+No stack traces captured on error().
+No performance/timing metrics as first-class fields — durations are manually string-interpolated per call site (e.g. processHandlers.ts:44,47 — Date.now() - startedAt computed ad hoc, not funneled through any shared metrics helper).
+No resource/system reporting at all (no memory/CPU/disk-space logging anywhere in electron/).
+No log rotation/retention policy beyond "one file per day" — old log files are never pruned.
+No correlation between a jobId and its log lines as a structured field (jobId is just interpolated into the message string, e.g. preprocessHandlers.ts:208, 379-382).
+Usage consistency — call counts per file (from the grep above):
+
+File	.info	.warn	.error
+main.ts	2	0	2
+ipc/preprocessHandlers.ts	5	4	3
+ipc/ringBraceletHandlers.ts	3	3	3
+ipc/sessionHandlers.ts	2	0	1
+ipc/queueHandlers.ts	4	0	1
+ipc/batchHandlers.ts	1	1	0
+ipc/processHandlers.ts	2	0	1
+ipc/dataHandlers.ts	1	1	2
+ipc/batchRegistryHandlers.ts	0	0	0
+ipc/prefsHandlers.ts	0	0	0
+services/batchRegistry.ts	2	0	0
+services/batchModel.ts	0	0	0
+services/pythonResolver.ts	5	3	0
+services/workflowPreparation.ts	0	1	0
+services/folderHistory.ts	0	0	0
+batchRegistryHandlers.ts and prefsHandlers.ts have zero logging despite being active IPC surfaces that do file I/O and can fail (prefsHandlers.ts in particular silently swallows every write error with bare catch { /* non-critical */ } — lines 53, 73, 91, 109, 127, 153, 192 — with no log line at all, so a persistently-failing prefs write is completely invisible). batchModel.ts's zero count is expected (pure functions, no fs/electron per its own module comment). No raw console.log/console.warn/console.error/console.debug calls exist anywhere under electron/ — logging discipline is consistent in the sense that everything goes through logger, just inconsistently applied (many handlers, especially all of prefsHandlers.ts's 14 channels, have no logging at all).
+
+5. Dead/unused code
+Checked every exported symbol in services/ and ipc/ against the whole repo (not just electron/), including renderer usage and the .d.ts type declarations, and excluding self-file/self-service usage:
+
+Confirmed dead — two IPC channels registered but never invoked from the renderer:
+
+process:watch — registered at apps/desktop/electron/ipc/processHandlers.ts:55. The only other reference in the whole repo is the type declaration at apps/desktop/src/types/electron.d.ts:65 (invoke(channel: 'process:watch', ...)) — a type signature, not a call site. No window.api.invoke('process:watch', ...) exists anywhere in apps/desktop/src/. The renderer instead always goes through queue:add (apps/desktop/src/screens/AnnotationWorkspace.tsx:63), and runProcessWatch (the underlying logic, still legitimately used) is invoked internally by queueHandlers.ts:55 — so the direct process:watch IPC entry point itself appears to be a superseded leftover from before the Phase 5 queue system wrapped it.
+queue:get — registered at apps/desktop/electron/ipc/queueHandlers.ts:138. Same situation: only referenced in apps/desktop/src/types/electron.d.ts:68 as a type signature, never actually invoked. The renderer (apps/desktop/src/context/QueueContext.tsx) gets queue state exclusively via the pushed queue:update event (QueueContext.tsx:42, sent from queueHandlers.ts:38-43/notifyRenderer), never by pulling with queue:get.
+Confidence: high. Both are ipcMain.handle registrations (not dynamically dispatched — every channel in this codebase is a string literal directly on ipcMain.handle, confirmed by the grep of all 38 registrations in §1), and a full-repo grep for the literal channel string turns up only the handler registration plus an unused .d.ts type signature.
+
+Not dead, but worth flagging as a minor "internal-only export" pattern (not a cleanup-blocking issue, low confidence as a real problem): services/batchModel.ts's emptyStage (line 25), rollupCounts (77), computeDurationMs (88), and ZERO_COUNTS (16) are exported but, outside of tests/batchModel.test.ts's direct unit tests, are only ever consumed from within batchModel.ts itself (via createBatchDetail/recompute) — never imported by batchRegistry.ts or anything else. This looks intentional (module comment at batchModel.ts:1-3 states the whole file is exported flat for unit-testability from the repo-root vitest suite), so it's not true dead code, just broader-than-necessary export surface.
+
+Everything else checked (prepareForEditingHandoff, getRecentPath/setRecentPath, validatePythonPath/resolvePreprocessingPython, runProcessWatch, all of batchRegistry.ts's exports, formatBatchTitle/computeCurrentStage/computeNextStage/deriveBatchStatus/createBatchDetail/applyStagePatch/summarize) has confirmed live call sites either in another electron/ file or in apps/desktop/src/App.tsx / tests/batchModel.test.ts.
+
+6. Startup sequence — main.ts (78 lines, full file read)
+Order of operations at app startup:
+
+Module load time (before app.whenReady()): two global process-level handlers are registered synchronously — process.on('uncaughtException', ...) (main.ts:14-16) and process.on('unhandledRejection', ...) (main.ts:18-20), both just logging via logger.error. No blocking work here.
+app.whenReady().then(...) (main.ts:50-68) — this is the actual startup sequence, entirely synchronous in terms of ordering (no await between steps, though logger.info fire-and-forgets a file write):
+logger.info('App ready — v...') (51)
+registerBatchHandlers() (52)
+registerDataHandlers() (53)
+registerSessionHandlers() (54)
+registerPrefsHandlers() (55)
+registerProcessHandlers() (56)
+registerQueueHandlers() (57)
+registerPreprocessHandlers() (58)
+registerBatchRegistryHandlers() (59)
+registerRingBraceletHandlers() (60)
+createWindow() (61) — only after all 9 handler-registration calls complete
+app.on('activate', ...) listener registered (63-67), for macOS dock-click re-open.
+createWindow() (main.ts:22-48) itself: constructs a BrowserWindow with show: false (line 31) and only calls mainWindow.show() once 'ready-to-show' fires (39-41) — so the window is not visibly blocking on renderer paint, standard Electron pattern. Loads either ELECTRON_RENDERER_URL (dev) or renderer/index.html (prod) (43-47).
+app.on('before-quit') (70-72) and app.on('window-all-closed') (74-78) are registered at module scope, not inside whenReady.
+Performance-relevant observations for the "Startup time" objective:
+
+All 9 register*Handlers() calls are synchronous function calls that just call ipcMain.handle(...) repeatedly — none of them do any I/O or async work at registration time (confirmed by reading every file in §1: none of the register*Handlers functions themselves await anything; all I/O is deferred into the handler callbacks, which only run when a channel is actually invoked). So this sequence is not a meaningful blocking cost today.
+createWindow() is called only after all handler registration finishes (main.ts:61 runs after line 52-60) — this is a strict ordering dependency, not parallelized. Since registration is cheap (per above), this isn't currently a bottleneck, but it does mean any future handler-registration step that adds real I/O (e.g. an eager cache warm, a startup migration) would directly delay window creation, since nothing here runs registration and createWindow() concurrently.
+No explicit startup timing/instrumentation exists — there's no "time to ready", "time to window shown", or "time to first paint" log line anywhere in main.ts or elsewhere in electron/, which ties back to §4's finding that there's no performance-metrics logging at all. This would need to be added to actually measure whatever Phase 11 startup-time work targets.
+pythonResolver.ts's resolvePreprocessingPython() (the slowest single operation in the codebase — it does up to 4 sequential execFileAsync calls each with a 30s timeout, pythonResolver.ts:19-26) is not called at startup; it's only invoked lazily on the first preprocess:start/ring-bracelet:start/preprocess:resolve-python, and its result is cached in-memory (pythonResolver.ts:13,95,105) for the process lifetime. So this is not currently a startup-time cost, only a first-job-start cost.
+
+_________________________
+
+Phase 11 Research Findings — Robustness, Diagnostics, and Temp-File Inventory
+1. Crash/interruption recovery — what already exists
+Batch registry persistence mechanism (apps/desktop/electron/services/batchRegistry.ts):
+
+atomicWrite() (lines 45-49) IS crash-safe for a single file: it writes to path + '.tmp' then calls rename() to the final path. POSIX/APFS/NTFS rename is atomic, so a crash mid-write leaves either the old file intact or (post-rename) the new file intact — never a half-written file.
+However, each mutating operation writes two separate files non-atomically as a pair: updateStage() (lines 125-138), renameBatch() (140-149), and setBatchMode() (156-165) each call atomicWrite(detailPath(id), updated) first, then separately readIndex()/writeIndex(index). If the app crashes between these two calls, the per-batch detail file (<id>.json) and the lightweight index.json summary can disagree — e.g., the Home screen's summary list (which reads only index.json via listBatches(), line 112-115) could show a stale status while getBatch() (117-123) returns the true, newer state. There is no reconciliation that detects/repairs this drift.
+readIndex() (51-65) and getBatch() (117-123) both swallow all parse/read errors silently: a corrupt or unreadable index.json causes readIndex() to return { version, nextSeq: 1, nextTestSeq: 1, batches: [] } — i.e., the entire batch history silently disappears with no error surfaced to the user or logged as a corruption event (the catch {} at line 62-64 does not even call logger.error). A corrupt individual <id>.json similarly makes getBatch() return null (line 120-122) with no logged diagnostic.
+Reconciliation at startup — does not exist. apps/desktop/electron/main.ts's app.whenReady() handler (lines 50-68) only registers IPC handlers and creates the window; it never calls listBatches()/getBatch() to inspect existing batches. Grepping the whole apps/desktop/electron tree for whenReady, reconcile, orphan, stale, and status === 'running' turns up nothing that touches persisted batch state at launch. Consequence: if the app crashes or is force-quit while a stage's status is 'running' (set at preprocessHandlers.ts:220 / ringBraceletHandlers.ts:162, or implicitly for watch), that stage record is left permanently at status: 'running' in <id>.json on disk. computeCurrentStage() (batchModel.ts:45-54) will keep resolving that stage as the batch's currentStage forever (a running stage always wins), and deriveBatchStatus() (batchModel.ts:64-73) will keep reporting the batch as 'in_progress'. There is no code path that ever flips it back — the batch just sits "running" indefinitely with no exposed recovery action. (The only thing that can rewrite it is the user manually starting a brand-new preprocessing/ring-bracelet job that reuses the same batchId, which will call updateStage(...,'running',...) again and eventually terminate normally — but nothing prompts the user to do this, and Preprocessing/Ring&Bracelet have no "resume" affordance at all, see §6.)
+
+Watch Processing session files (apps/desktop/electron/ipc/sessionHandlers.ts): this stage has real crash-safety and its own reconciliation, unlike the registry:
+
+session:save (lines 36-52) uses the identical write-tmp-then-rename atomic pattern (tmpPath = filePath + '.tmp', writeFile then rename, lines 43-45).
+session:load (54-157) actively falls back to the .tmp file if the real file can't be read (lines 58-67) — recovering from a crash that happened between the writeFile and the rename call, which the batch registry's readIndex/getBatch do not do.
+It also does a genuine reconciliation pass: any processingQueue item marked 'complete' has its exported output file re-verified to exist on disk (lines 126-141); if missing, it's reset to 'queued' so it gets reprocessed (resetCount++, line 137-138). This is the one place in the whole app with real "did this actually finish" verification against the filesystem.
+Session saving is autosaved continuously by the renderer: apps/desktop/src/hooks/useSessionAutosave.ts debounces a session:save call 400ms after any change to annotations/currentIndex/mode/queueItems (lines 12-55), and items still 'processing' at save time are downgraded to 'queued' (line 25) so a crash mid-processing-item doesn't strand it. This is a real, working "safely resume work" mechanism for Watch — see §6.
+2. Python subprocess failure handling
+Both handlers share an identical structure and identical gaps.
+
+apps/desktop/electron/ipc/preprocessHandlers.ts:
+
+Spawn failure (ENOENT, permission denied, bad interpreter path) is caught synchronously at the spawn() call site itself (try/catch, lines 182-193) — this is a distinct code path from the 'error' event.
+child.on('error', ...) (lines 386-407): fires for post-spawn errors (e.g., EPIPE on a broken pipe). It logs, clears activeJob = null (389), writes stage status 'failed' with err.message (393-395), and notifies the renderer with spawnError set (397-406). This correctly frees the activeJob slot for a future run.
+child.on('close', ...) (lines 307-383): the sole source of truth for completion. It classifies outcome only as cancelled (code === EXIT_CANCELLED, i.e. 3), or job.fatalError ? 'failed' : 'completed' (line 331) — any other non-zero/unexpected exit code (segfault, OOM-killed process, Python traceback exit code 1) is NOT specially handled; it falls into 'completed' unless a 'fatal' NDJSON event happened to be emitted first. If the process is killed by a signal (e.g., OS OOM killer) with no NDJSON 'fatal' event, the batch stage is recorded as 'completed' even though nothing succeeded, because job.succeeded/job.failed and the per-image reconciliation (337-347) only reflect whatever NDJSON events did arrive.
+No timeout/watchdog exists anywhere. There is no setTimeout, no hang-detection, nothing that inspects whether the child has stopped emitting NDJSON/heartbeat events. Grepping preprocessHandlers.ts/ringBraceletHandlers.ts for setTimeout|setInterval|watchdog|timeout returns zero matches. If the Python process hangs (e.g., stuck in a native library call, GPU deadlock) without exiting, child.on('close') never fires, activeJob is never cleared, and preprocess:start's guard (if (activeJob !== null || jobStarting), line 114) will reject every future preprocessing run until the user force-quits and restarts the Electron app. The only mitigation is preprocess:cancel (lines 425-443), which is purely cooperative (writes {"cmd":"cancel"} to stdin) — if the hang is inside a stage with no cancellation checkpoint (e.g., BiRefNet model loading, explicitly called out as "the one genuinely uninterruptible span" in electron_runner.py:389-391), cancel does nothing and the slot stays blocked forever.
+apps/desktop/electron/ipc/ringBraceletHandlers.ts — byte-for-byte the same architecture and the same gaps:
+
+Spawn failure: try/catch at spawn call, lines 133-141.
+child.on('error', ...): lines 301-321, identical shape/behavior to preprocessHandlers.
+child.on('close', ...): lines 241-298, same "any other exit code silently becomes 'completed' unless a fatal event fired" gap.
+No timeout/watchdog: same absence, activeJob (line 34) can be permanently occupied by a hung runner.py, blocking ring-bracelet:start (line 71's guard) until app restart.
+3. Corrupt image / missing file handling per pipeline
+Watch Processing (packages/processing + apps/desktop/electron/ipc/processHandlers.ts + queueHandlers.ts) — already fully per-image isolated, at two layers:
+
+packages/processing/src/processing/processWatch.ts (lines 8-46) does no internal try/catch; it throws synchronously (e.g. throw new Error("Input image must be a PNG") at line 12, or lets sharp() reject on a corrupt/unreadable file at line 9).
+apps/desktop/electron/ipc/processHandlers.ts's runProcessWatch() (lines 16-52) wraps that call in try/catch (33-51) and classifies the error via classifyError() (lines 7-14, matching ENOENT/EACCES/EPERM/PNG-validity messages into user-facing strings), returning { ok: false, sku, error } rather than throwing.
+apps/desktop/electron/ipc/queueHandlers.ts's processNext() (lines 45-80) has a second belt-and-suspenders try/catch (54-74) around the runProcessWatch call, marks only that queue item 'failed' (67-68/71-73), and always calls void processNext() again (79) to continue the queue — one bad image never stops the batch.
+Universal Preprocessing (preprocessing/UBG/electron_runner.py): per-image isolation exists via a single broad try/except Exception as exc around the entire per-image pipeline (lines 449-690), emitting {"type":"error", ..., "fatal": False} (682-689) and incrementing failed (690) rather than aborting the loop, with a finally block (692-695) that always cleans up that image's temp upscaled file regardless of success/failure/cancellation. The loop continues to the next image. Only true startup-level failures (missing input dir, zero images found, BiRefNet failing to load) short-circuit the whole run via {"type":"fatal"} + early return 1 (lines 311, 323, 400, 403).
+
+Ring & Bracelet (preprocessing/RingBracelet/runner.py): identical pattern — _process_one() (lines 112-153) "Raises on failure" (per its own docstring, line 113) and is called inside a try/except Exception as exc in the main loop (lines 194-215), emitting {"type":"error", "fatal": False} (207-214) and incrementing failed (215) without stopping the batch.
+
+Conclusion for Q3: all three pipelines already isolate a single corrupt/unreadable image and continue the batch — this is existing, consistent behavior, not a gap. The gap is upstream of per-image handling: a process crash/OOM/hang (see §2) is not distinguishable from "all images happened to fail," and there's no verification that an image marked 'completed' still exists on disk later (unlike the Watch session reconciliation in §1).
+
+4. Logging & diagnostics — full inventory
+Logger (apps/desktop/electron/logger.ts, entire file, 37 lines):
+
+Levels: info, warn, error only (lines 29-36) — no debug/trace, no configurable verbosity.
+Destination: single daily file at userData/logs/wpa-<YYYY-MM-DD>.log (logFilePath(), lines 9-11), via appendFile (line 17). No console output in production; nothing streams to stdout/stderr from the main logger itself.
+Format: plain text, one line per entry — [ISO timestamp] [LEVEL] message (line 16). Not structured (no JSON, no fields for batchId/jobId/stage that could be machine-parsed later — those are embedded as free text inside message by each call site).
+Rotation/size management: absent. The file name only changes at UTC-day boundaries; there is no max-size cap, no retention/cleanup of old day-files, no compression. Log files under userData/logs/ accumulate indefinitely, one per calendar day the app was ever run.
+Failure handling: every write silently swallows its own errors (.catch(() => {}), line 17 and 24) — a full disk or permissions issue means logs just silently stop, with nothing surfaced to the user.
+mkdir(logsDir(), { recursive: true }) (line 22) is called lazily on first write, gated by the dirReady flag (13, 19-25) — reasonable, no race issue since Node is single-threaded here.
+Performance/resource metrics — present but wildly inconsistent across the codebase. Full grep results (memory|heap|rss|performance.now|process.memoryUsage|psutil|resource\.):
+
+Electron/TS side: zero. No process.memoryUsage(), no performance.now(), nothing tracking CPU/memory of either the main process or the spawned Python children anywhere in apps/desktop/electron/ or packages/processing/src/.
+Universal Preprocessing (preprocessing/UBG/electron_runner.py) has extensive, genuinely rich metrics — but they exist only in this one file: psutil-based RSS sampling before/after every pipeline stage (_rss_mb(), lines 147-154; sampled at lines 393, 407, 456, 464, 511, 526, 558-560, 572, 627, 635, 650, 653), Apple MPS GPU memory stats (_mps_stats(), lines 156-166), per-stage timing via a heartbeat/timer context manager (_stage(), lines 97-131), and a full batch summary (stage timing table, per-image RSS/timing detail, peak RSS) written to a profiling text file at preprocessing/UBG/profiling/profile_<timestamp>.txt (lines 352-356, 699-781) plus mirrored to stderr via _plog() (359-361, which the Electron child.stderr.on('data', ...) handler at preprocessHandlers.ts:296-301 only forwards to logger.warn, discarding the multi-line profiling tables' structure into single WARN log lines).
+Ring & Bracelet (runner.py) and Watch Processing (packages/processing, processHandlers.ts) have none of this — no RSS sampling, no per-stage timing beyond the single overall duration_ms per image (processHandlers.ts:29,43,47), no profiling file.
+Net assessment: genuinely absent — any centralized/cross-pipeline performance telemetry, any resource monitoring on the Electron side, any log rotation, any structured/machine-parsable logging, any error-reporting/crash-reporting integration (no Sentry/Bugsnag or similar found anywhere). Present-but-inconsistent: memory/timing instrumentation exists richly for one of three pipelines (Universal Preprocessing) and is captured in a scattered, never-cleaned-up file (see §5) rather than through the app's own logger.
+5. Cross-cutting temp/intermediate-file inventory
+Every non-final-deliverable file/folder found, Electron + Python, whole repo:
+
+#	What	Where written	Cleaned up?
+1	<sourceDir> - Ready sibling folder (Editing Handoff trim/rotate copy)	apps/desktop/electron/services/workflowPreparation.ts:26-30 (preparedDirFor()) — sibling of whatever preprocessing output folder the user picks	Partially — rm(preparedDir, {recursive:true,force:true}) then recreated on every new run into the same source (lines 132-140), so re-running overwrites it, but it is never deleted after use and lives indefinitely next to user folders. Already known per the prompt.
+2	Universal Preprocessing per-image upscale temp files	<output-dir>/temp/<stem>_upscaled.png, created via temp_dir = output_dir / "temp" (electron_runner.py:377-379)	Each file is deleted in the per-image finally block (electron_runner.py:692-695, temp_path.unlink()), but the temp/ directory itself is never removed — it's left behind as an empty folder inside every preprocessing output directory forever. Same pattern (create, never remove directory) in preprocessing/UBG/stage0/background_remover.py:281-283 (temp_path = input_path.parent / "temp") and preprocessing/UBG/test.py:28-37 (PIPELINE.temp_dir, config default "temp" at config.py:36).
+3	Profiling report files	preprocessing/UBG/profiling/profile_<YYYYMMDD_HHMMSS>.txt, one per preprocessing run (electron_runner.py:352-356)	Never cleaned up, ever. No retention limit, no rotation, no reference to these from the batch registry or logger — they accumulate one file per run inside the source tree (preprocessing/UBG/profiling/), not even in userData.
+4	Watch/annotation session files	userData/sessions/wpa-session-<sha256-hash-of-inputFolder+spreadsheetPath>.json (sessionHandlers.ts:10-24) + transient .tmp sibling during write (line 43)	Never deleted by the app (no session:delete IPC found) — accumulates one file per distinct (inputFolder, spreadsheetPath) pair used, indefinitely, even after the batch is deleted from the registry. Already in userData, so not "scattered," but is an unbounded-growth item worth folding into the same retention policy.
+5	Batch registry detail files	userData/batches/<batchId>.json + .tmp write-buffer (batchRegistry.ts:41-49)	Only removed via explicit deleteBatch() (lines 202-214) when the user deletes a batch from the UI — otherwise indefinite, which is intended (this is the persisted history, not scratch — noted here only because it's in the same userData root as the true temp dirs and worth keeping architecturally distinct in any consolidation).
+6	Log files	userData/logs/wpa-<date>.log (logger.ts:5-11)	Never rotated or pruned (see §4) — unbounded growth, one file per calendar day ever run.
+7	Legacy shankMask/ standalone service's own storage	shankMask/storage/products/_processed, shankMask/storage/models/<model-id>/... — written by shankMask/pipeline/assets.py's write_cutout/write_mask/write_wrap_mask/write_rgb (lines 16-36) and shankMask/app.py:789 (settings_store.save)	This is a separate standalone Dockerized service (has its own Dockerfile, seed.py, settings.py) — not wired into the Electron app at runtime (only its mask algorithm was ported into preprocessing/RingBracelet/shank_mask.py; confirmed no references to shankMask/ from apps/ or preprocessing/). Flagging for completeness since it's in-repo and has its own permanent product/model storage, but it is architecturally out of the Electron app's temp-file surface and likely out of scope for an app-managed-temp-dir consolidation unless Phase 11 intends to fold this service in too.
+8	Non-atomic small prefs files (prefsHandlers.ts, folderHistory.ts)	userData/last-batch.json, sam-tuning.json, editing-handoff-options.json, upscale-factor.json, product-type.json, preprocessing-folders.json, ring-bracelet-folders.json, folder-history.json — all written with a direct writeFile(), no tmp+rename (e.g. prefsHandlers.ts:52,72,90,108,126,152,191; folderHistory.ts:35)	Not "temp/intermediate" artifacts (they're small persisted user prefs, legitimately long-lived), but flagged because they're the one place writes are not crash-safe the way batchRegistry.ts/sessionHandlers.ts are — a crash mid-write can corrupt a prefs file (caught defensively by each loader's try/catch, so it just silently falls back to defaults, but is worth folding into the same "make all persistence atomic" pass).
+9	Dead/unused temp path (batch_process_folder in preprocessing/UBG/stage0/background_remover.py:270-314)	input_path.parent / "temp" (line 281)	This function has zero callers anywhere in the repo (confirmed via grep) — likely a leftover CLI/manual-testing entry point, not reachable from the Electron app. Worth confirming with the team whether it's dead code to delete rather than a temp-path to consolidate.
+No thumbnail-cache files were found — thumbnails in the renderer (ThumbnailCell.tsx, ThumbnailGrid.tsx, ImagePreviewPanel.tsx, BeforeAfterSlider.tsx) render directly from existing output paths via file:// URLs; nothing writes a separate thumbnail file to disk.
+
+6. Batch resume / "safely resume work" — current state
+Watch Processing (annotation) — has a real, working resume path:
+
+Mechanism confirmed: useSessionAutosave.ts (§1) debounce-saves the full annotation + processing-queue state to userData/sessions/wpa-session-<hash>.json 400ms after every relevant state change, via the atomic tmp-then-rename session:save handler.
+On reopening the same (inputFolder, spreadsheetPath) pair, session:load (sessionHandlers.ts:54-157) restores it, migrates old schema versions if needed (lines 81-120), and re-verifies each 'complete' queue item's output file still exists on disk, demoting it back to 'queued' if not (lines 129-141) — so it will actually be reprocessed, not just re-displayed as done.
+batchRegistry.ts's findWatchBatch() (lines 174-197) ensures clicking "Resume" reuses the existing Batch record rather than minting a duplicate.
+This is a genuine "continue from where you left off" flow, not just a historical view.
+Preprocessing and Ring & Bracelet — no resume path exists today:
+
+Reopening a historical batch (BatchDetails.tsx) shows the persisted images: StageImageRecord[] array (per-image status/output/error, populated at job-close time by preprocessHandlers.ts:337-347 / ringBraceletHandlers.ts:252-262) purely as a read-only historical record.
+There is no IPC handler, no UI action, and no runner-side capability to "process only the images that previously failed/were never reached." Confirmed by:
+The Python runners' image discovery is unconditional — images = sorted(p for p in input_dir.iterdir() if ...) (electron_runner.py:314-321, runner.py:167-171) — with no check for whether an output file already exists, so re-running always reprocesses every image in the input directory from scratch.
+Grepping the whole app for resume/Resume (apps/desktop/src, apps/desktop/electron) surfaces only Watch-Processing-specific code (App.tsx, BatchSetup.tsx's ResumePrompt, batchRegistry.ts's findWatchBatch) — nothing for preprocessing or editing (Ring/Bracelet) stages.
+Practical consequence tying back to §1: a batch whose preprocessing/editing stage was left status: 'running' by a crash has no way to be continued or explicitly failed-out by the user through the UI — the only recovery is starting an entirely new run (reprocessing every image) against the same or a new output directory, since preprocess:start/ring-bracelet:start accept a batchId and will simply overwrite that stage's record with a fresh 'running' → terminal transition.
+Second agent (Electron main-process) is back with excellent findings — heavy handler duplication and concrete logging/temp-file gaps confirmed. Still waiting on the renderer, Python pipeline, and robustness/logging agents before synthesizing.
+
+_________________________
+
+Phase 11 Research Findings — WatchAutomation Python Preprocessing
+1. preprocessing/UBG/ structure
+Top-level (preprocessing/UBG/):
+
+electron_runner.py (801 lines) — the Electron-facing headless entry point (NDJSON protocol, batch loop, cancellation).
+config.py (66 lines) — single frozen-dataclass config module (UpscaleConfig, EdgeConfig, MaskConfig, PipelineConfig, SamConfig), instantiated once as module-level UPSCALE, EDGE, MASK, PIPELINE, SAM singletons (config.py:62-66). Comment at config.py:6 says "Edit only this file when you want to change the default behavior."
+download_models.py — one-off SAM2 checkpoint downloader (urllib fetch to models/sam2/), plus a hardcoded local-machine path fallback (download_models.py:11) — clearly a personal-dev convenience left in.
+benchmark_sam.py — standalone dev benchmarking script comparing SAM points_per_side values, explicitly notes it uses "a fresh generator (no singleton reuse)" per candidate (benchmark_sam.py:9) — i.e. this script intentionally does what production code does NOT do.
+patch_basicsr_compat.py, test.py — auxiliary/compat and test scripts (not read in depth; out of scope).
+stage0/ — BiRefNet model code + weights (stage0/BiRefNet/*.safetensors, birefnet.py, BiRefNet_config.py) and background_remover.py (the actual BackgroundRemover class).
+services/ — sam_segmenter.py, upscaler.py, plugin_loader.py.
+models/ — a second copy of the BiRefNet weights (models/BiRefNet_dynamic/), plus models/sam2/sam2.1_hiera_tiny.pt (149 MB) and models/RealESRGAN_x2plus.pth / x4plus.pth (64 MB).
+plugins/ — object-type plugin modules (see below).
+profiling/ — auto-generated per-run diagnostic .txt files (see §5/§6).
+electron_runner.py shape (per docstring + code):
+
+Lines 65-131: NDJSON emit() + _quiet() stdout-suppression + _stage() context manager (per-stage timing + 2s heartbeat thread).
+Lines 176-193: _stdin_listener() background thread — cooperative cancellation via {"cmd":"cancel"} on stdin, sets _CANCEL_EVENT.
+Lines 299-333: main() — arg parsing, input validation, _patch_config_if_needed() (a config-mutation shim to override config.SAM before sam_segmenter is imported — electron_runner.py:259-294), then imports the four service modules.
+Lines 339-347: plugin is resolved once for the whole run (load_plugin(args.object_type)), and requires_masks is read from the plugin's CONFIG dict to decide whether SAM segmentation runs at all.
+Lines 388-417: model loading — BiRefNet loaded once, eagerly, before the per-image loop.
+Lines 437-696: the per-image loop — 5 stages per image: upscale → birefnet → (sam → plugin, only if requires_masks) → save, each wrapped in _stage(), each preceded by a cancellation checkpoint.
+Lines 699-781: batch-end profiling summary (stage avg/median/min/max, peak RSS, MPS stats, per-image detail table) written to profiling/profile_<timestamp>.txt.
+2. Model loading/lifecycle — the escalating-slowdown hypothesis
+Verdict: I disagree that this is a per-image model reload/reinit, and disagree it's a growing-list/Python-object leak. I agree it is a resource-accumulation problem, but the evidence localizes it specifically to the MPS (Apple GPU) driver-level caching allocator, which the code never flushes — and I have real profiling data from the repo's own profiling/ directory that both reproduces and clarifies the exact numbers you cited.
+
+Models are loaded once, correctly:
+
+BiRefNet: remover = BackgroundRemover(model_root=birefnet_root) at electron_runner.py:398, outside and before the for index, input_path in enumerate(images, ...) loop (loop starts at electron_runner.py:437). BackgroundRemover.__init__ (background_remover.py:88-100) calls _load_model_once() unconditionally; remove_background() (background_remover.py:172-173) has a if self.model is None: self._load_model_once() guard, but self.model is never set back to None anywhere, so this never re-fires mid-batch.
+SAM2: lazily loaded on first use via a module-level singleton in services/sam_segmenter.py: _GENERATOR / _GENERATOR_KEY (sam_segmenter.py:24-28), rebuilt only if the (device, points_per_side, points_per_batch, pred_iou_thresh, stability_score_thresh, multimask_output) key changes (sam_segmenter.py:70-72) — which it doesn't within a batch since those CLI args are batch-fixed. Confirmed correct caching.
+Real-ESRGAN upscaler: same pattern, module-level _UPSAMPLER / _UPSAMPLER_KEY in services/upscaler.py:111-151, keyed on (scale_factor, tile, device.type, model_path); explicitly commented as "the upsampler is built once per (...) and reused across every image in the batch instead of being rebuilt from disk weights on every call" (upscaler.py:104-110).
+So: no code path reloads/reinitializes any model per image. All three caches behave correctly.
+
+No GPU memory cleanup on MPS, anywhere — this is the real finding:
+
+torch.cuda.empty_cache() appears exactly 3 times in the whole tree (sam_segmenter.py:146, upscaler.py:263, upscaler.py:268) — and every single one is inside a CUDA-OOM exception handler. There is no torch.mps.empty_cache() call anywhere in preprocessing/UBG/ (confirmed by grep across all .py files), despite torch.mps being imported and read from in electron_runner.py:158-166 (_mps_stats() reads torch.mps.current_allocated_memory() and torch.mps.driver_allocated_memory() purely for reporting, never for cleanup).
+There is no del of intermediate tensors, no gc.collect(), anywhere in the pipeline stages.
+Nothing "grows" as a Python list/cache across images that would explain the timing pattern — image_records (electron_runner.py:434, 672-677) is pure bookkeeping (dicts of ints), not GPU-resident, and is only appended to, never fed back into inference.
+The actual production profiling logs in the repo confirm and sharpen your Phase 10G numbers. preprocessing/UBG/profiling/profile_20260717_123323.txt is very likely the exact run you're describing — its "Per-image timings" table is:
+
+
+image                            total  upscale  birefnet
+NV001-R-1ST-AS-PL.jpg             90119    74702     13749   ← 90s
+NV001-R-1ST-AS-RG.jpg            137585   126459      9465   ← 138s
+NV001-R-1ST-AS-WG.jpg            155492   133789     20037   ← 155s
+NV001-R-1ST-AS-YG.jpg            268954   248068     19203   ← 269s
+This isolates the escalation to the upscale stage (Real-ESRGAN via services/upscaler.py), not BiRefNet — birefnet durations are noisy but flat (13749 → 9465 → 20037 → 19203, no trend), while upscale climbs monotonically and dramatically (74702 → 126459 → 133789 → 248068 ms, a 3.3x slowdown for the last image vs. the first, same scale_factor=4, similarly-sized ring images, object_type=ring so requires_masks=False and SAM is skipped entirely — ruling out SAM as the culprit for this specific run).
+
+The batch-summary block in that same file has the smoking gun:
+
+
+peak_rss_mb   : 884.7
+mps_current_mb: 1265.8
+mps_driver_mb : 16559.4
+mps_current_mb (what PyTorch's allocator considers "in use") stays modest (~1.2 GB), but mps_driver_mb (what the Metal driver has actually claimed and not released) balloons to 16.5 GB by the end of a 4-image batch. Two other profiling files corroborate this is not a one-off:
+
+profile_20260716_115450.txt and profile_20260714_133048.txt (watch plugin, requires_masks=True, so SAM runs) show the sam column escalating instead: 6287 → 5608 → 6584 → 5618 → 8072 → 9208 → 18243 → 66308 ms across an 8-image batch — a >10x blowup by the last image, with mps_driver_mb: 14012.7 / 14268.7 at batch end.
+profile_20260716_174752.txt (a batch that ran scale_factor=1, so upscale is a no-op copy and image sizes/stage costs stay flat throughout) shows no escalation at all (upscale 17361/16365/17600/16672/16646/16500 ms — essentially constant) and correspondingly modest mps_driver_mb: 5581.4.
+Grounded hypothesis: the escalation tracks whichever stage is doing real MPS-heavy tensor work (Real-ESRGAN tiled forward passes when scale>1, or SAM2's per-image grid of points_per_side² forward passes when a mask-consuming plugin is active) — never BiRefNet specifically, and never present when GPU work is trivial (scale_factor=1, no masks). Because torch.mps.empty_cache() is never called between images (or between stages), PyTorch's MPS caching allocator keeps accumulating driver-level memory blocks release-to-release across the whole batch instead of returning them to the OS/Metal driver. On Apple Silicon's unified memory architecture this manifests as: (a) growing allocator search/fragmentation overhead on each new tensor allocation, and (b) system-wide memory pressure that can trigger macOS memory compression/swapping for the whole process (Electron main process included), both of which would slow every subsequent GPU-bound stage call, cumulatively, regardless of which stage happens to be GPU-heavy in that particular batch. This is consistent with all three profiling files above. It is not a model-reload issue (ruled out directly — the caches are correct) and not a naive Python object/list leak (RSS actually decreases image-to-image in the after_save column of profile_20260717_123323.txt: 599.7 → 418.4 → 330.5 → 319.4 MB — so process heap memory is fine; it's the MPS/Metal driver layer that's accumulating).
+
+Exact lines relevant to a fix:
+
+Per-image loop: electron_runner.py:437.
+Stages that touch GPU/model per iteration: upscale_image() call at electron_runner.py:459-463 → services/upscaler.py:239 (upsampler.enhance(...), no cleanup after); remover.remove_background() at electron_runner.py:514-525 → background_remover.py:184-186 (torch.inference_mode() block, no cleanup after); segment_image() at electron_runner.py:563-571 → sam_segmenter.py:140 (generator.generate(...), no cleanup after).
+The one and only place any GPU cache is ever cleared is CUDA-OOM-specific (sam_segmenter.py:146, upscaler.py:263/268) — there is no equivalent unconditional/periodic torch.mps.empty_cache() call anywhere, which is the gap a fix would target (not now — just characterized per your instructions).
+3. preprocessing/RingBracelet/ structure and plugin comparison
+Files: runner.py (236 lines, the orchestration shell), ring_mask.py (285 lines), shank_mask.py (166 lines), __init__.py.
+
+shank_mask.py's docstring (shank_mask.py:1-27) states it's ported from an external "shankMask" project's pure OpenCV/NumPy algorithm, "verified... against shankMask's own precomputed reference output," while ring_mask.py is explicitly unverified ("Proven domain: bracelets only... treat any ring usage as unproven until checked against real ring photos," shank_mask.py:24-26). Confirmed in runner.py: both --product ring and --product bracelet currently call generate_wrap_mask (bracelet's algorithm) — runner.py:112-131, with ring_mask.generate_ring_mask imported but intentionally unused (runner.py:66-67, "Imported but not currently called"), a documented temporary rollback from Phase 10E.
+
+Duplication vs. electron_runner.py: RingBracelet/runner.py's own docstring (runner.py:31-46) explicitly says its NDJSON protocol/exit-codes/cancellation are deliberately made "the same shape as electron_runner.py's ... so the Electron main process can parse both with the same conventions." Concretely, near-identical/duplicated logic between the two runners:
+
+emit() (electron_runner.py:65-72 vs. runner.py:74-75) — identical implementation.
+_CANCEL_EVENT + _stdin_listener() (electron_runner.py:142, 176-193 vs. runner.py:78, 81-92) — byte-for-byte identical logic, independently reimplemented.
+CLI argparse setup, input_dir/output_dir resolution + validation + supported-extension filtering with the same ._-prefix-skip comment (electron_runner.py:307-324 vs. runner.py:160-174) — same pattern, duplicated.
+Per-image loop shape: checkpoint → per-image try/except → emit({"type":"progress"...})/{"type":"complete"...}/{"type":"error"...} → counters → final {"type":"done", succeeded, failed, total_duration_ms, cancelled} (electron_runner.py:437-797 vs. runner.py:186-232) — structurally identical.
+Same EXIT_CANCELLED = 3 constant and same exit-code contract (0/1/2/3) independently declared in both files (electron_runner.py:60 vs. runner.py:69).
+Genuinely different: RingBracelet/runner.py has no model loading, no heartbeat thread (explicitly noted as unnecessary — runner.py:34-35), no stage-level _stage() instrumentation, no profiling file output, and its per-image work (_process_one, runner.py:112-153) is pure NumPy/PIL alpha manipulation with no GPU/model involvement at all — it's CPU-only and fast (its own docstring says no heartbeat is needed because "nothing here runs long enough per image").
+
+Net assessment for Phase 11: roughly 60-70% of each runner's line count is boilerplate (NDJSON emission, cancellation thread, arg/dir validation, batch loop skeleton, exit-code mapping) that is copy-pasted/reimplemented rather than shared — a clear candidate for extraction into a shared runner_base module, though the pipeline-specific bodies (model loading + 5-stage GPU pipeline vs. pure-CPU mask baking) are legitimately different and shouldn't be merged.
+
+4. Plugin registration mechanism
+Not a registry/dispatch table — it's dynamic module import by naming convention, in services/plugin_loader.py:9-16:
+
+
+def load_plugin(object_type=None):
+    safe_type = "".join(ch.lower() if ch.isalnum() else "_" for ch in (object_type or PIPELINE.object_type)).strip("_") or "generic"
+    try:
+        return importlib.import_module(f"plugins.{safe_type}")
+    except ModuleNotFoundError:
+        return importlib.import_module("plugins.generic")
+There's no registry dict, no if/elif chain, no explicit list of valid plugins anywhere — object_type (a free-form CLI string, electron_runner.py:211-212) is sanitized and used directly as a Python module filename under plugins/. If plugins/<object_type>.py doesn't exist, it silently falls back to plugins/generic.py.
+
+Each plugin module is a flat file exposing two things by convention (not an enforced interface/ABC): a CONFIG dict and a process(image, masks) -> dict function. CONFIG["requires_masks"] (only set True in plugins/watch.py:11; absent/False in bracelet.py, generic.py, ring.py) is read reflectively via getattr(_plugin, "CONFIG", {}).get("requires_masks", False) in electron_runner.py:347 to decide whether SAM2 segmentation runs at all for the batch.
+
+To add a new plugin today, the only required change is: drop a new plugins/<name>.py file implementing CONFIG (dict) + process(image, masks) (function returning at minimum a dict with an optional "processed_image" key). No other file needs to change — plugin_loader.py, electron_runner.py, and services/plugin_loader.py's import path all work automatically off the --object-type string. This is the "pluggable" part of the system, and it is genuinely low-friction. The gaps for Phase 11 to note: (1) no validation that a plugin module actually implements the expected interface — a malformed plugin fails at call time with an AttributeError, not at load time; (2) no discovery/listing mechanism (nothing enumerates plugins/*.py to tell the Electron UI what object types exist — that list must be hardcoded on the TypeScript/UI side separately, which is itself a duplication risk); (3) the "requires_masks" capability flag is the only declared capability — there's no broader plugin manifest/schema, so any future per-plugin needs (e.g. "requires upscale," "custom output naming") would need ad hoc getattr(..., default) reads added to electron_runner.py one at a time, the same way requires_masks was.
+
+5. Temp/intermediate file usage
+No tempfile/mkdtemp/hardcoded /tmp usage anywhere in either preprocessing/UBG/ or preprocessing/RingBracelet/ (confirmed via grep — zero matches). All "temp" handling is manual, output-directory-scoped:
+
+electron_runner.py:377-379: temp_dir = output_dir / "temp", created alongside output_dir at batch start.
+electron_runner.py:444: per image, temp_path = temp_dir / f"{input_path.stem}_upscaled.png" — this is the upscaled-but-not-yet-background-removed intermediate.
+electron_runner.py:692-695: in the finally block of the per-image try, if temp_path.exists(): temp_path.unlink() — cleaned up after every image (success, failure, or mid-loop break from cancellation), so this specific intermediate does not accumulate across a run. Note it's cleaned per-image, not batch-end, so if the process crashes/is killed hard (not the cooperative-cancel path) mid-image, a stray _upscaled.png could be left in output_dir/temp/, and output_dir/temp/ itself is never removed (empty dir persists after every batch).
+stage0/background_remover.py:281, 293, 316-317 (process_folder(), the older non-Electron code path) does the same temp/ + unlink pattern independently — this function appears to be a legacy/manual entry point separate from electron_runner.py, duplicating temp-handling logic a second time.
+electron_runner.py:352-357: profiling/profile_<timestamp>.txt is written every single run and never cleaned up — 36 files currently in preprocessing/UBG/profiling/ going back to July 1, ranging ~600 bytes to ~6.5 KB each. Individually small, but this is unbounded accumulation with no retention/rotation policy — a genuine finding for "temp-file-management cleanup" even though these are diagnostic, not scratch, files.
+RingBracelet/runner.py has no temp files at all — _process_one() (runner.py:112-153) writes only the two final named deliverables (;frontFullImage.png, ;frontImage.png) directly to output_dir, nothing intermediate.
+Genuinely temporary: output_dir/temp/*_upscaled.png (per-image, cleaned up per-image in the happy/error path, but the empty temp/ directory and any crash-orphaned files are not swept).
+Not temporary, but arguably should be pruned/managed: preprocessing/UBG/profiling/*.txt (accumulates indefinitely, one file per run, no cap).
+Final deliverables: output_dir/<stem>.<suffix> (UBG) and output_dir/<stem>;frontFullImage.png / ;frontImage.png (RingBracelet).
+
+6. Caching
+Two distinct kinds of caching exist, both in-process/in-memory, per-run only — nothing persists to disk as a cache across separate runs beyond the model weight files themselves (which are static assets, not a cache layer):
+
+In-memory model caches (within a single batch run): _GENERATOR/_GENERATOR_KEY module globals for SAM2 (sam_segmenter.py:24-28) and _UPSAMPLER/_UPSAMPLER_KEY module globals for Real-ESRGAN (upscaler.py:111-112), both keyed on config parameters + device, both correctly reused across every image in a batch. These die with the process — a new electron_runner.py invocation always rebuilds both from scratch (SAM2 checkpoint load off disk again, Real-ESRGAN weights load off disk again), so there is no cross-run cache.
+No download/weights cache: no cache_dir, HF_HOME, TORCH_HOME, or huggingface/torch.hub references anywhere in preprocessing/UBG/ or preprocessing/RingBracelet/ (confirmed via grep). BiRefNet and Real-ESRGAN weights are vendored directly as static files under models//stage0/; SAM2's checkpoint is fetched once via download_models.py (a plain urllib.request download to a fixed models/sam2/ path, download_models.py:15-19 skips re-download if the file already exists — that's the only "cache" in the download sense, and it's a simple existence check, not a real cache layer).
+No computation/result caching of any kind (e.g. no memoization of BiRefNet masks, no on-disk intermediate cache keyed by image hash) — every image, every run, redoes 100% of the pipeline from raw pixels.
+Notable duplication, not caching: BiRefNet_dynamic.safetensors (424 MB) exists twice on disk — once at preprocessing/UBG/stage0/BiRefNet/BiRefNet_dynamic.safetensors (the path actually used by background_remover.py's default model_root resolution, background_remover.py:102-107) and once at preprocessing/UBG/models/BiRefNet_dynamic/BiRefNet_dynamic.safetensors (unused by the runtime code path, only ever loaded if --birefnet-model-root is explicitly overridden to point there) — 424 MB of pure redundant storage, worth flagging under Phase 11's disk-I/O/temp-management objective even though it's not "temp" per se.
+
+_________________________
+
+Phase 11 Architecture Strengthening — Research Findings
+0. Verification of your two known items (confirmed, with fresh evidence)
+LaunchableModule / ModuleSelector.tsx — confirmed fully dead.
+
+types/navigation.ts:5 defines export type LaunchableModule = 'preprocessing' | 'watch'. Its only reference anywhere in apps/desktop/src/ is screens/ModuleSelector.tsx:1,7,27 (self-use). App.tsx imports only AppView/EditingProduct from navigation.ts (App.tsx:19), never LaunchableModule.
+screens/ModuleSelector.tsx and its ModuleSelector.module.css are never imported by App.tsx or anything else — zero external references. The file's own header comment even documents its own obsolescence: screens/ModuleSelector.tsx:30-31 — "The Home landing content. Phase 9A reskins it... Phase 9B evolves it into an execution-history view above these launchers" — i.e. screens/Home.tsx is the literal successor. Last touched in commit 737e3e1 ("Phase 9D complete"), never since.
+Verdict: safe to delete both files entirely (ModuleSelector.tsx, ModuleSelector.module.css, and the LaunchableModule export in navigation.ts).
+PreprocessingSettings.tsx native-<dialog> pattern — confirmed unique, but bigger finding: the component itself is dead, not just its dialog pattern.
+
+components/ui/useNativeDialog.ts:6-9 and components/ui/Modal.tsx:13-18 both explicitly document, in-code, that PreprocessingSettings.tsx predates the shared primitive and was deliberately left unmigrated (Phase 10F).
+Grep confirms useNativeDialog/ui/Modal are the only two things using that mechanic besides PreprocessingSettings.tsx itself: components/ui/FullscreenViewer.tsx:3,26 and components/batch/CreateBatchModal.tsx / components/preprocessing/EditingHandoffDialog.tsx (both via Modal). No other file duplicates the raw HTMLDialogElement + showModal()/close() boilerplate.
+However, a fresh grep for PreprocessingSettings (the component name, not just the dialog pattern) turns up zero importers anywhere in apps/desktop/src/ — not in screens/Settings.tsx (which uses SamTuningPanel directly, screens/Settings.tsx:5,58) and not in screens/Preprocessing.tsx. Last touched in commit b03c151 ("Phase 8.5D"). So this isn't just "an unmigrated dialog pattern" — components/PreprocessingSettings.tsx (55 lines) and components/PreprocessingSettings.module.css are dead code outright.
+1. Full inventory of apps/desktop/src/
+Total: 12 top-level entries, 8 subdirectories under components/+screens/+context/+hooks/+types/+lib/, ~131 files in the areas below.
+
+screens/ — 10 screens / 20 files
+
+File	Responsibility
+Home.tsx (114)	Landing/execution-history screen; lists batches, launches Preprocessing/Editing, opens historical batches
+Settings.tsx (64)	Global app settings (Python interpreter, SAM tuning)
+Preprocessing.tsx (262)	Preprocessing Configure/launcher screen (folders, ops, upscale, target, recent batches)
+PreprocessingWorkspace.tsx (27)	Thin page chrome wrapper around PreprocessingRunWorkspace for the live-run view
+EditingSetup.tsx (194)	Shared product-picker screen for Watch/Ring/Bracelet; renders BatchSetup or inline RingBraceletFields
+BatchSetup.tsx (381)	Watch-specific folder/spreadsheet validation, matching, resume-session UI
+AnnotationWorkspace.tsx (129)	Watch annotation screen; wires AnnotationProvider+QueueProvider, renders canvas/info/queue or dashboard
+BatchDashboard.tsx (275)	Watch-only SKU filter/sort dashboard, nested inside AnnotationWorkspace
+BatchDetails.tsx (605)	Cross-stage "project page" for any batch (preprocessing/watch/editing) — largest screen after App.tsx
+ModuleSelector.tsx (49)	Dead — superseded by Home.tsx
+components/ top-level — 11 components / 22 files
+
+File	Responsibility
+AnnotationCanvas.tsx (567)	Konva-based watch image canvas with splice/scale guides — largest component file
+ErrorBoundary.tsx (38)	Class error boundary, used only by AnnotationWorkspace
+InfoPanel.tsx (163)	Watch annotation side panel (submit/back/dashboard/complete)
+PathField.tsx (64)	Shared folder/file picker input w/ drag-drop — used across all 3 stages
+PreprocessingProgress.tsx (85)	Progress bar/cancel UI — misleadingly named: shared by both Preprocessing and Ring/Bracelet run workspaces
+PreprocessingSettings.tsx (55)	Dead (see §0)
+PreprocessingSummary.tsx (127)	Terminal-state summary card + hand-off trigger, used only by BatchDetails.tsx for the preprocessing stage
+ProcessingQueue.tsx (61)	Watch-only export-queue side panel
+PythonInterpreterStatus.tsx (51)	Interpreter path display/override, used by Settings.tsx only
+SamTuningPanel.tsx (81)	SAM tuning fields, used by Settings.tsx and (dead) PreprocessingSettings.tsx
+SnapSlider.tsx (92)	Generic discrete slider, used only by Preprocessing.tsx (upscale factor)
+components/batch/ — 9 files
+
+File	Responsibility
+BatchCard.tsx (191)	Batch summary card (Home, Preprocessing recent list)
+BatchDetailsSection.tsx (26)	Generic section shell for BatchDetails.tsx
+CreateBatchModal.tsx (94)	Home's "New Batch" modal (uses ui/Modal)
+PreprocessingBatchSync.tsx (39)	Refetches batch record on preprocessing job phase change
+RingBraceletBatchSync.tsx (28)	Mirrors PreprocessingBatchSync exactly, for ring/bracelet
+batchDisplay.ts (102)	Shared pure label/tone/format helpers for batch UI, used across Home/BatchCard/BatchDetails/App.tsx
+components/preprocessing/ — 6 components / 12 files
+
+File	Responsibility
+BeforeAfterSlider.tsx (130)	Before/after comparison slider — also used by Ring/Bracelet
+EditingHandoffDialog.tsx (88)	Trim/rotate/destination modal for Preprocessing→Editing hand-off
+ImagePreviewPanel.tsx (74)	Single-image preview panel for preprocessing image state
+PreprocessingRunWorkspace.tsx (72)	Live-run layout (progress+thumbnails+preview) for preprocessing
+ThumbnailCell.tsx (63)	Single thumbnail cell — also used by Ring/Bracelet
+ThumbnailGrid.tsx (137)	Thumbnail grid + findAdjacentImage — also used by Ring/Bracelet and BatchDetails
+components/ringBracelet/ — 2 files (no .module.css of their own)
+
+File	Responsibility
+RingBraceletImagePreviewPanel.tsx (80)	Ring/Bracelet preview panel — reuses preprocessing/ImagePreviewPanel.module.css directly (no own stylesheet)
+RingBraceletRunWorkspace.tsx (73)	Mirrors PreprocessingRunWorkspace.tsx — reuses preprocessing/PreprocessingRunWorkspace.module.css directly
+components/shell/ — 2 components / 4 files
+
+File	Responsibility
+AppShell.tsx (24)	Persistent frame: sidebar + content region
+Sidebar.tsx (109)	Left nav rail (Home/Preprocessing/Editing categories/Settings)
+components/ui/ — 10 components + 1 hook / 21 files
+Button, Card, FullscreenViewer, Modal, PageHeader, Panel (dead — see §2), SegmentedControl, Select, SettingsSection, StatusChip, useNativeDialog — generic, stage-agnostic design-system primitives. All except Panel are consumed across multiple stages.
+
+context/ — 4 files
+PreprocessingJobContext (240), RingBraceletJobContext (204), AnnotationContext (118), QueueContext (93) — see §4.
+
+hooks/ — 8 files
+usePreprocessingFolders (46), useProductType (19), usePythonInterpreter (36), useRingBraceletFolders (54), useSamTuning (34), useSessionAutosave (56), useUpscaleFactor (19), useWatchImage (55) — each single- or dual-consumer, no dead ones found.
+
+types/ — 7 files
+annotation.ts (28, Watch), batch.ts (140, cross-stage Batch/Stage model), css.d.ts (4), electron.d.ts (104, IPC surface), ipc.ts (371, largest type file — all IPC payload/result shapes), navigation.ts (27, view/product enums — contains dead LaunchableModule), session.ts (44, Watch session persistence).
+
+lib/ — 1 file
+paths.ts (13) — joinPath/toFileUrl. Its own header comment (lib/paths.ts:2-4) admits it's not actually shared: "AnnotationWorkspace.tsx keeps its own local copy rather than importing this to avoid touching Watch Processing files." Confirmed: screens/AnnotationWorkspace.tsx:17-20 has a hand-duplicated joinPath identical in behavior to lib/paths.ts:6-9.
+
+File-count concentration: components/ui/ (21) and components/ top-level (22) are the two largest buckets — together 43 of 70 component files, more than preprocessing/+ringBracelet/+batch/+shell/ combined (27). App.tsx (609) and screens/BatchDetails.tsx (605) are by far the two largest files in the renderer; third is AnnotationCanvas.tsx (567).
+
+2. Dead/unused exports
+Confirmed zero-importer (excluding the defining file):
+
+types/navigation.ts:5 — LaunchableModule type
+screens/ModuleSelector.tsx (whole file, default export ModuleSelector) + ModuleSelector.module.css
+components/PreprocessingSettings.tsx (whole file, PreprocessingSettings) + PreprocessingSettings.module.css
+components/ui/Panel.tsx — the Panel component (12 lines). Grep for ui/Panel import anywhere in src/ returns nothing; the only hit for the string "Panel" elsewhere is an unrelated CSS class name (styles.recentPanel in screens/Preprocessing.tsx:244). Panel.module.css is presumably dead alongside it. Last touched 737e3e1 ("Phase 9D").
+Worth flagging but lower confidence / likely main-process-only (not dead, just not renderer-referenced beyond their declaration point):
+
+types/electron.d.ts:65 declares invoke(channel: 'process:watch', payload: ProcessWatchPayload): Promise<ProcessWatchResult> — grepping apps/desktop/src/ for the literal string 'process:watch' finds only the type declaration; nothing in the renderer ever calls window.api.invoke('process:watch', ...). The Watch export flow now goes through queue:add (screens/AnnotationWorkspace.tsx:63) instead. This looks like a legacy IPC channel type left over from before the queue-based export model — worth checking the Electron main process (apps/desktop/electron/) for whether the handler itself still exists, since if it doesn't, ProcessWatchPayload/ProcessWatchResult in types/ipc.ts are dead too.
+All other exported IPC payload/result types in types/ipc.ts (BatchCreatePayload, EditingHandoffPayload, StageRef, etc.) have 2+ non-declaration usages within src/, consistent with being live main↔renderer contracts.
+Everything else exported from components/, hooks/, context/ has at least one real importer — no other dead components/hooks found.
+
+3. Stage-ownership analysis
+Cleanly Preprocessing-only:
+screens/Preprocessing.tsx, screens/PreprocessingWorkspace.tsx, components/PreprocessingSummary.tsx, components/preprocessing/EditingHandoffDialog.tsx, components/preprocessing/ImagePreviewPanel.tsx, components/preprocessing/PreprocessingRunWorkspace.tsx, hooks/usePreprocessingFolders.ts, hooks/useProductType.ts, hooks/useUpscaleFactor.ts, hooks/useSamTuning.ts (also Settings), context/PreprocessingJobContext.tsx, components/batch/PreprocessingBatchSync.tsx.
+
+Cleanly Watch-only:
+screens/BatchSetup.tsx, screens/AnnotationWorkspace.tsx, screens/BatchDashboard.tsx, components/AnnotationCanvas.tsx, components/InfoPanel.tsx, components/ProcessingQueue.tsx, components/ErrorBoundary.tsx, hooks/useWatchImage.ts, hooks/useSessionAutosave.ts, context/AnnotationContext.tsx, context/QueueContext.tsx, types/annotation.ts, types/session.ts.
+
+Cleanly Ring/Bracelet-only:
+components/ringBracelet/RingBraceletImagePreviewPanel.tsx, components/ringBracelet/RingBraceletRunWorkspace.tsx, hooks/useRingBraceletFolders.ts, context/RingBraceletJobContext.tsx, components/batch/RingBraceletBatchSync.tsx. Also the RingBraceletFields sub-component inline in screens/EditingSetup.tsx:98-194.
+
+Confirmed intentionally shared, per file evidence (not just per your prompt's assertion):
+
+ThumbnailGrid.tsx / ThumbnailCell.tsx (components/preprocessing/) — used by PreprocessingRunWorkspace.tsx, ringBracelet/RingBraceletRunWorkspace.tsx (import { ThumbnailGrid, findAdjacentImage } from '../preprocessing/ThumbnailGrid'), and screens/BatchDetails.tsx:10. ThumbnailCell.tsx:4-8 explicitly documents this design: it defines its own ThumbnailStatus union locally "so this component has no dependency on any one job's context."
+BeforeAfterSlider.tsx — used by components/preprocessing/ImagePreviewPanel.tsx and components/ringBracelet/RingBraceletImagePreviewPanel.tsx (import { BeforeAfterSlider } from '../preprocessing/BeforeAfterSlider'). Its prop comment (BeforeAfterSlider.tsx:12-14) explicitly documents the Ring/Bracelet reuse.
+ImagePreviewPanel.tsx, BeforeAfterSlider.tsx, PreprocessingProgress.tsx — all directly used by screens/BatchDetails.tsx too, confirming three-way sharing (Preprocessing/RingBracelet/BatchDetails).
+components/ui/* primitives (Button, Card, PageHeader, SegmentedControl, Select, StatusChip, Modal, FullscreenViewer, SettingsSection) and components/PathField.tsx — used across all three stages plus Home/Settings. Correctly stage-agnostic.
+components/batch/batchDisplay.ts — pure label/formatting helpers, correctly shared and stage-agnostic.
+Blurry / accidental-looking boundaries (the important part):
+
+components/preprocessing/ folder name is now a misnomer for half its contents. ThumbnailGrid.tsx, ThumbnailCell.tsx, and BeforeAfterSlider.tsx are structurally-shared, stage-agnostic presentational primitives (each has code comments explicitly designed to be stage-decoupled), yet they live inside a folder named after one specific stage. Ring/Bracelet has to reach across the stage boundary with ../preprocessing/... imports to use them. This is the single clearest signal that a components/shared/ or components/media/ (or similar cross-stage) directory is missing.
+
+CSS is reused across the stage boundary by direct cross-folder import, not by a shared primitive. components/ringBracelet/RingBraceletImagePreviewPanel.tsx:6 imports styles from '../preprocessing/ImagePreviewPanel.module.css' and components/ringBracelet/RingBraceletRunWorkspace.tsx:9 imports styles from '../preprocessing/PreprocessingRunWorkspace.module.css'. Neither Ring/Bracelet component has its own .module.css file at all (confirmed: components/ringBracelet/ contains only 2 .tsx files, no CSS). Both source files have comments acknowledging this ("Reuses ImagePreviewPanel's stylesheet directly... no parallel CSS file") — it's a deliberate shortcut, but it means Ring/Bracelet's presentation is literally not self-contained; renaming/moving the Preprocessing CSS file would silently break Ring/Bracelet's styling.
+
+components/PreprocessingProgress.tsx lives at the top-level components/ (not components/preprocessing/) specifically because it's shared — used by both preprocessing/PreprocessingRunWorkspace.tsx:3 and ringBracelet/RingBraceletRunWorkspace.tsx:3. This is actually the correct pattern (shared things live outside the stage-named folder) but it's inconsistent with items 1–2 above, where other equally-shared components (ThumbnailGrid, BeforeAfterSlider) were left inside preprocessing/ instead of being promoted alongside it. There's no single convention currently — some shared code got promoted out, some didn't.
+
+screens/BatchDetails.tsx (605 lines) is a genuine cross-stage god-screen, not cleanly attributable to any one stage. It directly imports from all three: PreprocessingSummary (top-level, preprocessing-only), ThumbnailGrid/ImagePreviewPanel (preprocessing), RingBraceletImagePreviewPanel (ringBracelet), PreprocessingJobContext+RingBraceletJobContext types, plus ad hoc Watch-session loading via raw session:load IPC calls (BatchDetails.tsx:213-227) since Watch has no batch-registry image sync of its own (per its own comment at BatchDetails.tsx:179-185). It contains three parallel if (stage && stage.status !== 'not_started') blocks (preprocessing/watch/editing) that are structurally identical but not deduplicated (BatchDetails.tsx:427-532).
+
+Naming inconsistency, not folder-placement: components/preprocessing/EditingHandoffDialog.tsx is filed under preprocessing/ even though it's conceptually the hand-off point into Editing — arguably as much an Editing-stage concern as a Preprocessing one. Its sibling components/PreprocessingSummary.tsx imports it from ./preprocessing/EditingHandoffDialog (PreprocessingSummary.tsx:2), so the naming ("Preprocessing"-prefixed component reaching into a differently-scoped subfolder) reads as more historical-accretion than deliberate structure.
+
+4. Context/state architecture
+Four providers in context/:
+
+Context	Responsibility	Notes
+PreprocessingJobContext.tsx (240 lines)	Owns preprocessing job lifecycle: phase/progress/images/errors/cancel state; subscribes to preprocess:event/preprocess:done IPC	App-lifetime provider (mounted once in App.tsx:593)
+RingBraceletJobContext.tsx (204 lines)	Owns ring/bracelet job lifecycle; subscribes to ring-bracelet:event/ring-bracelet:done	App-lifetime provider (App.tsx:594)
+AnnotationContext.tsx (118 lines)	Owns Watch annotation state: current index, per-SKU annotations, guide mode, submit/navigate	Mounted per-batch inside AnnotationWorkspace
+QueueContext.tsx (93 lines)	Owns Watch export-queue state (optimistic + confirmed items), subscribes to queue:update IPC	Mounted per-batch inside AnnotationWorkspace
+Divergence: PreprocessingJobContext and RingBraceletJobContext are near-identical hand-copied state machines, explicitly documented as such in their own source.
+
+RingBraceletJobContext.tsx:57-62: "Mirrors PreprocessingJobProvider's structure exactly (mounted for the lifetime of the app...) — see that file for the fuller rationale."
+RingBraceletBatchSync.tsx:10-12: "Mirrors PreprocessingBatchSync exactly."
+Both contexts independently declare: the same phase: 'idle'|'running'|'done' shape, the same cancelPhase state machine (actually literally shared via CancelPhase imported from PreprocessingJobContext at RingBraceletJobContext.tsx:3), the same jobIdRef pattern to avoid resubscribing, the same start/cancel/reset callback shapes, the same event-subscription cleanup pattern, and near-identical reducer-style switch blocks over 'start'|'progress'|'complete'|'error'|'fatal'|'cancel_requested' event types (PreprocessingJobContext.tsx:104-163 vs RingBraceletJobContext.tsx:79-136).
+The differences are narrow and structural: Preprocessing's images have stage/outputPath/durationMs; RingBracelet's have frontFullImage/frontImage/detected instead. Preprocessing has initializing/heartbeat event types RingBracelet doesn't. Preprocessing's start() returns Promise<boolean>; RingBracelet's returns Promise<void>.
+RingBraceletJobContext.tsx:7-9 explicitly explains why it wasn't factored into a shared hook: "Independent from PreprocessingImageStatus (same five values, deliberately not imported) — keeps this context decoupled from Preprocessing's, per Phase 10's 'keep preprocessing and asset generation cleanly separated.'" So the duplication is a deliberate past decision, not an oversight — but it is ~140 lines of near-identical lifecycle/subscription/reducer boilerplate duplicated verbatim across the two files, which is exactly the kind of thing a shared createJobContext(eventChannel, doneChannel, imageReducer) factory (parameterized only by the event channel names and the per-event-type image-state mapper) could collapse into one implementation with two thin instantiations — while still preserving the "decoupled image-status types" goal, since the factory's generic type parameter would keep each instantiation's ImageState shape independent.
+AnnotationContext/QueueContext are Watch-only, structurally different from the two job contexts (no IPC event subscription pattern, form/session-state shaped rather than job/event-stream shaped) — not part of this duplication.
+
+5. App.tsx complexity
+609 lines — confirmed the largest file in the renderer (second-largest is screens/BatchDetails.tsx at 605).
+12 top-level useState calls (App.tsx:53,54,61,65,69,75,81,88,94,104,108,109): view, pendingBatch, pendingMode, editingProduct, pendingEditingTitle, preprocessBatch, editingBatch, watchBatchId, openBatchId, handoffFolder, screen, entry.
+9 top-level handler/helper functions beyond renderContent: navigate, handleLaunchFromHome, handleOpenBatch, reopenLiveWatchBatch, createBatch, handleCreatePreprocessingBatch, handleCreateRingBraceletBatch, handleRunAnotherPreprocessing, handleRunAnotherEditing, handleEditingHandoff, resolveWatchBatchId, handleBeginAnnotation, handleCompleteWatchBatch, handleBack — 14 functions total.
+renderContent() (App.tsx:475-582) has 9 distinct render branches, several nested two levels deep:
+view === 'home'
+view === 'settings'
+view === 'batchDetails' && openBatchId
+view === 'preprocessing'
+view === 'preprocessingWorkspace' → sub-branches on stageStatus (terminal → BatchDetails, else → PreprocessingWorkspace)
+editingProduct === 'watch' → sub-branches on screen === 'annotation' (→ AnnotationWorkspace, else → EditingSetup)
+editingProduct is ring/bracelet AND editingStageStatus terminal → BatchDetails
+editingProduct is ring/bracelet AND editingStageStatus === 'running' → RingBraceletRunWorkspace
+editingProduct is ring/bracelet, else → EditingSetup
+Each useState/handler is heavily commented explaining why it exists and how it interacts with the others (e.g. the PendingBatch interface comment at App.tsx:28-50 walks through cross-cutting rules for when it is/isn't set). This is a sign the implicit state machine (which batch is "current," which screen it maps to, whether a hand-off is in flight) has outgrown a flat useState bag — the comments are effectively hand-written invariant documentation for a state machine that isn't represented as one in code.
+Two full parallel "terminal vs running vs setup" branch trees exist for Preprocessing (preprocessBatch) and Editing (editingBatch) that are structurally similar to each other and to the earlier handleOpenBatch cases (App.tsx:167-201, App.tsx:506-581) but implemented separately each time.
+(Per your instruction, this is size/complexity only — no redesign proposed.)
+
+6. CSS/styling patterns
+global.css (106 lines) defines a real token system: --space-1..12, --text-xs..lg, --radius-*, --shadow-*, color tokens (--bg, --surface, --text*, --border*, --ok/warn/err/info, --shell-*, --on-dark*). Its own header (global.css:1-6) says: "captured from the values previously hardcoded across the per-component CSS modules... legacy modules are migrated opportunistically" — i.e. partial migration is an acknowledged, ongoing state, not a bug.
+
+Sampled var()-vs-hardcoded-hex usage across all 29 .module.css files in src/:
+
+Fully tokenized (0 raw hex): components/ui/Button.module.css (22 var(), 0 hex), components/shell/Sidebar.module.css (39 var(), 0 hex), components/ui/SegmentedControl.module.css (15 var(), 2 hex — mostly clean), components/ui/Select.module.css (27 var(), 1 hex), components/ui/StatusChip.module.css (17 var(), 4 hex), components/batch/BatchCard.module.css (45 var(), 7 hex — mostly clean, but still has raw hex for its tone-badge colors, e.g. BatchCard.module.css:121-129 hardcodes #eaf1fb/#2c6cb0/#f3edfa/#7c4fbe instead of the existing --info/--ok/--warn/--err accent tokens).
+
+Entirely un-tokenized (0 var() uses, all hardcoded): screens/BatchDetails.module.css (0 var, 11 hex — e.g. background: #0a0a0a at line 3/31, color: #e5e5e5 at line 4, background: #1c1c1e at line 116 — these approximate but don't reuse --shell-bg: #1a1a1a/--on-dark), screens/BatchSetup.module.css (0 var, 41 hex — the single worst offender), components/PreprocessingSettings.module.css (0 var, 7 hex — moot since the component is dead), components/PreprocessingSummary.module.css (0 var, 17 hex), components/PreprocessingProgress.module.css (0 var, 21 hex), components/preprocessing/BeforeAfterSlider.module.css (0 var, 12 hex), components/preprocessing/ThumbnailCell.module.css (0 var, 9 hex — including status colors like #34c759/#ff3b30/#ffcc00 that duplicate the intent of --ok/--err/--warn tokens), components/InfoPanel.module.css (0 var, 14 hex), components/PathField.module.css (0 var, 13 hex), screens/EditingSetup.module.css (0 var, 12 hex), screens/Preprocessing.module.css (3 var, 17 hex — mixed), and several more (ProcessingQueue, PythonInterpreterStatus, SamTuningPanel, SnapSlider, Modal, FullscreenViewer, ImagePreviewPanel, PreprocessingRunWorkspace, AnnotationCanvas, ErrorBoundary, AnnotationWorkspace, BatchDashboard, PreprocessingWorkspace, BatchDetailsSection) all show var=0 with hardcoded hex present.
+
+Pattern: the small components/ui/ design-system primitives (Button, Sidebar, Select, SegmentedControl, StatusChip) are consistently tokenized. Everything else — most notably BatchDetails.module.css and BatchSetup.module.css, two of the largest and most central screens — is effectively un-migrated and duplicates color/spacing decisions raw. This is a large, mechanical (if tedious) cleanup surface for Phase 11, and notably BatchDetails.tsx is exactly the cross-stage file flagged in §3 as blurry — so its CSS migration and its stage-boundary cleanup are two independent-but-adjacent line items on the same file.

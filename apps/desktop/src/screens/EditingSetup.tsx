@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { PageHeader } from '../components/ui/PageHeader'
-import { Select } from '../components/ui/Select'
+import { SegmentedControl } from '../components/ui/SegmentedControl'
 import { PathField } from '../components/PathField'
 import BatchSetup from './BatchSetup'
 import { useRingBraceletFolders } from '../hooks/useRingBraceletFolders'
@@ -58,7 +58,7 @@ export default function EditingSetup({
         <PageHeader title="Editing" subtitle="Choose a product, then configure a new batch." />
 
         <div className={styles.productField}>
-          <Select
+          <SegmentedControl
             label="Product"
             options={PRODUCT_OPTIONS}
             value={product}
@@ -81,6 +81,7 @@ export default function EditingSetup({
             key={product}
             product={product}
             initialBatchName={initialBatchName}
+            handoffFolder={handoffFolder}
             onCreateBatch={onCreateRingBraceletBatch}
           />
         )}
@@ -97,10 +98,16 @@ export default function EditingSetup({
 interface RingBraceletFieldsProps {
   product: 'ring' | 'bracelet'
   initialBatchName: string
+  // Preprocessing → Editing hand-off (Phase 10F) — display-only, matching
+  // BatchSetup's exact pattern: the actual prefill happens automatically via
+  // useRingBraceletFolders' own prefs-restore-on-mount effect (App.tsx
+  // writes prefs:save-ring-bracelet-folders before navigating here). This
+  // prop only drives the "Prepared ✓" badge once that value has loaded.
+  handoffFolder: string | null
   onCreateBatch: (sourceDir: string, title: string, product: 'ring' | 'bracelet') => Promise<string>
 }
 
-function RingBraceletFields({ product, initialBatchName, onCreateBatch }: RingBraceletFieldsProps) {
+function RingBraceletFields({ product, initialBatchName, handoffFolder, onCreateBatch }: RingBraceletFieldsProps) {
   const [batchName, setBatchName] = useState(initialBatchName)
   const [starting, setStarting] = useState(false)
   const folders = useRingBraceletFolders(product)
@@ -136,8 +143,15 @@ function RingBraceletFields({ product, initialBatchName, onCreateBatch }: RingBr
     setStarting(false)
   }
 
+  const isHandoff = handoffFolder !== null && folders.inputDir === handoffFolder
+
   return (
     <div className={styles.fields}>
+      {isHandoff && (
+        <p className={styles.handoffMessage}>
+          ✓ Input folder prepared from Preprocessing. Choose an output folder to continue.
+        </p>
+      )}
       <div className={styles.nameField}>
         <label className={styles.nameLabel}>Batch Name (optional)</label>
         <input
@@ -157,6 +171,7 @@ function RingBraceletFields({ product, initialBatchName, onCreateBatch }: RingBr
         onPick={() => pickInputDir()}
         onDropPath={pickInputDir}
         disabled={starting}
+        badge={isHandoff ? 'Prepared ✓' : undefined}
       />
       <PathField
         label="Output Folder"

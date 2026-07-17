@@ -153,10 +153,11 @@ def generate_wrap_mask(alpha: np.ndarray, split_y: float = 0.5) -> tuple[np.ndar
     cut = cut + bb_h * 0.04
     yy = np.arange(h, dtype=np.float64)[:, None]
     soft = max(1.5, h * 0.015)
-    above = np.clip((cut[None, :] - yy) / soft + 0.5, 0.0, 1.0)  # 1 above the cut
-    # Gate by a slightly grown binary of the band (not the soft product alpha) so
-    # anti-aliased edge pixels are fully covered and leave no residual outline,
-    # while the mask still hugs the band rather than the empty hole above it.
+    above = np.clip((cut[None, :] - yy) / soft + 0.5, 0.0, 1.0)  
+    # Original shankMask convention considered the area above the cut to be the
+    # rear/occluded region. WPA's editing guidelines define the opposite: the
+    # front-facing portion is above the cut and the rear/shank is below it.
+    # Therefore the mask polarity is intentionally inverted here.
     k = max(3, _odd(bb_h * 0.05))
     grown = cv2.dilate((fg.astype(np.uint8) * 255),
                        cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k)))

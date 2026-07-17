@@ -24,12 +24,14 @@ import type {
   UpscaleFactor,
   ProductType,
   PreprocessingFolderPrefs,
-  PrepareForWatchProcessingPayload,
-  PrepareForWatchProcessingResult,
+  EditingHandoffPayload,
+  EditingHandoffResult,
+  EditingHandoffOptionsPrefs,
   PrepareProgressPayload,
   BatchCreatePayload,
   BatchStageUpdatePayload,
   BatchRenamePayload,
+  BatchSetModePayload,
   BatchFindWatchPayload,
   RingBraceletStartPayload,
   RingBraceletStartResult,
@@ -74,9 +76,11 @@ declare global {
       on(channel: 'preprocess:event', listener: (payload: PreprocessEventPayload) => void): () => void
       on(channel: 'preprocess:done', listener: (payload: PreprocessDonePayload) => void): () => void
 
-      // Watch Processing hand-off preparation
-      invoke(channel: 'preprocess:prepare-for-watch-processing', payload: PrepareForWatchProcessingPayload): Promise<PrepareForWatchProcessingResult>
+      // Preprocessing → Editing hand-off preparation (Phase 10F)
+      invoke(channel: 'preprocess:prepare-for-editing-handoff', payload: EditingHandoffPayload): Promise<EditingHandoffResult>
       on(channel: 'preprocess:prepare-progress', listener: (payload: PrepareProgressPayload) => void): () => void
+      invoke(channel: 'prefs:load-editing-handoff-options'): Promise<EditingHandoffOptionsPrefs | null>
+      invoke(channel: 'prefs:save-editing-handoff-options', payload: EditingHandoffOptionsPrefs): Promise<void>
 
       // Batch registry (Phase 9B)
       invoke(channel: 'batch-registry:create', payload: BatchCreatePayload): Promise<BatchDetailRecord>
@@ -84,6 +88,7 @@ declare global {
       invoke(channel: 'batch-registry:get', payload: { id: string }): Promise<BatchDetailRecord | null>
       invoke(channel: 'batch-registry:update-stage', payload: BatchStageUpdatePayload): Promise<BatchDetailRecord | null>
       invoke(channel: 'batch-registry:rename', payload: BatchRenamePayload): Promise<BatchDetailRecord | null>
+      invoke(channel: 'batch-registry:set-mode', payload: BatchSetModePayload): Promise<BatchDetailRecord | null>
       invoke(channel: 'batch-registry:find-watch', payload: BatchFindWatchPayload): Promise<BatchDetailRecord | null>
       invoke(channel: 'batch-registry:delete', payload: { id: string }): Promise<boolean>
 

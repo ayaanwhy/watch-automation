@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process'
 import { join, dirname } from 'node:path'
 import type { ChildProcess } from 'node:child_process'
 import { resolvePreprocessingPython, validatePythonPath } from '../services/pythonResolver'
-import { prepareForWatchProcessing } from '../services/workflowPreparation'
+import { prepareForEditingHandoff } from '../services/workflowPreparation'
 import { updateStage } from '../services/batchRegistry'
 import { logger } from '../logger'
 import type {
@@ -12,8 +12,8 @@ import type {
   PreprocessStartResult,
   PreprocessDonePayload,
   PreprocessResolveResult,
-  PrepareForWatchProcessingPayload,
-  PrepareForWatchProcessingResult,
+  EditingHandoffPayload,
+  EditingHandoffResult,
 } from '../../src/types/ipc'
 import type { StageImageRecord } from '../../src/types/batch'
 
@@ -345,14 +345,21 @@ export function registerPreprocessHandlers(): void {
               durationMs: null,
             }
           })
+          // Derived from the reconciled `images` array, not job.succeeded/
+          // job.failed (Phase 10G fix) — those two counters only increment on
+          // a terminal per-image NDJSON event, so a cancelled batch's
+          // reconciled-but-never-events images were silently excluded from
+          // `total` and `cancelled` was always hardcoded to 0, understating
+          // the batch's own image count in its persisted history.
+          const counts = {
+            total: images.length,
+            succeeded: images.filter(i => i.status === 'completed').length,
+            failed: images.filter(i => i.status === 'failed').length,
+            cancelled: images.filter(i => i.status === 'cancelled').length,
+          }
           await updateStage(job.batchId, 'preprocessing', {
             status,
-            counts: {
-              total: job.succeeded + job.failed,
-              succeeded: job.succeeded,
-              failed: job.failed,
-              cancelled: 0,
-            },
+            counts,
             images,
             error: job.fatalError,
           })
@@ -443,26 +450,26 @@ export function registerPreprocessHandlers(): void {
     return { pythonPath }
   })
 
-  // ── preprocess:prepare-for-watch-processing ─────────────────────────────────
-  // Triggered only by the "Continue to Watch Processing" action, never during
-  // a normal preprocessing run. Fully independent of activeJob/jobStarting —
-  // it only reads the completed output folder and writes a new sibling
-  // folder; it does not touch the Python process or its state.
-  ipcMain.handle('preprocess:prepare-for-watch-processing', async (
+  // ── preprocess:prepare-for-editing-handoff (Phase 10F) ──────────────────────
+  // Triggered only by the EditingHandoffDialog action, never during a normal
+  // preprocessing run. Fully independent of activeJob/jobStarting — it only
+  // reads the completed output folder and writes a new sibling folder; it
+  // does not touch the Python process or its state.
+  ipcMain.handle('preprocess:prepare-for-editing-handoff', async (
     _event,
-    payload: PrepareForWatchProcessingPayload,
-  ): Promise<PrepareForWatchProcessingResult> => {
-    logger.info(`preprocess:prepare-for-watch-processing — starting for ${payload.sourceDir}`)
-    const result = await prepareForWatchProcessing(payload.sourceDir, (completed, total) => {
+    payload: EditingHandoffPayload,
+  ): Promise<EditingHandoffResult> => {
+    logger.info(`preprocess:prepare-for-editing-handoff — starting for ${payload.sourceDir} (trim=${payload.trim}, rotate=${payload.rotate})`)
+    const result = await prepareForEditingHandoff(payload.sourceDir, { trim: payload.trim, rotate: payload.rotate }, (completed, total) => {
       notifyRenderer('preprocess:prepare-progress', { completed, total })
     })
     if (result.ok) {
       logger.info(
-        `preprocess:prepare-for-watch-processing — done: ${result.imageCount} prepared, ` +
+        `preprocess:prepare-for-editing-handoff — done: ${result.imageCount} prepared, ` +
         `${result.skippedCount} skipped, folder=${result.preparedDir}`
       )
     } else {
-      logger.warn(`preprocess:prepare-for-watch-processing — failed: ${result.error}`)
+      logger.warn(`preprocess:prepare-for-editing-handoff — failed: ${result.error}`)
     }
     return result
   })

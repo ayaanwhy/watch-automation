@@ -5,6 +5,7 @@ import type {
   BatchCreatePayload,
   BatchStageUpdatePayload,
   BatchRenamePayload,
+  BatchSetModePayload,
   BatchFindWatchPayload,
 } from '../../src/types/ipc'
 
@@ -12,7 +13,7 @@ import type {
 // persistence live in services/batchRegistry.ts + services/batchModel.ts.
 export function registerBatchRegistryHandlers(): void {
   ipcMain.handle('batch-registry:create', async (_e, p: BatchCreatePayload): Promise<BatchDetailRecord> =>
-    registry.createBatch({ sourceDir: p.sourceDir, pipeline: p.pipeline, title: p.title }),
+    registry.createBatch({ sourceDir: p.sourceDir, pipeline: p.pipeline, title: p.title, mode: p.mode }),
   )
 
   ipcMain.handle('batch-registry:list', async (): Promise<BatchSummaryRecord[]> =>
@@ -29,6 +30,10 @@ export function registerBatchRegistryHandlers(): void {
 
   ipcMain.handle('batch-registry:rename', async (_e, p: BatchRenamePayload): Promise<BatchDetailRecord | null> =>
     registry.renameBatch(p.id, p.title),
+  )
+
+  ipcMain.handle('batch-registry:set-mode', async (_e, p: BatchSetModePayload): Promise<BatchDetailRecord | null> =>
+    registry.setBatchMode(p.id, p.mode),
   )
 
   ipcMain.handle('batch-registry:find-watch', async (_e, p: BatchFindWatchPayload): Promise<BatchDetailRecord | null> =>

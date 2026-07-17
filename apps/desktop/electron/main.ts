@@ -27,7 +27,7 @@ function createWindow(): void {
     // sidebar collapses to an icon rail (see Sidebar.module.css).
     minWidth: 960,
     minHeight: 640,
-    title: 'Watch Processing Automation',
+    title: 'VTO Automation',
     show: false,
     webPreferences: {
       preload: join(__dirname, '../preload/preload.js'),

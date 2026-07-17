@@ -105,6 +105,16 @@
 .badgeErr { background: #ff3b30; }
 .badgeWarn { background: rgba(255, 255, 255, 0.35); }
 
+/* Opposite corner from the status badge — a low-confidence completed image
+   still shows its ✓, this is an additional review flag, not a replacement. */
+.badgeLowConfidence {
+  top: 4px;
+  left: 4px;
+  right: auto;
+  background: #e0a640;
+  color: #1a1a1a;
+}
+
 .name {
   position: absolute;
   left: 0;

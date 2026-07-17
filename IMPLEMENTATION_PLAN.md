@@ -718,20 +718,25 @@ Phase 10F — Workflow Experience & Review
 
 Objective
 
-Polish the Editing workflow so operators have a clear, intuitive experience throughout asset generation and review.
+Polish the Universal Preprocessing and Editing workflows so operators have a clear, intuitive experience throughout batch creation, processing, handoff, and review. The focus of this phase is usability, workflow efficiency, testing convenience, and review ergonomics—not processing algorithms or architectural cleanup.
 
 Scope
 
-* Improve progress reporting for long-running operations.
+* Improve progress reporting for long-running operations with clearer processing states and confidence indicators.
 * Surface masking confidence and review indicators more clearly.
 * Replace the Editing product dropdown with segmented/tile selection.
-* Improve review interactions and generated asset comparison.
-* Refine the Editing UI to match the quality of the Watch workflow.
+* Improve review interactions through a fullscreen inspection mode with keyboard navigation and image browsing.
+* Introduce Testing vs Production batch modes with filtering on Home, independent auto-numbering, and testing-specific conveniences (automatic output folder enumeration and batch re-run).
+* Improve batch creation UX by replacing the inline Home expansion with a modal/dialog-based flow.
+* Convert Universal Preprocessing into a queue-style workspace where completed/running batches remain accessible while allowing additional batches to be created.
+* Introduce a configurable Preprocessing → Editing handoff dialog supporting optional Trim Image and Rotate (Clockwise, Anti-clockwise, 180°) operations before entering the Editing workflow.
+* Enable folder creation directly from native folder-picker dialogs where supported.
+* Rename application branding from “Watch Automation” to “VTO Automation.”
+* Refine the Editing and Preprocessing experiences so they match the overall quality and consistency of the Watch workflow.
 
 Deliverable:
 
-Editing provides a polished, informative workflow with clear feedback during generation and review.
-
+Universal Preprocessing and Editing provide a polished, production-ready workflow with intuitive navigation, efficient testing, informative progress feedback, streamlined handoff between stages, and a consistent review experience across all supported product types.
 ⸻
 
 Phase 10G — Production Hardening
@@ -766,93 +771,123 @@ Goal
 
 Multiple product workflows now exist side by side (Watches, and Rings & Bracelets from Phase 10). Strengthen the platform's architecture, reliability, and performance for large-scale production use across all of them, without changing user-facing workflows.
 
-Deliverables
+____
 
-Performance Optimization
+Phase 11A — Codebase Cleanup & Project Organization
 
-Review and optimize:
+The objective of this phase is to eliminate technical clutter and establish a clean, maintainable repository structure without changing application behavior.
 
-* Memory usage
-* CPU utilization
-* GPU utilization
-* Image processing throughput
-* Startup time
-* Large batch performance
+Includes:
 
-⸻
-
-Processing Pipeline Optimization
-
-Improve:
-
-* Parallelism
-* Caching
-* Temporary file handling
-* Queue scheduling
-* Batch throughput
-
-Reduce unnecessary disk I/O wherever practical.
+* Remove dead code and obsolete implementations.
+* Remove unused IPC channels, exports, utilities and scripts.
+* Delete the copied shankMask project after confirming all required functionality has already been ported.
+* Remove generated artifacts, tracked cache files and other unnecessary repository contents.
+* Consolidate duplicated helpers where appropriate.
+* Restructure the repository into a clearer logical hierarchy.
+* Begin reorganizing the project around the long-term stages:
+    * Preprocessing
+    * Editing / Processing
+    * Post Processing
+* Improve module ownership and overall project organization.
 
 ⸻
 
-Robustness
+Phase 11B — Electron Architecture Strengthening
 
-Improve recovery from:
+The objective of this phase is to improve the maintainability of the Electron application by reducing duplication and clarifying responsibilities.
 
-* Interrupted batches
-* Application crashes
-* Python failures
-* Corrupt images
-* Missing files
+Includes:
 
-Ensure users can safely resume work whenever possible.
-
-⸻
-
-Logging & Diagnostics
-
-Expand diagnostic tooling.
-
-Provide:
-
-* Structured logs
-* Performance metrics
-* Memory snapshots
-* Error reporting
-* Batch diagnostics
-
-Support future troubleshooting without affecting normal users.
+* Extract duplicated preprocessing and Ring/Bracelet job orchestration into shared abstractions.
+* Improve IPC architecture.
+* Consolidate shared services and types.
+* Improve queue architecture.
+* Improve state ownership.
+* Strengthen plugin registration and extension points.
+* Reduce architectural duplication throughout the Electron application.
 
 ⸻
 
-Architecture Cleanup
+Phase 11C — Python Architecture Strengthening
 
-Review the codebase for maintainability.
+The objective of this phase is to modernize the Python processing architecture while preserving existing functionality.
 
-Refine:
+Includes:
 
-* IPC boundaries
-* Shared types
-* State management
-* Folder organization
-* Plugin interfaces
-* Module responsibilities
-
-Remove temporary implementations introduced during earlier phases.
+* Introduce shared runner infrastructure.
+* Consolidate duplicated orchestration code.
+* Standardize cancellation handling.
+* Standardize the NDJSON communication protocol.
+* Improve shared utilities and configuration management.
+* Improve Python plugin architecture.
+* Organize Python modules into a clearer long-term structure.
 
 ⸻
 
-Plugin System Improvements
+Phase 11D — Robustness & Recovery
 
-Strengthen extensibility.
+The objective of this phase is to improve application resilience and failure recovery.
 
-Prepare for future modules by improving:
+Includes:
 
-* Plugin discovery
-* Shared interfaces
-* Configuration
-* Registration
-* Version compatibility
+* Improve crash recovery.
+* Improve interrupted batch handling.
+* Add registry reconciliation where appropriate.
+* Expand atomic persistence.
+* Improve corruption detection and recovery.
+* Improve subprocess lifecycle management.
+* Improve validation and error handling.
+* Improve recovery from unexpected failures.
+
+⸻
+
+Phase 11E — Logging & Diagnostics
+
+The objective of this phase is to improve internal diagnostics and developer tooling.
+
+Includes:
+
+* Structured logging.
+* Improved logger architecture.
+* Log rotation and retention.
+* Better diagnostic information.
+* Batch diagnostics.
+* Performance reporting.
+* Resource usage reporting.
+* Improved developer troubleshooting capabilities.
+
+⸻
+
+Phase 11F — Processing Pipeline Optimization
+
+The objective of this phase is to optimize the processing pipeline after the architectural improvements have been completed.
+
+Includes:
+
+* Queue optimization.
+* Parallelism improvements.
+* Caching improvements.
+* Throughput optimization.
+* Internal temporary directory management.
+* Reduction of unnecessary disk I/O.
+* Improved processing efficiency across large batches.
+
+⸻
+
+Phase 11G — Validation & Final Cleanup
+
+The objective of this phase is to validate all Phase 11 improvements and ensure the application remains stable after the architectural changes.
+
+Includes:
+
+* End-to-end validation.
+* Large batch testing.
+* Performance validation.
+* Registry validation.
+* Recovery validation.
+* Final repository cleanup.
+* Identification of remaining technical debt for future architecture passes.
 
 ⸻
 

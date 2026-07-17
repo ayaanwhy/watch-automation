@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { EditingHandoffDialog, type EditingHandoffOptions } from './preprocessing/EditingHandoffDialog'
 import type { PreprocessDonePayload, PrepareProgressPayload } from '../types/ipc'
 import styles from './PreprocessingSummary.module.css'
 
@@ -6,7 +7,10 @@ interface PreprocessingSummaryProps {
   donePayload: PreprocessDonePayload | null
   fatalError: string | null
   onReset: () => void
-  onContinueToWatchProcessing?: () => Promise<{ ok: boolean; error?: string }>
+  // Generalized (Phase 10F) from the original Watch-only "Continue to Watch
+  // Processing" action — the dialog collects Trim/Rotate/Destination first,
+  // then this is called with the operator's choices.
+  onEditingHandoff?: (options: EditingHandoffOptions) => Promise<{ ok: boolean; error?: string }>
 }
 
 function formatDuration(ms: number): string {
@@ -16,10 +20,11 @@ function formatDuration(ms: number): string {
   return `${minutes}m ${seconds}s`
 }
 
-export function PreprocessingSummary({ donePayload, fatalError, onReset, onContinueToWatchProcessing }: PreprocessingSummaryProps) {
+export function PreprocessingSummary({ donePayload, fatalError, onReset, onEditingHandoff }: PreprocessingSummaryProps) {
   const [preparing, setPreparing] = useState(false)
   const [prepareProgress, setPrepareProgress] = useState<PrepareProgressPayload | null>(null)
   const [prepareError, setPrepareError] = useState<string | null>(null)
+  const [showHandoffDialog, setShowHandoffDialog] = useState(false)
 
   // Only subscribed while a prepare step is actually in flight — this is a
   // single-shot operation triggered by one button click, so there is no
@@ -37,15 +42,16 @@ export function PreprocessingSummary({ donePayload, fatalError, onReset, onConti
   const hasIssue = donePayload.spawnError !== undefined || fatalError !== null || donePayload.failed > 0
   const variant = hasIssue || donePayload.cancelledByUser ? styles.summaryWarn : styles.summaryOk
 
-  async function handleContinueClick() {
-    if (!onContinueToWatchProcessing) return
+  async function handleConfirmHandoff(options: EditingHandoffOptions) {
+    setShowHandoffDialog(false)
+    if (!onEditingHandoff) return
     setPreparing(true)
     setPrepareProgress(null)
     setPrepareError(null)
-    const result = await onContinueToWatchProcessing()
+    const result = await onEditingHandoff(options)
     if (!result.ok) {
       setPreparing(false)
-      setPrepareError(result.error ?? 'Failed to prepare images for Watch Processing.')
+      setPrepareError(result.error ?? 'Failed to prepare images for Editing.')
     }
     // On success the parent navigates away and this component unmounts —
     // no need to reset `preparing` here.
@@ -77,16 +83,20 @@ export function PreprocessingSummary({ donePayload, fatalError, onReset, onConti
         <button className={styles.resetButton} onClick={onReset} disabled={preparing}>
           Run another batch
         </button>
-        {onContinueToWatchProcessing && donePayload.succeeded > 0 && !donePayload.spawnError && (
-          <button className={styles.continueButton} onClick={handleContinueClick} disabled={preparing}>
+        {onEditingHandoff && donePayload.succeeded > 0 && !donePayload.spawnError && (
+          <button className={styles.continueButton} onClick={() => setShowHandoffDialog(true)} disabled={preparing}>
             {preparing
               ? prepareProgress
                 ? `Preparing… (${prepareProgress.completed}/${prepareProgress.total})`
                 : 'Preparing…'
-              : 'Continue to Watch Processing →'}
+              : 'Continue to Editing →'}
           </button>
         )}
       </div>
+
+      {showHandoffDialog && (
+        <EditingHandoffDialog onConfirm={handleConfirmHandoff} onClose={() => setShowHandoffDialog(false)} />
+      )}
     </div>
   )
 }

@@ -7,13 +7,17 @@ import styles from './ImagePreviewPanel.module.css'
 interface ImagePreviewPanelProps {
   image: PreprocessingImageState | null
   inputDir: string
+  // Fullscreen review (Phase 10F) — omitted entirely where no FullscreenViewer
+  // is mounted (e.g. inside the fullscreen view itself), so the expand
+  // button only ever appears where it's actually actionable.
+  onExpand?: () => void
 }
 
 // Selecting a thumbnail opens this larger preview. Behavior is driven purely
 // by the selected image's own status — no separate run/details mode — so the
 // before/after comparison becomes available the moment an image finishes,
 // live during a run, not only after the whole batch completes.
-export function ImagePreviewPanel({ image, inputDir }: ImagePreviewPanelProps) {
+export function ImagePreviewPanel({ image, inputDir, onExpand }: ImagePreviewPanelProps) {
   // Persists across images in this viewing session (a user comparing many
   // images likely wants the same background throughout); the slider position
   // itself resets per image via BeforeAfterSlider's key below instead.
@@ -34,6 +38,11 @@ export function ImagePreviewPanel({ image, inputDir }: ImagePreviewPanelProps) {
       <div className={styles.panel}>
         <div className={styles.header}>
           <span className={styles.name}>{image.name}</span>
+          {onExpand && (
+            <button className={styles.expandButton} onClick={onExpand} aria-label="View fullscreen" title="View fullscreen">
+              ⤢
+            </button>
+          )}
         </div>
         <BeforeAfterSlider
           key={image.name}

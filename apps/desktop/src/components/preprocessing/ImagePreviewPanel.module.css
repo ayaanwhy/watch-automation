@@ -8,6 +8,27 @@
 
 .header {
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.expandButton {
+  flex-shrink: 0;
+  font-size: 13px;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.5);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+}
+
+.expandButton:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .name {
@@ -63,9 +84,24 @@
 /* Ring & Bracelet (Phase 10D) — flags a shank mask generated via the
    low-confidence fallback (no clear rim topology found), so a reviewer
    knows to look closer rather than trusting it silently. */
+/* Upgraded (Phase 10F) from plain text to a proper banner — same existing
+   detected===false signal, made harder to miss during review. */
 .lowConfidence {
   flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
   font-size: 12px;
+  line-height: 1.4;
   color: #e0a640;
+  background: rgba(224, 166, 64, 0.12);
+  border: 1px solid rgba(224, 166, 64, 0.35);
+  border-radius: 6px;
+}
+
+.lowConfidenceIcon {
+  flex-shrink: 0;
+  font-size: 14px;
   line-height: 1.4;
 }

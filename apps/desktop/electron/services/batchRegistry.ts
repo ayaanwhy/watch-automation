@@ -16,6 +16,7 @@ import { logger } from '../logger'
 import { BATCH_REGISTRY_VERSION } from '../../src/types/batch'
 import type {
   BatchDetailRecord,
+  BatchMode,
   BatchSummaryRecord,
   StagePatch,
   StageType,
@@ -25,6 +26,9 @@ import { applyStagePatch, createBatchDetail, recompute, summarize } from './batc
 interface BatchIndex {
   version: number
   nextSeq: number
+  // Independent counter for Testing-mode batches (Phase 10F) — kept separate
+  // from nextSeq so Testing and Production numbering don't interleave.
+  nextTestSeq: number
   batches: BatchSummaryRecord[]
 }
 
@@ -50,9 +54,13 @@ async function readIndex(): Promise<BatchIndex> {
     if (!parsed || !Array.isArray(parsed.batches) || typeof parsed.nextSeq !== 'number') {
       throw new Error('malformed batch index')
     }
+    // Index files written before Phase 10F won't have this counter — default
+    // it in rather than requiring a migration; existing batches/nextSeq are
+    // untouched either way.
+    if (typeof parsed.nextTestSeq !== 'number') parsed.nextTestSeq = 1
     return parsed
   } catch {
-    return { version: BATCH_REGISTRY_VERSION, nextSeq: 1, batches: [] }
+    return { version: BATCH_REGISTRY_VERSION, nextSeq: 1, nextTestSeq: 1, batches: [] }
   }
 }
 
@@ -72,10 +80,12 @@ export async function createBatch(params: {
   sourceDir: string
   pipeline: StageType[]
   title?: string
+  mode?: BatchMode
 }): Promise<BatchDetailRecord> {
   await mkdir(batchesDir(), { recursive: true })
   const index = await readIndex()
-  const seq = index.nextSeq
+  const mode: BatchMode = params.mode ?? 'production'
+  const seq = mode === 'testing' ? index.nextTestSeq : index.nextSeq
   const id = `batch-${Date.now()}-${randomUUID().slice(0, 8)}`
   const now = new Date().toISOString()
 
@@ -85,15 +95,17 @@ export async function createBatch(params: {
     sourceDir: params.sourceDir,
     pipeline: params.pipeline,
     title: params.title,
+    mode,
     now,
   })
 
   await atomicWrite(detailPath(id), detail)
-  index.nextSeq = seq + 1
+  if (mode === 'testing') index.nextTestSeq = seq + 1
+  else index.nextSeq = seq + 1
   upsertSummary(index, detail)
   await writeIndex(index)
 
-  logger.info(`batch-registry — created ${id} (${detail.title}, pipeline=[${params.pipeline.join(', ')}])`)
+  logger.info(`batch-registry — created ${id} (${detail.title}, mode=${mode}, pipeline=[${params.pipeline.join(', ')}])`)
   return detail
 }
 
@@ -129,6 +141,22 @@ export async function renameBatch(id: string, title: string): Promise<BatchDetai
   const detail = await getBatch(id)
   if (!detail) return null
   const updated = recompute({ ...detail, title: title.trim() || detail.title }, new Date().toISOString())
+  await atomicWrite(detailPath(id), updated)
+  const index = await readIndex()
+  upsertSummary(index, updated)
+  await writeIndex(index)
+  return updated
+}
+
+// Testing/Production is editable after creation (Phase 10F correction) —
+// deliberately just flips the field. seq/title stay exactly as they were
+// assigned at creation; retroactively renumbering into the other mode's
+// counter sequence was not requested and would risk its own gaps/collisions,
+// so it's left alone.
+export async function setBatchMode(id: string, mode: BatchMode): Promise<BatchDetailRecord | null> {
+  const detail = await getBatch(id)
+  if (!detail) return null
+  const updated = recompute({ ...detail, mode }, new Date().toISOString())
   await atomicWrite(detailPath(id), updated)
   const index = await readIndex()
   upsertSummary(index, updated)

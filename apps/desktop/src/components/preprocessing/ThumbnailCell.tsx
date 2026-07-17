@@ -11,6 +11,7 @@ export type ThumbnailStatus = 'pending' | 'processing' | 'completed' | 'failed' 
 interface ThumbnailCellProps {
   name: string
   status: ThumbnailStatus
+  lowConfidence?: boolean
   src: string
   selected: boolean
   onClick: () => void
@@ -31,13 +32,16 @@ const STATUS_LABEL: Record<ThumbnailStatus, string> = {
 // honestly indeterminate rather than a fabricated number), completed clears
 // to full visibility with a check badge, failed/cancelled keep the thumbnail
 // visible under a tinted overlay with a status badge.
-export function ThumbnailCell({ name, status, src, selected, onClick, style }: ThumbnailCellProps) {
+export function ThumbnailCell({ name, status, lowConfidence, src, selected, onClick, style }: ThumbnailCellProps) {
+  const title = lowConfidence
+    ? `${name} — ${STATUS_LABEL[status]} — low confidence, worth a closer look`
+    : `${name} — ${STATUS_LABEL[status]}`
   return (
     <button
       className={`${styles.cell} ${selected ? styles.selected : ''}`}
       style={style}
       onClick={onClick}
-      title={`${name} — ${STATUS_LABEL[status]}`}
+      title={title}
       data-status={status}
     >
       <img className={styles.image} src={src} alt="" loading="lazy" decoding="async" draggable={false} />
@@ -50,6 +54,9 @@ export function ThumbnailCell({ name, status, src, selected, onClick, style }: T
       {status === 'completed' && <span className={`${styles.badge} ${styles.badgeOk}`}>✓</span>}
       {status === 'failed' && <span className={`${styles.badge} ${styles.badgeErr}`}>!</span>}
       {status === 'cancelled' && <span className={`${styles.badge} ${styles.badgeWarn}`}>·</span>}
+      {status === 'completed' && lowConfidence && (
+        <span className={`${styles.badge} ${styles.badgeLowConfidence}`} aria-hidden="true">⚠</span>
+      )}
       <span className={styles.name}>{name}</span>
     </button>
   )

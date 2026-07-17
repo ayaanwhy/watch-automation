@@ -4,6 +4,7 @@
 
 import type {
   BatchDetailRecord,
+  BatchMode,
   BatchStatus,
   BatchSummaryRecord,
   StageCounts,
@@ -16,8 +17,9 @@ export const ZERO_COUNTS: StageCounts = { total: 0, succeeded: 0, failed: 0, can
 
 const TERMINAL: StageRecord['status'][] = ['completed', 'failed', 'cancelled']
 
-export function formatBatchTitle(seq: number): string {
-  return `Batch ${String(seq).padStart(3, '0')}`
+export function formatBatchTitle(seq: number, mode: BatchMode = 'production'): string {
+  const padded = String(seq).padStart(3, '0')
+  return mode === 'testing' ? `Test Batch ${padded}` : `Batch ${padded}`
 }
 
 export function emptyStage(type: StageType, inputDir: string, now: string): StageRecord {
@@ -112,15 +114,17 @@ export function createBatchDetail(params: {
   sourceDir: string
   pipeline: StageType[]
   title?: string
+  mode?: BatchMode
   now: string
 }): BatchDetailRecord {
-  const { id, seq, sourceDir, pipeline, title, now } = params
+  const { id, seq, sourceDir, pipeline, title, mode, now } = params
   const stages = pipeline.map((type, i) => emptyStage(type, i === 0 ? sourceDir : '', now))
   const base: BatchDetailRecord = {
     id,
     seq,
-    title: title?.trim() || formatBatchTitle(seq),
+    title: title?.trim() || formatBatchTitle(seq, mode),
     status: 'draft',
+    mode,
     sourceDir,
     pipeline,
     stageStatuses: [],

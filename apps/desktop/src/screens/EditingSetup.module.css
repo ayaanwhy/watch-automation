@@ -15,13 +15,21 @@
 }
 
 .productField {
-  max-width: 280px;
+  /* Wider than the old dropdown trigger needed — four always-visible tiles
+     (Watch/Ring/Bracelet/Earrings) need room for their labels. */
+  max-width: 480px;
 }
 
 .fields {
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+.handoffMessage {
+  font-size: 13px;
+  color: #2d8a2d;
+  line-height: 1.5;
 }
 
 .nameField {

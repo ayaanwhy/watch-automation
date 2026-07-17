@@ -2,22 +2,31 @@ import sharp from 'sharp'
 import { readdir, rm, mkdir, stat } from 'node:fs/promises'
 import { join, basename, dirname, extname } from 'node:path'
 import { logger } from '../logger'
-import type { PrepareForWatchProcessingResult } from '../../src/types/ipc'
+import type { EditingHandoffResult, EditingHandoffRotate } from '../../src/types/ipc'
 
 // Generic home for logic that prepares one module's output for use as
-// another module's input. Currently has a single consumer (Preprocessing →
-// Watch Processing) but is named for the workflow-integration concern, not
-// the specific pair of modules, so future hand-offs can live here too.
+// another module's input. Originally a single Watch-only consumer; Phase
+// 10F generalized it to any Editing destination (Watch/Ring/Bracelet) with
+// configurable trim/rotate — named for the workflow-integration concern,
+// not any one pair of modules, so future hand-offs can live here too.
 
 const SUPPORTED_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp'])
 
+const ROTATE_DEGREES: Record<EditingHandoffRotate, number | null> = {
+  none: null,
+  cw: 90,
+  ccw: -90,
+  '180': 180,
+}
+
 // Sibling folder, never nested inside sourceDir — keeps the original
 // preprocessing output completely untouched and makes the prepared copy
-// easy to find in Finder/Explorer right next to it.
+// easy to find in Finder/Explorer right next to it. Name kept as "Ready"
+// (not "WatchReady") now that the destination isn't always Watch.
 function preparedDirFor(sourceDir: string): string {
   const parent = dirname(sourceDir)
   const name = basename(sourceDir)
-  return join(parent, `${name} - WatchReady`)
+  return join(parent, `${name} - Ready`)
 }
 
 async function findSourceImages(sourceDir: string): Promise<string[]> {
@@ -80,20 +89,24 @@ async function mapWithConcurrency<T>(
 }
 
 /**
- * Prepares a completed preprocessing output folder for use as Watch
- * Processing's input folder: trims each image to its non-transparent
- * bounding box, rotates it 90° counter-clockwise, and writes the result into
- * a new "<sourceDir> - WatchReady" sibling folder.
+ * Prepares a completed preprocessing output folder for use as an Editing
+ * destination's (Watch/Ring/Bracelet) input folder: optionally trims each
+ * image to its non-transparent bounding box and/or rotates it, and writes
+ * the result into a new "<sourceDir> - Ready" sibling folder.
+ *
+ * trim=true, rotate='ccw' reproduces the original hardcoded Watch-only
+ * behavior exactly (Phase 8.5D) — this is now just the dialog's default.
  *
  * The original sourceDir is only ever read, never written to.
  * Per-image failures (corrupt file, fully-transparent image) are skipped
  * rather than aborting the whole batch; the call only fails outright when
  * zero images could be prepared.
  */
-export async function prepareForWatchProcessing(
+export async function prepareForEditingHandoff(
   sourceDir: string,
+  options: { trim: boolean; rotate: EditingHandoffRotate },
   onProgress?: (completed: number, total: number) => void
-): Promise<PrepareForWatchProcessingResult> {
+): Promise<EditingHandoffResult> {
   try {
     const sourceStat = await stat(sourceDir)
     if (!sourceStat.isDirectory()) {
@@ -130,18 +143,25 @@ export async function prepareForWatchProcessing(
   let completed = 0
   let skipped = 0
 
+  const rotateDegrees = ROTATE_DEGREES[options.rotate]
+
   await mapWithConcurrency(imageNames, 3, async (name) => {
     const inputPath = join(sourceDir, name)
     const outputPath = join(preparedDir, name)
     try {
-      const bbox = await computeAlphaBoundingBox(inputPath)
-      if (bbox === null) {
-        throw new Error('image has no non-transparent pixels')
+      let pipeline = sharp(inputPath)
+      if (options.trim) {
+        const bbox = await computeAlphaBoundingBox(inputPath)
+        if (bbox === null) {
+          throw new Error('image has no non-transparent pixels')
+        }
+        pipeline = pipeline.extract(bbox)
       }
-      await sharp(inputPath).extract(bbox).rotate(-90).toFile(outputPath)
+      if (rotateDegrees !== null) pipeline = pipeline.rotate(rotateDegrees)
+      await pipeline.toFile(outputPath)
     } catch (err) {
       skipped++
-      logger.warn(`prepareForWatchProcessing — skipped ${name}: ${String(err)}`)
+      logger.warn(`prepareForEditingHandoff — skipped ${name}: ${String(err)}`)
     } finally {
       completed++
       onProgress?.(completed, total)

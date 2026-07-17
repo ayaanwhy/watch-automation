@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { SegmentedControl } from '../ui/SegmentedControl'
 import styles from './BeforeAfterSlider.module.css'
 
 export type ComparisonBackground = 'transparent' | 'white' | 'black'
@@ -79,19 +80,14 @@ export function BeforeAfterSlider({
 
   return (
     <div className={styles.frame}>
-      <div className={styles.backgroundToggle} role="group" aria-label="Preview background">
-        {BACKGROUND_OPTIONS.map(opt => (
-          <button
-            key={opt.value}
-            type="button"
-            className={`${styles.bgOption} ${background === opt.value ? styles.bgOptionActive : ''}`}
-            onClick={() => onBackgroundChange(opt.value)}
-            aria-pressed={background === opt.value}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        variant="pill"
+        className={styles.backgroundToggle}
+        options={BACKGROUND_OPTIONS}
+        value={background}
+        onChange={onBackgroundChange}
+        aria-label="Preview background"
+      />
       <div className={`${styles.box} ${styles[BACKGROUND_CLASS[background]]}`}>
         <img
           className={styles.image}

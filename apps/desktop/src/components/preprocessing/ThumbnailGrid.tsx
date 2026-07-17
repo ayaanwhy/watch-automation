@@ -10,6 +10,30 @@ import styles from './ThumbnailGrid.module.css'
 export interface ThumbnailGridImage {
   name: string
   status: ThumbnailStatus
+  // Surfaces an already-existing per-image review flag (Phase 10F) — e.g.
+  // Ring & Bracelet's shank-mask detected===false — as a generic grid badge.
+  // Not a new signal: callers derive this from whatever confidence/review
+  // state their own stage already tracks; stages with no such concept (Watch,
+  // Preprocessing) simply never set it.
+  lowConfidence?: boolean
+}
+
+// Fullscreen review (Phase 10F) prev/next navigation — every ThumbnailGrid
+// caller already owns both the ordered image array and the current
+// selection (that's exactly what's passed in as props here), so computing
+// "the next/previous name" from that same state is all a fullscreen viewer
+// needs; no separate index state was introduced anywhere for this.
+export function findAdjacentImage(
+  images: { name: string }[],
+  currentName: string | null,
+  direction: 1 | -1
+): string | null {
+  if (images.length === 0) return null
+  const index = currentName ? images.findIndex(img => img.name === currentName) : -1
+  if (index === -1) return images[0].name
+  const nextIndex = index + direction
+  if (nextIndex < 0 || nextIndex >= images.length) return null
+  return images[nextIndex].name
 }
 
 interface ThumbnailGridProps {
@@ -94,6 +118,7 @@ export function ThumbnailGrid({ images, inputDir, selectedImage, onSelect }: Thu
               key={img.name}
               name={img.name}
               status={img.status}
+              lowConfidence={img.lowConfidence}
               src={toFileUrl(joinPath(inputDir, img.name))}
               selected={img.name === selectedImage}
               onClick={() => onSelect(img.name)}

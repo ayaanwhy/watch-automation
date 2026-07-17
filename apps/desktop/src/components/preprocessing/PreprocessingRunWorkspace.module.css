@@ -3,7 +3,12 @@
   flex-direction: row;
   gap: 16px;
   padding: 20px;
-  height: 100vh;
+  /* 100% rather than 100vh (Phase 10F) so this can sit inside a screen that
+     adds its own header above it (PreprocessingWorkspace.tsx) — AppShell's
+     content area is already exactly viewport height, so this renders
+     identically to before wherever no such header exists (e.g. Ring &
+     Bracelet's workspace, unchanged). */
+  height: 100%;
   box-sizing: border-box;
   background: #0a0a0a;
 }

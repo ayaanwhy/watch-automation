@@ -152,9 +152,12 @@ export function BatchCard({ batch, onOpen, onRenamed, onDeleted }: BatchCardProp
                   🗑
                 </button>
               </span>
-              <StatusChip tone={batchStatusTone(batch.status)}>
-                {BATCH_STATUS_LABELS[batch.status]}
-              </StatusChip>
+              <span className={styles.chips}>
+                {batch.mode === 'testing' && <StatusChip tone="warn">Testing</StatusChip>}
+                <StatusChip tone={batchStatusTone(batch.status)}>
+                  {BATCH_STATUS_LABELS[batch.status]}
+                </StatusChip>
+              </span>
             </>
           )}
         </div>

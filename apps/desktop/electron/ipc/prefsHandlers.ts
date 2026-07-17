@@ -10,10 +10,12 @@ import type {
   RingBraceletFolderPrefs,
   RingBraceletFolderPrefsLoadPayload,
   RingBraceletFolderPrefsSavePayload,
+  EditingHandoffOptionsPrefs,
 } from '../../src/types/ipc'
 
 const PREFS_FILENAME = 'last-batch.json'
 const SAM_TUNING_PREFS_FILENAME = 'sam-tuning.json'
+const EDITING_HANDOFF_OPTIONS_FILENAME = 'editing-handoff-options.json'
 
 function prefsFilePath(): string {
   return join(app.getPath('userData'), PREFS_FILENAME)
@@ -68,6 +70,24 @@ export function registerPrefsHandlers(): void {
   ipcMain.handle('prefs:save-sam-tuning', async (_event, payload: SamTuningPrefs): Promise<void> => {
     try {
       await writeFile(join(app.getPath('userData'), SAM_TUNING_PREFS_FILENAME), JSON.stringify(payload, null, 2), 'utf-8')
+    } catch { /* non-critical */ }
+  })
+
+  // Remembers the EditingHandoffDialog's last-used Trim/Rotate/Destination
+  // choices (Phase 10F) — same one-JSON-value-per-concern pattern as SAM
+  // tuning above.
+  ipcMain.handle('prefs:load-editing-handoff-options', async (): Promise<EditingHandoffOptionsPrefs | null> => {
+    try {
+      const raw = await readFile(join(app.getPath('userData'), EDITING_HANDOFF_OPTIONS_FILENAME), 'utf-8')
+      return JSON.parse(raw) as EditingHandoffOptionsPrefs
+    } catch {
+      return null
+    }
+  })
+
+  ipcMain.handle('prefs:save-editing-handoff-options', async (_event, payload: EditingHandoffOptionsPrefs): Promise<void> => {
+    try {
+      await writeFile(join(app.getPath('userData'), EDITING_HANDOFF_OPTIONS_FILENAME), JSON.stringify(payload, null, 2), 'utf-8')
     } catch { /* non-critical */ }
   })
 

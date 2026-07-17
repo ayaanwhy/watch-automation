@@ -39,6 +39,12 @@ export type BatchStatus =
   | 'failed'
   | 'cancelled'
 
+// Testing vs Production (Phase 10F) — independent numbering/title prefix per
+// mode (see batchModel.formatBatchTitle), filterable on Home. Optional so
+// batches persisted before this field existed still parse; every read site
+// treats a missing mode as 'production' (the pre-10F default behavior).
+export type BatchMode = 'testing' | 'production'
+
 export interface StageCounts {
   total: number
   succeeded: number
@@ -115,6 +121,7 @@ export interface BatchSummaryRecord {
   seq: number
   title: string
   status: BatchStatus
+  mode?: BatchMode
   sourceDir: string
   pipeline: StageType[]
   stageStatuses: { type: StageType; status: StageStatus }[]

@@ -1,18 +1,32 @@
 #!/usr/bin/env python3
 """
-runner.py — Ring & Bracelet asset generator (Phase 10C).
+runner.py — Ring & Bracelet asset generator (Phase 10C; product dispatch
+added in Phase 10E).
 
 Consumes the transparent PNGs Universal Preprocessing has already produced
 (background-removed, optionally upscaled) and bakes two assets per image:
 
   SKU;frontFullImage.png — the preprocessed image, unmodified.
   SKU;frontImage.png     — the same image with the shank-occluded region's
-                            alpha reduced, using shank_mask.generate_wrap_mask.
+                            alpha reduced, using a per-product mask function.
 
-This runner owns orchestration, batching, and file I/O; shank_mask.py stays
-a pure algorithm module with no I/O of its own. SKU is the input filename's
-stem — there is no spreadsheet/SKU-matching mechanism for Ring & Bracelet
-yet (that remains Watch-specific).
+This runner owns orchestration, batching, and file I/O; the mask-generation
+step is the one part of the pipeline that diverges by product — everything
+else here (protocol, batching, file naming, alpha subtraction) is shared and
+identical regardless of --product. shank_mask.py (bracelet, verified) and
+ring_mask.py (ring, independently developed) are both pure algorithm modules
+with no I/O of their own — see their own docstrings for how each is
+verified/unverified. SKU is the input filename's stem — there is no
+spreadsheet/SKU-matching mechanism for Ring & Bracelet yet (that remains
+Watch-specific).
+
+Status (temporary, Phase 10E): ring_mask.py's dedicated rear-shank algorithm
+is currently NOT wired in — both --product values run shank_mask.py's
+proven bracelet implementation. This is an intentional, temporary rollback
+of behavior, not an architectural one: the --product dispatch itself stays
+in place in _process_one below, specifically so the dedicated ring
+implementation can be re-enabled later by changing that one branch back to
+generate_ring_mask(alpha).
 
 Stdout protocol: NDJSON, one JSON object per line — the same shape as
 electron_runner.py's, so the Electron main process can parse both with the
@@ -48,6 +62,9 @@ if str(_HERE) not in sys.path:
     sys.path.insert(0, str(_HERE))
 
 from shank_mask import generate_wrap_mask  # noqa: E402
+# Imported but not currently called — see the temporary-rollback note on the
+# --product dispatch in _process_one below and ring_mask.py's own docstring.
+from ring_mask import generate_ring_mask  # noqa: E402,F401
 
 EXIT_CANCELLED = 3
 
@@ -84,18 +101,34 @@ def _parse_args() -> argparse.Namespace:
                    help="Folder of preprocessed transparent PNGs (Universal Preprocessing's output).")
     p.add_argument("--output-dir", required=True,
                    help="Folder for frontFullImage/frontImage outputs.")
+    p.add_argument("--product", required=True, choices=("ring", "bracelet"),
+                   help="Which mask implementation to use — shank_mask (bracelet) or ring_mask (ring).")
     p.add_argument("--split-y", type=float, default=0.5,
-                   help="Fallback vertical split (band-relative) used when no hole topology is found.")
+                   help="Fallback vertical split (band-relative) used when no hole topology is found. "
+                        "Bracelet only — ring_mask.py does not currently use this.")
     return p.parse_args()
 
 
-def _process_one(input_path: Path, output_dir: Path, split_y: float) -> dict:
+def _process_one(input_path: Path, output_dir: Path, product: str, split_y: float) -> dict:
     """Returns the fields to merge into a 'complete' event. Raises on failure."""
     img = Image.open(input_path).convert("RGBA")
     arr = np.array(img)
     alpha = arr[:, :, 3]
 
-    mask, detected = generate_wrap_mask(alpha, split_y=split_y)
+    # The only product-dispatched step in the whole pipeline — see module
+    # docstring. Both functions share the same (mask, detected) contract, so
+    # nothing below this line needs to know which product it is.
+    if product == "ring":
+        # Temporary rollback (Phase 10E): ring_mask.generate_ring_mask is
+        # experimental and not yet validated broadly enough to run in
+        # production — see ring_mask.py's module docstring for status. Both
+        # branches currently call the proven bracelet implementation; the
+        # --product dispatch itself stays in place so re-enabling the
+        # dedicated ring algorithm later is a one-line change, right here:
+        #     mask, detected = generate_ring_mask(alpha)
+        mask, detected = generate_wrap_mask(alpha, split_y=split_y)
+    else:
+        mask, detected = generate_wrap_mask(alpha, split_y=split_y)
 
     front_full_path = output_dir / f"{input_path.stem};frontFullImage.png"
     front_path = output_dir / f"{input_path.stem};frontImage.png"
@@ -159,7 +192,7 @@ def main() -> int:
         emit({"type": "progress", "index": index, "total": total,
               "image": input_path.name, "stage": "shank_mask", "status": "start"})
         try:
-            result = _process_one(input_path, output_dir, args.split_y)
+            result = _process_one(input_path, output_dir, args.product, args.split_y)
             duration_ms = int((time.perf_counter() - image_t0) * 1000)
             emit({
                 "type": "complete",

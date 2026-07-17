@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { usePreprocessingJob } from '../../context/PreprocessingJobContext'
 import { PreprocessingProgress } from '../PreprocessingProgress'
-import { ThumbnailGrid } from './ThumbnailGrid'
+import { ThumbnailGrid, findAdjacentImage } from './ThumbnailGrid'
 import { ImagePreviewPanel } from './ImagePreviewPanel'
+import { FullscreenViewer } from '../ui/FullscreenViewer'
 import styles from './PreprocessingRunWorkspace.module.css'
 
 interface PreprocessingRunWorkspaceProps {
@@ -26,10 +27,16 @@ export function PreprocessingRunWorkspace({ inputDir }: PreprocessingRunWorkspac
   const selectedName = manualSelection ?? job.progress.currentImage
   const selectedImage = job.images.find(img => img.name === selectedName) ?? null
 
+  // Fullscreen review (Phase 10F) — reuses the same selection state above;
+  // no separate index tracking needed.
+  const [fullscreen, setFullscreen] = useState(false)
+  const prevName = findAdjacentImage(job.images, selectedName, -1)
+  const nextName = findAdjacentImage(job.images, selectedName, 1)
+
   return (
     <div className={styles.workspace}>
       <div className={styles.previewArea}>
-        <ImagePreviewPanel image={selectedImage} inputDir={inputDir} />
+        <ImagePreviewPanel image={selectedImage} inputDir={inputDir} onExpand={() => setFullscreen(true)} />
       </div>
       <div className={styles.sidebar}>
         <PreprocessingProgress
@@ -47,6 +54,19 @@ export function PreprocessingRunWorkspace({ inputDir }: PreprocessingRunWorkspac
           />
         </div>
       </div>
+
+      {fullscreen && (
+        <FullscreenViewer
+          title={selectedImage?.name}
+          onClose={() => setFullscreen(false)}
+          onPrev={() => prevName && setManualSelection(prevName)}
+          onNext={() => nextName && setManualSelection(nextName)}
+          hasPrev={prevName !== null}
+          hasNext={nextName !== null}
+        >
+          <ImagePreviewPanel image={selectedImage} inputDir={inputDir} />
+        </FullscreenViewer>
+      )}
     </div>
   )
 }

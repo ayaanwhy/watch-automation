@@ -3,6 +3,7 @@ import BatchSetup from './screens/BatchSetup'
 import EditingSetup from './screens/EditingSetup'
 import { AnnotationWorkspace } from './screens/AnnotationWorkspace'
 import Preprocessing from './screens/Preprocessing'
+import PreprocessingWorkspace from './screens/PreprocessingWorkspace'
 import Settings from './screens/Settings'
 import Home from './screens/Home'
 import BatchDetails from './screens/BatchDetails'
@@ -16,7 +17,8 @@ import { findStageStatus } from './components/batch/batchDisplay'
 import type { BatchState } from './types/annotation'
 import type { SessionFile } from './types/session'
 import type { AppView, EditingProduct } from './types/navigation'
-import type { BatchDetailRecord, StageType } from './types/batch'
+import type { BatchDetailRecord, BatchMode, StageType } from './types/batch'
+import type { EditingHandoffOptions } from './components/preprocessing/EditingHandoffDialog'
 
 interface AnnotationEntry {
   batch: BatchState
@@ -50,6 +52,13 @@ interface PendingBatch {
 export default function App() {
   const [view, setView] = useState<AppView>('home')
   const [pendingBatch, setPendingBatch] = useState<PendingBatch | null>(null)
+  // Testing vs Production (Phase 10F) — set only by Home's CreateBatchModal;
+  // every other entry point (sidebar shortcuts, hand-offs, "run another")
+  // defaults/resets to 'production'. Read directly inside createBatch()
+  // below, the same way pipeline is read from pendingBatch — mode isn't
+  // user-editable on the setup screens themselves, so it doesn't need to
+  // round-trip through a child screen's local state the way title does.
+  const [pendingMode, setPendingMode] = useState<BatchMode>('production')
 
   // Which product the shared Editing setup screen shows (Phase 10D) — always
   // has a value; only meaningful while view === 'editing'.
@@ -120,6 +129,7 @@ export default function App() {
       // unchanged behavior).
       setEditingBatch(null)
     }
+    setPendingMode('production')
     setHandoffFolder(null)
     setOpenBatchId(null)
     setView(next)
@@ -127,7 +137,7 @@ export default function App() {
 
   // Home's "Create & Open": Preprocessing resolves immediately (its pipeline
   // is always the same); Editing does not — see PendingBatch's comment.
-  function handleLaunchFromHome(homeEntry: 'preprocessing' | 'editing', title: string) {
+  function handleLaunchFromHome(homeEntry: 'preprocessing' | 'editing', title: string, mode: BatchMode) {
     if (homeEntry === 'preprocessing') {
       setPendingBatch({ pipeline: ['preprocessing'], title })
       setPendingEditingTitle('')
@@ -137,6 +147,7 @@ export default function App() {
       setEditingProduct('watch')
       setEditingBatch(null)
     }
+    setPendingMode(mode)
     setHandoffFolder(null)
     setOpenBatchId(null)
     setView(homeEntry)
@@ -162,7 +173,7 @@ export default function App() {
       setPreprocessBatch(detail)
       setHandoffFolder(null)
       setOpenBatchId(null)
-      setView('preprocessing')
+      setView('preprocessingWorkspace')
       return
     }
 
@@ -252,11 +263,13 @@ export default function App() {
       sourceDir,
       pipeline,
       title: title.trim() || undefined,
+      mode: pendingMode,
     })
     // Consumed once; a second run on the same screen (e.g. "Run another
     // batch" without re-navigating) falls back to defaultPipeline/no title —
     // each execution still gets its own new Batch (instance identity).
     setPendingBatch(null)
+    setPendingMode('production')
     return detail.id
   }
 
@@ -289,6 +302,7 @@ export default function App() {
   function handleRunAnotherPreprocessing() {
     setPreprocessBatch(null)
     setPendingBatch({ pipeline: ['preprocessing'], title: '' })
+    setPendingMode('production')
     setHandoffFolder(null)
     setOpenBatchId(null)
     setView('preprocessing')
@@ -303,45 +317,73 @@ export default function App() {
     setEditingProduct(product)
     setPendingEditingTitle('')
     setPendingBatch(null)
+    setPendingMode('production')
     setHandoffFolder(null)
     setOpenBatchId(null)
     setView('editing')
   }
 
-  // Redesigned around the Batch model (Phase 9C): this is a stage transition
-  // on the SAME batch, never a session restore and never a new batch. It
-  // hands the batch's id to the next screen via pendingBatch.continueBatchId
-  // so Begin Annotation reuses it instead of minting one. Takes the target
-  // batch explicitly (Phase 9E) so it works identically whether triggered
-  // from the live Preprocessing screen (preprocessBatch) or a historical
-  // batch's Batch Details page (openBatchId) — not just the currently-tracked
-  // one.
-  async function handleContinueToWatchProcessing(
+  // Generalized (Phase 10F) from the original Watch-only "Continue to Watch
+  // Processing" — the EditingHandoffDialog now collects Trim/Rotate/
+  // Destination first. Takes the target batch explicitly (Phase 9E) so it
+  // works identically whether triggered from the live Preprocessing screen
+  // (preprocessBatch) or a historical batch's Batch Details page
+  // (openBatchId) — not just the currently-tracked one.
+  //
+  // Watch keeps its exact original mechanism: a stage transition on the SAME
+  // batch via pendingBatch.continueBatchId, so Begin Annotation reuses it
+  // instead of minting one — left completely untouched here, including
+  // whatever its actual persisted behavior is, since fixing that is a
+  // separate, deeper batch-model question outside this phase's scope.
+  //
+  // Ring/Bracelet destinations are new (Phase 10F) and deliberately do NOT
+  // use continueBatchId — they mint an ordinary new batch exactly like any
+  // other Ring/Bracelet launch, with the prepared folder pre-filled as input
+  // via the same prefs-restore mechanism Watch's own prefill already relies
+  // on (prefs:save-ring-bracelet-folders → useRingBraceletFolders' existing
+  // load-on-mount effect), so no new prefill plumbing was needed there.
+  async function handleEditingHandoff(
     batch: BatchDetailRecord,
-    outputDir: string
+    outputDir: string,
+    options: EditingHandoffOptions
   ): Promise<{ ok: boolean; error?: string }> {
     if (!outputDir) {
       return { ok: false, error: 'No preprocessing output folder to prepare.' }
     }
 
-    const result = await window.api.invoke('preprocess:prepare-for-watch-processing', {
+    const result = await window.api.invoke('preprocess:prepare-for-editing-handoff', {
       sourceDir: outputDir,
+      trim: options.trim,
+      rotate: options.rotate,
     })
     if (!result.ok) {
       return { ok: false, error: result.error }
     }
 
-    // Watch-screen convenience prefill only — orthogonal to batch identity,
-    // see the handoffFolder comment above.
-    await window.api.invoke('prefs:save-last-batch', {
-      inputFolder: result.preparedDir,
-      spreadsheetPath: null,
-      outputFolder: null,
-    })
     setHandoffFolder(result.preparedDir)
-    setPendingBatch({ pipeline: batch.pipeline, title: batch.title, continueBatchId: batch.id })
-    setPendingEditingTitle('')
-    setEditingProduct('watch')
+    setEditingProduct(options.destination)
+
+    if (options.destination === 'watch') {
+      // Watch-screen convenience prefill only — orthogonal to batch identity,
+      // see the handoffFolder comment above. Unchanged from before 10F.
+      await window.api.invoke('prefs:save-last-batch', {
+        inputFolder: result.preparedDir,
+        spreadsheetPath: null,
+        outputFolder: null,
+      })
+      setPendingBatch({ pipeline: batch.pipeline, title: batch.title, continueBatchId: batch.id })
+      setPendingEditingTitle('')
+    } else {
+      await window.api.invoke('prefs:save-ring-bracelet-folders', {
+        product: options.destination,
+        inputDir: result.preparedDir,
+        outputDir: null,
+      })
+      setPendingBatch(null)
+      setPendingEditingTitle(batch.title)
+      setEditingBatch(null)
+    }
+
     setPreprocessBatch(null)
     setOpenBatchId(null)
     setView('editing')
@@ -440,34 +482,51 @@ export default function App() {
           batchId={openBatchId}
           onBack={() => setView('home')}
           onRunAnotherPreprocessing={handleRunAnotherPreprocessing}
-          onContinueToWatchProcessing={handleContinueToWatchProcessing}
+          onEditingHandoff={handleEditingHandoff}
           onRunAnotherEditing={handleRunAnotherEditing}
         />
       )
     }
 
     if (view === 'preprocessing') {
+      // Phase 10F correction: the listing/launcher screen — Configure +
+      // recent batches, always. It never inspects preprocessBatch's status
+      // or redirects itself; the live run and its terminal outcome are both
+      // handled one level up, only in 'preprocessingWorkspace' below.
+      return (
+        <Preprocessing
+          initialBatchName={pendingBatch?.title ?? ''}
+          onCreateBatch={handleCreatePreprocessingBatch}
+          onOpenBatch={handleOpenBatch}
+          onStarted={() => setView('preprocessingWorkspace')}
+        />
+      )
+    }
+
+    if (view === 'preprocessingWorkspace') {
       const stageStatus = findStageStatus(preprocessBatch, 'preprocessing')
       // A terminal preprocessing batch's outcome is shown via the exact same
       // canonical Batch Details screen a historical batch reopens into —
       // there is only ever one implementation of "what does a finished
-      // Preprocessing stage look like" (Phase 9E).
+      // Preprocessing stage look like" (Phase 9E). Back returns to the
+      // Preprocessing listing, not Home (Phase 10F correction) — this is
+      // still part of the Preprocessing workflow the operator was already in.
       if (stageStatus === 'completed' || stageStatus === 'failed' || stageStatus === 'cancelled') {
         return (
           <BatchDetails
             batchId={preprocessBatch!.id}
-            onBack={() => setView('home')}
+            onBack={() => setView('preprocessing')}
             onRunAnotherPreprocessing={handleRunAnotherPreprocessing}
-            onContinueToWatchProcessing={handleContinueToWatchProcessing}
+            onEditingHandoff={handleEditingHandoff}
             onRunAnotherEditing={handleRunAnotherEditing}
           />
         )
       }
+      const stage = preprocessBatch?.stages.find(s => s.type === 'preprocessing')
       return (
-        <Preprocessing
-          batch={preprocessBatch}
-          initialBatchName={pendingBatch?.title ?? ''}
-          onCreateBatch={handleCreatePreprocessingBatch}
+        <PreprocessingWorkspace
+          inputDir={stage?.inputDir ?? ''}
+          onBack={() => setView('preprocessing')}
         />
       )
     }
@@ -501,7 +560,7 @@ export default function App() {
           batchId={editingBatch!.id}
           onBack={() => setView('home')}
           onRunAnotherPreprocessing={handleRunAnotherPreprocessing}
-          onContinueToWatchProcessing={handleContinueToWatchProcessing}
+          onEditingHandoff={handleEditingHandoff}
           onRunAnotherEditing={handleRunAnotherEditing}
         />
       )

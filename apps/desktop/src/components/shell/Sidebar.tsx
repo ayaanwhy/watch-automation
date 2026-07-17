@@ -40,8 +40,8 @@ export function Sidebar({ view, editingProduct, onNavigate }: SidebarProps) {
   return (
     <nav className={styles.sidebar} aria-label="Primary">
       <div className={styles.brand}>
-        <span className={styles.brandFull}>Watch Automation</span>
-        <span className={styles.brandMark} aria-hidden="true">W</span>
+        <span className={styles.brandFull}>VTO Automation</span>
+        <span className={styles.brandMark} aria-hidden="true">V</span>
       </div>
 
       <div className={styles.group}>
@@ -49,7 +49,10 @@ export function Sidebar({ view, editingProduct, onNavigate }: SidebarProps) {
         <NavButton
           label="Preprocessing"
           glyph="◧"
-          active={view === 'preprocessing'}
+          // Stays highlighted while in the dedicated workspace screen too
+          // (Phase 10F) — clicking it always navigates back to the listing
+          // regardless of which of the two is currently showing.
+          active={view === 'preprocessing' || view === 'preprocessingWorkspace'}
           onClick={() => onNavigate('preprocessing')}
         />
       </div>

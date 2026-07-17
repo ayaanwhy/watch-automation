@@ -54,6 +54,7 @@ function buildArgs(runnerPath: string, payload: RingBraceletStartPayload): strin
     runnerPath,
     '--input-dir', payload.inputDir,
     '--output-dir', payload.outputDir,
+    '--product', payload.product,
   ]
   if (payload.splitY !== undefined) args.push('--split-y', String(payload.splitY))
   return args
@@ -259,14 +260,21 @@ export function registerRingBraceletHandlers(): void {
               durationMs: null,
             }
           })
+          // Derived from the reconciled `images` array, not job.succeeded/
+          // job.failed (Phase 10G fix) — those two counters only increment on
+          // a terminal per-image NDJSON event, so a cancelled batch's
+          // reconciled-but-never-events images were silently excluded from
+          // `total` and `cancelled` was always hardcoded to 0, understating
+          // the batch's own image count in its persisted history.
+          const counts = {
+            total: images.length,
+            succeeded: images.filter(i => i.status === 'completed').length,
+            failed: images.filter(i => i.status === 'failed').length,
+            cancelled: images.filter(i => i.status === 'cancelled').length,
+          }
           await updateStage(job.batchId, 'editing', {
             status,
-            counts: {
-              total: job.succeeded + job.failed,
-              succeeded: job.succeeded,
-              failed: job.failed,
-              cancelled: 0,
-            },
+            counts,
             images,
             error: job.fatalError,
           })

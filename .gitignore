@@ -37,3 +37,6 @@ CLAUDE.md
 
 # Preprocessing profiling reports (generated diagnostic working output)
 preprocessing/UBG/profiling/*.txt
+
+
+*10f-review.txt

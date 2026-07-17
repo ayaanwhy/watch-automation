@@ -12,7 +12,9 @@ export function registerBatchHandlers(): void {
 
     const defaultPath = options?.historyKey ? await getRecentPath(options.historyKey) : undefined
     const { canceled, filePaths } = await dialog.showOpenDialog(window, {
-      properties: ['openDirectory'],
+      // 'createDirectory' adds the native "New Folder" button — macOS-only,
+      // Electron ignores it elsewhere, so no platform branching is needed.
+      properties: ['openDirectory', 'createDirectory'],
       ...(defaultPath ? { defaultPath } : {}),
     })
 

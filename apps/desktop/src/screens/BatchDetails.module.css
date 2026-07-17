@@ -60,6 +60,13 @@
   padding-bottom: 14px;
 }
 
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
 .titleGroup {
   display: flex;
   align-items: center;

@@ -13,7 +13,13 @@ export type LaunchableModule = 'preprocessing' | 'watch'
 // distinguished by an `editingProduct` piece of state (see App.tsx) rather
 // than by separate views. This is a navigation-shell change only; Watch's
 // own annotation/validation/session behavior is unaffected.
-export type AppView = 'home' | 'preprocessing' | 'editing' | 'settings' | 'batchDetails'
+//
+// 'preprocessingWorkspace' (Phase 10F correction) — the dedicated live-run
+// screen, separate from 'preprocessing' (the listing/launcher: Configure +
+// recent batches). 'preprocessing' never shows a running job inline anymore;
+// opening or starting one navigates to this view instead, whose own Back
+// returns to 'preprocessing', not 'home'.
+export type AppView = 'home' | 'preprocessing' | 'preprocessingWorkspace' | 'editing' | 'settings' | 'batchDetails'
 
 // Which product the shared Editing setup screen is currently configuring.
 // Sidebar shortcuts (Watches/Rings/Bracelets) each preselect one; Home's
