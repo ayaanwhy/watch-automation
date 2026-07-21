@@ -4,12 +4,12 @@ import { registerBatchHandlers } from './ipc/batchHandlers'
 import { registerDataHandlers } from './ipc/dataHandlers'
 import { registerSessionHandlers } from './ipc/sessionHandlers'
 import { registerPrefsHandlers } from './ipc/prefsHandlers'
-import { registerProcessHandlers } from './ipc/processHandlers'
 import { registerQueueHandlers } from './ipc/queueHandlers'
 import { registerPreprocessHandlers } from './ipc/preprocessHandlers'
 import { registerBatchRegistryHandlers } from './ipc/batchRegistryHandlers'
 import { registerRingBraceletHandlers } from './ipc/ringBraceletHandlers'
-import { logger } from './logger'
+import { reconcileBatchesOnStartup } from './services/batchRegistry'
+import { logger, pruneOldLogs } from './logger'
 
 process.on('uncaughtException', (err) => {
   logger.error('Uncaught exception', err)
@@ -47,13 +47,20 @@ function createWindow(): void {
   }
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   logger.info(`App ready — v${app.getVersion()}`)
+  // Runs before the window opens (and before any handler can be invoked)
+  // so Home's first batch list is never stale: a stage still 'running' at
+  // this point can only mean the previous run crashed or was force-quit —
+  // no subprocess for it can possibly still be alive (Phase 11E).
+  await reconcileBatchesOnStartup()
+  // Non-blocking — a slow prune shouldn't delay window startup, and a
+  // failed one is already swallowed internally (see pruneOldLogs).
+  void pruneOldLogs()
   registerBatchHandlers()
   registerDataHandlers()
   registerSessionHandlers()
   registerPrefsHandlers()
-  registerProcessHandlers()
   registerQueueHandlers()
   registerPreprocessHandlers()
   registerBatchRegistryHandlers()

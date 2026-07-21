@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { BeforeAfterSlider, type ComparisonBackground } from '../preprocessing/BeforeAfterSlider'
+import { BeforeAfterSlider, type ComparisonBackground } from '../shared/BeforeAfterSlider'
 import { joinPath, toFileUrl } from '../../lib/paths'
 import type { RingBraceletImageState } from '../../context/RingBraceletJobContext'
-// Reuses ImagePreviewPanel's stylesheet directly — same layout shape (name
-// header, single-preview fallback, status messages), no parallel CSS file.
-import styles from '../preprocessing/ImagePreviewPanel.module.css'
+// Shares PreviewPanel's stylesheet with ImagePreviewPanel.tsx (Phase 11C) —
+// same layout shape (name header, single-preview fallback, status
+// messages), no parallel CSS file.
+import styles from '../shared/PreviewPanel.module.css'
 
 interface RingBraceletImagePreviewPanelProps {
   image: RingBraceletImageState | null

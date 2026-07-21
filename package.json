@@ -11,7 +11,9 @@
     "process:watch": "tsx src/cli/processWatch.ts",
     "test": "vitest run",
     "build": "tsc --noEmit",
-    "build:packages": "npm run build --workspace=@wpa/processing"
+    "build:packages": "npm run build --workspace=@wpa/processing",
+    "benchmark": "tsx scripts/benchmark.ts",
+    "benchmark:compare": "tsx scripts/benchmark-compare.ts"
   },
   "dependencies": {
     "commander": "^12.1.0",

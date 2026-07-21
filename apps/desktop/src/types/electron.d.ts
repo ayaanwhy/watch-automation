@@ -10,8 +10,6 @@ import type {
   SessionLoadPayload,
   SessionLoadResult,
   LastBatchPrefs,
-  ProcessWatchPayload,
-  ProcessWatchResult,
   QueueAddPayload,
   QueueItemPublic,
   QueueRestorePayload,
@@ -62,10 +60,8 @@ declare global {
       invoke(channel: 'prefs:save-product-type', payload: ProductType): Promise<void>
       invoke(channel: 'prefs:load-preprocessing-folders'): Promise<PreprocessingFolderPrefs>
       invoke(channel: 'prefs:save-preprocessing-folders', payload: PreprocessingFolderPrefs): Promise<void>
-      invoke(channel: 'process:watch', payload: ProcessWatchPayload): Promise<ProcessWatchResult>
       invoke(channel: 'queue:add', payload: QueueAddPayload): Promise<{ id: string }>
       invoke(channel: 'queue:retry', payload: { id: string }): Promise<{ ok: boolean }>
-      invoke(channel: 'queue:get'): Promise<QueueItemPublic[]>
       invoke(channel: 'queue:restore', payload: QueueRestorePayload): Promise<void>
       on(channel: 'queue:update', listener: (items: QueueItemPublic[]) => void): () => void
 

@@ -12,9 +12,7 @@
      that box — but this app's global reset (global.css: `* { margin: 0 }`)
      zeroes that out, which is why this was opening pinned to the top-left
      instead of centered. Restoring it here, scoped to this one component,
-     fixes centering without touching the global reset (PreprocessingSettings.tsx's
-     own separate native-dialog implementation has this same latent issue —
-     left alone, since migrating it isn't part of this correction). */
+     fixes centering without touching the global reset. */
   margin: auto;
 }
 

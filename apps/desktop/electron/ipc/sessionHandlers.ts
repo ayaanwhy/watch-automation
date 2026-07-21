@@ -151,7 +151,11 @@ export function registerSessionHandlers(): void {
       )
 
       return { ok: true, session: parsed as SessionFile }
-    } catch {
+    } catch (err) {
+      // Phase 11A fix: this was already surfaced to the caller via the
+      // `error` field, but never logged, so a corrupt session file left no
+      // trace in diagnostics.
+      logger.warn(`session:load — failed to parse ${filePath}`, err)
       return { ok: true, session: null, error: 'Session file could not be parsed' }
     }
   })

@@ -135,10 +135,6 @@ export function registerQueueHandlers(): void {
     return { ok: true }
   })
 
-  ipcMain.handle('queue:get', async (): Promise<QueueItemPublic[]> => {
-    return queue.map(toPublic)
-  })
-
   ipcMain.handle('queue:restore', async (_event, payload: QueueRestorePayload): Promise<void> => {
     queue = []
     isProcessing = false

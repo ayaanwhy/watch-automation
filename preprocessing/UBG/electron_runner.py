@@ -44,7 +44,6 @@ import argparse
 import atexit
 import contextlib
 from datetime import datetime
-import json
 import sys
 import threading
 import time
@@ -56,20 +55,22 @@ from PIL import Image
 _HERE = Path(__file__).resolve().parent
 if str(_HERE) not in sys.path:
     sys.path.insert(0, str(_HERE))
+# runner_base.py lives at the monorepo's preprocessing/ root, one level up —
+# shared orchestration (Phase 11D), also used by RingBracelet/runner.py.
+if str(_HERE.parent) not in sys.path:
+    sys.path.insert(0, str(_HERE.parent))
 
-EXIT_CANCELLED = 3
+import runner_base as rb  # noqa: E402
+
+EXIT_CANCELLED = rb.EXIT_CANCELLED
 
 
 # ── JSON output ───────────────────────────────────────────────────────────────
 
-def emit(event: dict) -> None:
-    """Write one JSON event to the real stdout.
-
-    Uses sys.__stdout__ directly so this is safe to call even while the
-    _quiet() context manager has redirected sys.stdout to stderr, and safe
-    to call from the heartbeat background thread.
-    """
-    print(json.dumps(event), file=sys.__stdout__, flush=True)
+# Uses sys.__stdout__ directly so this is safe to call even while the
+# _quiet() context manager has redirected sys.stdout to stderr, and safe
+# to call from the heartbeat background thread. See runner_base.emit.
+emit = rb.emit
 
 
 # ── Stdout suppressor ─────────────────────────────────────────────────────────
@@ -165,6 +166,25 @@ def _mps_stats() -> dict | None:
     except Exception:
         return None
 
+
+def _release_mps_cache() -> None:
+    """Release cached (but unused) MPS driver memory after an image.
+
+    Phase 11A fix: unlike torch.cuda, MPS never reclaims allocator-held
+    driver memory on its own between calls, and nothing in this pipeline
+    ever called torch.mps.empty_cache() — profiling from Phase 10G showed
+    mps_driver_mb climbing to 16.5GB over a batch while process RSS stayed
+    flat, confirming this is driver-level accumulation, not a Python-side
+    leak. Called once per image, after all stages for that image finish,
+    so it never runs mid-inference.
+    """
+    try:
+        import torch
+        if hasattr(torch, 'mps') and torch.backends.mps.is_available():
+            torch.mps.empty_cache()
+    except Exception:
+        pass
+
 def _mean(vals: list) -> float:
     return sum(vals) / len(vals) if vals else 0.0
 
@@ -173,24 +193,24 @@ def _median(vals: list) -> float:
     return s[len(s) // 2] if s else 0.0
 
 
-def _stdin_listener() -> None:
-    """Background daemon thread: read NDJSON commands from stdin.
+# Same retention window as the Electron main process's own log pruning
+# (logger.ts, Phase 11F) — profiling/ is gitignored working output, never
+# committed, but nothing on the user's own machine was ever pruning it
+# either, so it accumulated indefinitely.
+_PROFILE_RETENTION_DAYS = 14
 
-    Only sets _CANCEL_EVENT and emits an acknowledgement — never exits the
-    process. Runs for the lifetime of the process; ends naturally when stdin
-    closes (Electron tears down the pipe) or the process exits.
-    """
-    for raw_line in sys.stdin:
-        line = raw_line.strip()
-        if not line:
-            continue
-        try:
-            cmd = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if isinstance(cmd, dict) and cmd.get("cmd") == "cancel" and not _CANCEL_EVENT.is_set():
-            _CANCEL_EVENT.set()
-            emit({"type": "cancel_requested"})
+
+def _prune_old_profiling_reports(profile_dir: Path) -> None:
+    cutoff = time.time() - _PROFILE_RETENTION_DAYS * 24 * 60 * 60
+    try:
+        for f in profile_dir.glob("profile_*.txt"):
+            try:
+                if f.stat().st_mtime < cutoff:
+                    f.unlink()
+            except OSError:
+                pass  # Ignore — a file that vanished between glob and here isn't worth failing over.
+    except OSError:
+        pass
 
 
 # ── CLI ───────────────────────────────────────────────────────────────────────
@@ -201,10 +221,7 @@ def _parse_args() -> argparse.Namespace:
         description="Headless watch-image preprocessing engine.",
     )
     # Required
-    p.add_argument("--input-dir", required=True,
-                   help="Folder containing source images (.jpg/.jpeg/.png/.webp).")
-    p.add_argument("--output-dir", required=True,
-                   help="Folder for all output artefacts.")
+    rb.add_common_io_args(p)
     # Pipeline controls
     p.add_argument("--scale-factor", type=int, default=1, choices=[1, 2, 4],
                    help="Real-ESRGAN upscale factor (default: 1 = skip upscale).")
@@ -301,26 +318,16 @@ def main() -> int:
 
     # Start listening for cancellation requests as early as possible so a
     # cancel sent during model loading is captured before the first checkpoint.
-    threading.Thread(target=_stdin_listener, daemon=True).start()
+    rb.start_cancel_listener(_CANCEL_EVENT)
 
     # ── Validate inputs before touching any models ────────────────────────────
-    input_dir = Path(args.input_dir).expanduser().resolve()
-    output_dir = Path(args.output_dir).expanduser().resolve()
+    input_dir, output_dir = rb.resolve_io_dirs(args.input_dir, args.output_dir)
 
-    if not input_dir.is_dir():
-        emit({"type": "fatal", "error": f"Input directory not found: {input_dir}"})
-        return 1
-
-    images = sorted(
-        p for p in input_dir.iterdir()
-        # Skip macOS "._name" AppleDouble sidecar files — never real images,
-        # but they carry a real image extension and would otherwise be fed
-        # straight into the pipeline and fail to decode.
-        if p.is_file() and not p.name.startswith("._")
-        and p.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp"}
-    )
-    if not images:
-        emit({"type": "fatal", "error": f"No supported images found in {input_dir}"})
+    # Skips macOS "._name" AppleDouble sidecar files — never real images, but
+    # they carry a real image extension and would otherwise be fed straight
+    # into the pipeline and fail to decode. See runner_base.discover_and_validate.
+    images = rb.discover_and_validate(input_dir, {".jpg", ".jpeg", ".png", ".webp"})
+    if images is None:
         return 1
 
     # ── Patch config BEFORE importing any service modules ────────────────────
@@ -351,6 +358,7 @@ def main() -> int:
     # progressively — useful when reading the file while a long batch runs.
     _profile_dir = _HERE / "profiling"
     _profile_dir.mkdir(exist_ok=True)
+    _prune_old_profiling_reports(_profile_dir)
     _ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     _profile_path = _profile_dir / f"profile_{_ts}.txt"
     _profile_file = open(_profile_path, "w", encoding="utf-8", buffering=1)
@@ -418,7 +426,7 @@ def main() -> int:
 
     # ── Announce batch ────────────────────────────────────────────────────────
     total = len(images)
-    emit({"type": "start", "total": total, "images": [p.name for p in images]})
+    rb.emit_start(images)
 
     succeeded = 0
     failed = 0
@@ -445,6 +453,32 @@ def main() -> int:
         output_path = output_dir / f"{input_path.stem}{args.output_suffix}"
         timings: dict[str, int] = {}
         rss: dict[str, float] = {}
+
+        # Idempotent reruns (Phase 11E): an output that already exists means
+        # this image was already processed in a previous run against this
+        # same output directory — most commonly, retrying a batch that a
+        # crash or force-quit interrupted (see batchRegistry.
+        # reconcileBatchesOnStartup on the Electron side, which marks such a
+        # stage 'failed' rather than leaving it stuck, so it's easy to
+        # re-run). Skip straight to reporting it complete instead of
+        # reprocessing. Deliberately not a resume system — no new state, no
+        # new UI, no NDJSON schema change; a plain rerun just becomes cheap
+        # for whatever already finished.
+        if output_path.exists():
+            print(f"Skipping {input_path.name} — output already exists.", file=sys.stderr)
+            duration_ms = int((time.perf_counter() - image_t0) * 1000)
+            emit({
+                "type": "complete",
+                "index": index,
+                "total": total,
+                "image": input_path.name,
+                "output": str(output_path),
+                "masks": [],
+                "duration_ms": duration_ms,
+                "timings": {},
+            })
+            succeeded += 1
+            continue
 
         try:
             # Safe checkpoint — before upscale.
@@ -679,20 +713,16 @@ def main() -> int:
                 peak_rss = max(peak_rss, max(rss.values()))
 
         except Exception as exc:
-            emit({
-                "type": "error",
-                "index": index,
-                "total": total,
-                "image": input_path.name,
-                "error": str(exc),
-                "fatal": False,
-            })
+            rb.emit_error(index, total, input_path, exc)
             failed += 1
 
         finally:
             # Always clean up the temp upscaled file, even on failure or cancellation.
             if temp_path.exists():
                 temp_path.unlink()
+            # Phase 11A: release cached MPS driver memory after every image
+            # (success, failure, or cancellation) — see _release_mps_cache().
+            _release_mps_cache()
 
     total_ms = int((time.perf_counter() - batch_t0) * 1000)
 
@@ -780,21 +810,21 @@ def main() -> int:
 
     print(f"\n[PROFILE] Report written: {_profile_path}", file=sys.stderr)
 
-    emit({
-        "type": "done",
-        "succeeded": succeeded,
-        "failed": failed,
-        "total_duration_ms": total_ms,
-        "cancelled": cancelled,
-    })
+    # Phase 11F — temp/ holds only per-image scratch files, each already
+    # unlinked in the per-image finally block; only the empty directory
+    # itself was ever left behind afterward, cluttering the output folder
+    # ("the output directory should contain only the intended deliverables").
+    try:
+        temp_dir.rmdir()
+    except OSError:
+        pass  # Not empty (a file failed to clean up) or already gone — leave it rather than risk deleting real output.
 
-    if cancelled:
-        return EXIT_CANCELLED
-    if succeeded == 0:
-        return 1
-    if failed > 0:
-        return 2
-    return 0
+    outcome = rb.BatchOutcome()
+    outcome.succeeded = succeeded
+    outcome.failed = failed
+    outcome.cancelled = cancelled
+    outcome.total_ms = total_ms
+    return rb.emit_done_and_exit_code(outcome)
 
 
 if __name__ == "__main__":

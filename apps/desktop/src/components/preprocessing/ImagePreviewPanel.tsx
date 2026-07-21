@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { BeforeAfterSlider, type ComparisonBackground } from './BeforeAfterSlider'
+import { BeforeAfterSlider, type ComparisonBackground } from '../shared/BeforeAfterSlider'
 import { joinPath, toFileUrl } from '../../lib/paths'
 import type { PreprocessingImageState } from '../../context/PreprocessingJobContext'
-import styles from './ImagePreviewPanel.module.css'
+import styles from '../shared/PreviewPanel.module.css'
 
 interface ImagePreviewPanelProps {
   image: PreprocessingImageState | null

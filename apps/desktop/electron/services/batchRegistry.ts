@@ -9,10 +9,11 @@
 // this file only reads/writes and keeps index summaries in sync with details.
 
 import { app } from 'electron'
-import { readFile, writeFile, rename, mkdir, unlink } from 'node:fs/promises'
-import { join } from 'node:path'
+import { readFile, readdir, mkdir, unlink, rename } from 'node:fs/promises'
+import { join, basename } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { logger } from '../logger'
+import { atomicWriteJson } from './atomicFile'
 import { BATCH_REGISTRY_VERSION } from '../../src/types/batch'
 import type {
   BatchDetailRecord,
@@ -42,10 +43,57 @@ function detailPath(id: string): string {
   return join(batchesDir(), `${id}.json`)
 }
 
-async function atomicWrite(path: string, data: unknown): Promise<void> {
-  const tmp = path + '.tmp'
-  await writeFile(tmp, JSON.stringify(data, null, 2), 'utf-8')
-  await rename(tmp, path)
+// Phase 11E: a detail file that fails to parse is genuinely corrupt, not a
+// read racing a write — every write in this module goes through
+// atomicWriteJson (temp-then-rename), so a reader never observes a
+// partially-written file. Moving it aside makes the corruption visible
+// (surfaced in logs, and the batch simply stops appearing rather than
+// endlessly failing the same read) while preserving the raw bytes for
+// manual recovery, instead of leaving a file that fails forever in place.
+async function quarantineCorruptFile(path: string): Promise<void> {
+  try {
+    const quarantineDir = join(batchesDir(), 'quarantine')
+    await mkdir(quarantineDir, { recursive: true })
+    await rename(path, join(quarantineDir, `${basename(path)}.${Date.now()}.corrupt`))
+    logger.error(`batch-registry — quarantined unreadable file: ${path}`)
+  } catch (err) {
+    logger.error(`batch-registry — failed to quarantine ${path}`, err)
+  }
+}
+
+// index.json is a rebuildable cache derived from the batch detail files
+// (Phase 11E) — the detail files are the sole source of truth. Used both as
+// readIndex's fallback (a missing/corrupt index no longer silently discards
+// the user's batch history — every detail file survives independently on
+// disk) and by reconcileBatchesOnStartup for a guaranteed-fresh index on
+// every launch.
+async function rebuildIndexFromDetails(): Promise<BatchIndex> {
+  let files: string[]
+  try {
+    files = await readdir(batchesDir())
+  } catch {
+    return { version: BATCH_REGISTRY_VERSION, nextSeq: 1, nextTestSeq: 1, batches: [] }
+  }
+  const detailFiles = files.filter(f => f.endsWith('.json') && f !== 'index.json')
+
+  const batches: BatchSummaryRecord[] = []
+  let maxSeq = 0
+  let maxTestSeq = 0
+
+  for (const file of detailFiles) {
+    const path = join(batchesDir(), file)
+    try {
+      const detail = JSON.parse(await readFile(path, 'utf-8')) as BatchDetailRecord
+      batches.push(summarize(detail))
+      if (detail.mode === 'testing') maxTestSeq = Math.max(maxTestSeq, detail.seq)
+      else maxSeq = Math.max(maxSeq, detail.seq)
+    } catch (err) {
+      logger.error(`batch-registry — corrupt batch detail file: ${file}`, err)
+      await quarantineCorruptFile(path)
+    }
+  }
+
+  return { version: BATCH_REGISTRY_VERSION, nextSeq: maxSeq + 1, nextTestSeq: maxTestSeq + 1, batches }
 }
 
 async function readIndex(): Promise<BatchIndex> {
@@ -59,14 +107,86 @@ async function readIndex(): Promise<BatchIndex> {
     // untouched either way.
     if (typeof parsed.nextTestSeq !== 'number') parsed.nextTestSeq = 1
     return parsed
-  } catch {
-    return { version: BATCH_REGISTRY_VERSION, nextSeq: 1, nextTestSeq: 1, batches: [] }
+  } catch (err) {
+    // ENOENT means no registry has been created yet — normal on first run.
+    // Anything else (parse failure, malformed shape) means an existing
+    // index could not be read — rebuild it from the detail files rather
+    // than starting from an empty registry (Phase 11E; previously this
+    // silently discarded the user's entire batch history even though every
+    // individual batch's data was still safely on disk).
+    if ((err as NodeJS.ErrnoException)?.code !== 'ENOENT') {
+      logger.error('batch-registry — failed to read index.json, rebuilding from batch detail files', err)
+    }
+    return rebuildIndexFromDetails()
   }
 }
 
 async function writeIndex(index: BatchIndex): Promise<void> {
   await mkdir(batchesDir(), { recursive: true })
-  await atomicWrite(indexPath(), index)
+  await atomicWriteJson(indexPath(), index)
+}
+
+// Startup reconciliation (Phase 11E): a stage still 'running' when the app
+// launches can only mean the process was killed mid-run (crash, force-quit)
+// — no subprocess can possibly still be executing for it at cold start.
+// Marking it 'failed' makes that visible and re-runnable instead of stuck
+// showing "running" forever. This is deliberately not a resume system: the
+// batch is left exactly as interrupted, and idempotent reruns (Universal
+// Preprocessing / Ring & Bracelet skip images whose output already exists)
+// are what make retrying it cheap, not a dedicated resume flow.
+export async function reconcileBatchesOnStartup(): Promise<void> {
+  let files: string[]
+  try {
+    files = await readdir(batchesDir())
+  } catch {
+    return // No batches directory yet — nothing to reconcile.
+  }
+  const detailFiles = files.filter(f => f.endsWith('.json') && f !== 'index.json')
+
+  const batches: BatchSummaryRecord[] = []
+  let maxSeq = 0
+  let maxTestSeq = 0
+  let interruptedCount = 0
+  let quarantinedCount = 0
+
+  for (const file of detailFiles) {
+    const path = join(batchesDir(), file)
+    let detail: BatchDetailRecord
+    try {
+      detail = JSON.parse(await readFile(path, 'utf-8')) as BatchDetailRecord
+    } catch (err) {
+      logger.error(`batch-registry — corrupt batch detail file: ${file}`, err)
+      await quarantineCorruptFile(path)
+      quarantinedCount++
+      continue
+    }
+
+    const now = new Date().toISOString()
+    let batchWasInterrupted = false
+    for (const stage of detail.stages) {
+      if (stage.status !== 'running') continue
+      detail = applyStagePatch(detail, stage.type, {
+        status: 'failed',
+        error: 'Interrupted — the application was closed while this stage was running.',
+      }, now)
+      batchWasInterrupted = true
+    }
+    if (batchWasInterrupted) {
+      await atomicWriteJson(path, detail)
+      interruptedCount++
+    }
+
+    batches.push(summarize(detail))
+    if (detail.mode === 'testing') maxTestSeq = Math.max(maxTestSeq, detail.seq)
+    else maxSeq = Math.max(maxSeq, detail.seq)
+  }
+
+  await writeIndex({ version: BATCH_REGISTRY_VERSION, nextSeq: maxSeq + 1, nextTestSeq: maxTestSeq + 1, batches })
+
+  logger.info(
+    `batch-registry — startup reconciliation: ${detailFiles.length} batch(es) scanned, ` +
+    `${interruptedCount} interrupted stage(s) marked failed, ${quarantinedCount} corrupt file(s) quarantined`
+  )
 }
 
 function upsertSummary(index: BatchIndex, detail: BatchDetailRecord): void {
@@ -99,7 +219,7 @@ export async function createBatch(params: {
     now,
   })
 
-  await atomicWrite(detailPath(id), detail)
+  await atomicWriteJson(detailPath(id), detail)
   if (mode === 'testing') index.nextTestSeq = seq + 1
   else index.nextSeq = seq + 1
   upsertSummary(index, detail)
@@ -117,7 +237,17 @@ export async function listBatches(): Promise<BatchSummaryRecord[]> {
 export async function getBatch(id: string): Promise<BatchDetailRecord | null> {
   try {
     return JSON.parse(await readFile(detailPath(id), 'utf-8')) as BatchDetailRecord
-  } catch {
+  } catch (err) {
+    // ENOENT is an expected case for a not-yet-created or already-deleted
+    // batch. Anything else means an existing detail file could not be
+    // parsed — genuine corruption, not a read racing a write (every write
+    // in this module is atomic; see quarantineCorruptFile) — so it's moved
+    // aside rather than left to fail the same way on every future read
+    // (Phase 11E; Phase 11A only added the logging here).
+    if ((err as NodeJS.ErrnoException)?.code !== 'ENOENT') {
+      logger.error(`batch-registry — failed to read batch detail for ${id}`, err)
+      await quarantineCorruptFile(detailPath(id))
+    }
     return null
   }
 }
@@ -130,7 +260,7 @@ export async function updateStage(
   const detail = await getBatch(id)
   if (!detail) return null
   const updated = applyStagePatch(detail, stageType, patch, new Date().toISOString())
-  await atomicWrite(detailPath(id), updated)
+  await atomicWriteJson(detailPath(id), updated)
   const index = await readIndex()
   upsertSummary(index, updated)
   await writeIndex(index)
@@ -141,7 +271,7 @@ export async function renameBatch(id: string, title: string): Promise<BatchDetai
   const detail = await getBatch(id)
   if (!detail) return null
   const updated = recompute({ ...detail, title: title.trim() || detail.title }, new Date().toISOString())
-  await atomicWrite(detailPath(id), updated)
+  await atomicWriteJson(detailPath(id), updated)
   const index = await readIndex()
   upsertSummary(index, updated)
   await writeIndex(index)
@@ -157,7 +287,7 @@ export async function setBatchMode(id: string, mode: BatchMode): Promise<BatchDe
   const detail = await getBatch(id)
   if (!detail) return null
   const updated = recompute({ ...detail, mode }, new Date().toISOString())
-  await atomicWrite(detailPath(id), updated)
+  await atomicWriteJson(detailPath(id), updated)
   const index = await readIndex()
   upsertSummary(index, updated)
   await writeIndex(index)

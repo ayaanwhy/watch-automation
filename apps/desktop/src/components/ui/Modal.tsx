@@ -10,12 +10,10 @@ interface ModalProps {
   width?: number
 }
 
-// Generalized (Phase 10F) from PreprocessingSettings.tsx's native-<dialog>
-// pattern — that component is left as its own bespoke implementation since
-// nothing in this phase requires touching it, but new dialogs build on this
-// shared primitive instead of re-implementing the same ref/showModal/
-// backdrop-click mechanics a third and fourth time. Native <dialog> gives
-// Escape-to-close and focus trapping for free.
+// Shared native-<dialog> modal primitive (Phase 10F) — new dialogs build on
+// this instead of re-implementing the same ref/showModal/backdrop-click
+// mechanics. Native <dialog> gives Escape-to-close and focus trapping for
+// free.
 export function Modal({ title, onClose, children, footer, width = 460 }: ModalProps) {
   const { dialogRef, handleClose, handleBackdropClick } = useNativeDialog(onClose)
 

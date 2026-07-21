@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { useRingBraceletJob } from '../../context/RingBraceletJobContext'
 import { PreprocessingProgress } from '../PreprocessingProgress'
-import { ThumbnailGrid, findAdjacentImage } from '../preprocessing/ThumbnailGrid'
+import { ThumbnailGrid, findAdjacentImage } from '../shared/ThumbnailGrid'
 import { RingBraceletImagePreviewPanel } from './RingBraceletImagePreviewPanel'
 import { FullscreenViewer } from '../ui/FullscreenViewer'
-// Reuses Preprocessing's run-workspace layout directly — same shape (primary
-// preview + progress/thumbnail sidebar), no parallel CSS file.
-import styles from '../preprocessing/PreprocessingRunWorkspace.module.css'
+// Shares RunWorkspace's layout stylesheet with PreprocessingRunWorkspace.tsx
+// (Phase 11C) — same shape (primary preview + progress/thumbnail sidebar),
+// no parallel CSS file.
+import styles from '../shared/RunWorkspace.module.css'
 
 interface RingBraceletRunWorkspaceProps {
   inputDir: string

@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react'
 import { useRingBraceletJob } from '../../context/RingBraceletJobContext'
+import { useJobBatchSync } from './useJobBatchSync'
 import type { BatchDetailRecord } from '../../types/batch'
 
 interface RingBraceletBatchSyncProps {
@@ -7,22 +7,11 @@ interface RingBraceletBatchSyncProps {
   onBatchUpdated: (detail: BatchDetailRecord | null) => void
 }
 
-// Mirrors PreprocessingBatchSync exactly — refetches the batch whenever the
-// job's phase changes in a way that means the registry has (or is about to
-// have) fresher data. See that component for the fuller rationale; stage
-// status here is written by ringBraceletHandlers.ts, not the renderer.
+// Mirrors PreprocessingBatchSync exactly — see useJobBatchSync (Phase 11C)
+// for the shared refetch-on-phase-change logic. Stage status here is written
+// by subprocessRunner.ts's 'editing'-stage config, not the renderer.
 export function RingBraceletBatchSync({ batchId, onBatchUpdated }: RingBraceletBatchSyncProps) {
   const job = useRingBraceletJob()
-  const prevPhase = useRef(job.phase)
-
-  useEffect(() => {
-    const prev = prevPhase.current
-    prevPhase.current = job.phase
-    const justChanged = job.phase !== prev
-    if (justChanged && (job.phase === 'running' || job.phase === 'done') && batchId) {
-      void window.api.invoke('batch-registry:get', { id: batchId }).then(onBatchUpdated)
-    }
-  }, [job.phase, batchId, onBatchUpdated])
-
+  useJobBatchSync(job.phase, batchId, onBatchUpdated)
   return null
 }

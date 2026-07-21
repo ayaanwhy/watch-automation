@@ -18,8 +18,6 @@ MODEL_FILENAME = "BiRefNet_dynamic.safetensors"
 MODEL_CODE_FILENAME = "birefnet.py"
 MODEL_CONFIG_FILENAME = "BiRefNet_config.py"
 
-SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
-
 
 def _tensor_to_pil(image: torch.Tensor) -> Image.Image:
     return Image.fromarray(np.clip(255.0 * image.cpu().numpy().squeeze(), 0, 255).astype(np.uint8))
@@ -253,67 +251,3 @@ def remove_background(
         background_color=background_color,
         artifact_name=artifact_name,
     )
-
-
-def process_folder(
-    input_folder: str | os.PathLike,
-    output_folder: str | os.PathLike,
-    model_root: str | os.PathLike | None = None,
-    *,
-    # Change MASK.* in config.py if you want a different baseline edge/mask look.
-    mask_blur: int = MASK.blur,
-    mask_offset: int = MASK.offset,
-    invert_output: bool = False,
-    refine_foreground: bool = False,
-    # Set EDGE.* in config.py to change the default edge finish.
-    edge_mode: str = EDGE.mode,
-    edge_strength: float = EDGE.strength,
-    background: str = PIPELINE.background,
-    background_color: str = PIPELINE.background_color,
-    artifact_name: str = "object",
-) -> None:
-    from services.upscaler import upscale_image
-    from services.plugin_loader import process_with_plugin
-    from services.sam_segmenter import segment_image
-
-    input_path = Path(input_folder)
-    output_path = Path(output_folder)
-    temp_path = input_path.parent / "temp"
-    temp_path.mkdir(parents=True, exist_ok=True)
-    output_path.mkdir(parents=True, exist_ok=True)
-
-    remover = BackgroundRemover(model_root=model_root)
-
-    for file_path in sorted(input_path.iterdir()):
-        if file_path.suffix.lower() not in SUPPORTED_EXTENSIONS or not file_path.is_file():
-            continue
-
-        try:
-            print("Loading image...", file=sys.stderr)
-            temp_upscaled_path = temp_path / f"{file_path.stem}_upscaled.png"
-            upscaled_path = upscale_image(str(file_path), str(temp_upscaled_path))
-            print("Running background removal...", file=sys.stderr)
-            rgba = remover.remove_background(
-                upscaled_path,
-                mask_blur=mask_blur,
-                mask_offset=mask_offset,
-                invert_output=invert_output,
-                refine_foreground=refine_foreground,
-                edge_mode=edge_mode,
-                edge_strength=edge_strength,
-                background=background,
-                background_color=background_color,
-                artifact_name=artifact_name or file_path.stem,
-            )
-            print("Background removal complete.", file=sys.stderr)
-            masks = segment_image(rgba)
-            plugin_result = process_with_plugin(rgba, masks, object_type=PIPELINE.object_type)
-            print(f"Plugin complete: {plugin_result.get('plugin', PIPELINE.object_type)}", file=sys.stderr)
-            final_rgba = plugin_result.get("processed_image", rgba)
-            print("Saving output...", file=sys.stderr)
-            final_rgba.save(output_path / f"{file_path.stem}{PIPELINE.output_suffix}", dpi=(PIPELINE.output_ppi, PIPELINE.output_ppi))
-            print("Done.", file=sys.stderr)
-            if temp_upscaled_path.exists():
-                temp_upscaled_path.unlink()
-        except (OSError, ValueError) as exc:
-            raise ValueError(f"Invalid image file: {file_path}") from exc

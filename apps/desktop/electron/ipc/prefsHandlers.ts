@@ -1,6 +1,8 @@
 import { ipcMain, app } from 'electron'
-import { readFile, writeFile, access } from 'node:fs/promises'
+import { readFile, access } from 'node:fs/promises'
 import { join } from 'node:path'
+import { logger } from '../logger'
+import { atomicWriteJson } from '../services/atomicFile'
 import type {
   LastBatchPrefs,
   SamTuningPrefs,
@@ -25,6 +27,20 @@ async function exists(p: string): Promise<boolean> {
   try { await access(p); return true } catch { return false }
 }
 
+// Phase 11A: every prefs read/write previously failed completely silently
+// (bare `catch {}`), so a real error (corrupt JSON, disk full, permissions)
+// was indistinguishable from the normal "nothing saved yet" case. ENOENT on
+// a read is normal and stays silent; anything else — on a read or a write —
+// is now logged so it's visible in diagnostics instead of just vanishing.
+function logReadError(label: string, err: unknown): void {
+  if ((err as NodeJS.ErrnoException)?.code !== 'ENOENT') {
+    logger.warn(`prefs — failed to read ${label}`, err)
+  }
+}
+function logWriteError(label: string, err: unknown): void {
+  logger.warn(`prefs — failed to write ${label}`, err)
+}
+
 export function registerPrefsHandlers(): void {
   ipcMain.handle('prefs:load-last-batch', async (): Promise<LastBatchPrefs> => {
     try {
@@ -42,16 +58,21 @@ export function registerPrefsHandlers(): void {
         spreadsheetPath: shOk  ? stored.spreadsheetPath! : null,
         outputFolder:    outOk ? stored.outputFolder!    : null,
       }
-    } catch {
+    } catch (err) {
+      logReadError('last-batch.json', err)
       return { inputFolder: null, spreadsheetPath: null, outputFolder: null }
     }
   })
 
+  // Phase 11E: every prefs save now goes through atomicWriteJson (temp-then-
+  // rename) instead of a direct writeFile — previously a crash mid-write
+  // (disk full, power loss) could leave a truncated, unparseable file that
+  // would then fail every future load.
   ipcMain.handle('prefs:save-last-batch', async (_event, payload: LastBatchPrefs): Promise<void> => {
     try {
-      await writeFile(prefsFilePath(), JSON.stringify(payload, null, 2), 'utf-8')
-    } catch {
-      // Prefs are non-critical; silently ignore write failures.
+      await atomicWriteJson(prefsFilePath(), payload)
+    } catch (err) {
+      logWriteError('last-batch.json', err)
     }
   })
 
@@ -62,15 +83,18 @@ export function registerPrefsHandlers(): void {
     try {
       const raw = await readFile(join(app.getPath('userData'), SAM_TUNING_PREFS_FILENAME), 'utf-8')
       return JSON.parse(raw) as SamTuningPrefs
-    } catch {
+    } catch (err) {
+      logReadError(SAM_TUNING_PREFS_FILENAME, err)
       return null
     }
   })
 
   ipcMain.handle('prefs:save-sam-tuning', async (_event, payload: SamTuningPrefs): Promise<void> => {
     try {
-      await writeFile(join(app.getPath('userData'), SAM_TUNING_PREFS_FILENAME), JSON.stringify(payload, null, 2), 'utf-8')
-    } catch { /* non-critical */ }
+      await atomicWriteJson(join(app.getPath('userData'), SAM_TUNING_PREFS_FILENAME), payload)
+    } catch (err) {
+      logWriteError(SAM_TUNING_PREFS_FILENAME, err)
+    }
   })
 
   // Remembers the EditingHandoffDialog's last-used Trim/Rotate/Destination
@@ -80,15 +104,18 @@ export function registerPrefsHandlers(): void {
     try {
       const raw = await readFile(join(app.getPath('userData'), EDITING_HANDOFF_OPTIONS_FILENAME), 'utf-8')
       return JSON.parse(raw) as EditingHandoffOptionsPrefs
-    } catch {
+    } catch (err) {
+      logReadError(EDITING_HANDOFF_OPTIONS_FILENAME, err)
       return null
     }
   })
 
   ipcMain.handle('prefs:save-editing-handoff-options', async (_event, payload: EditingHandoffOptionsPrefs): Promise<void> => {
     try {
-      await writeFile(join(app.getPath('userData'), EDITING_HANDOFF_OPTIONS_FILENAME), JSON.stringify(payload, null, 2), 'utf-8')
-    } catch { /* non-critical */ }
+      await atomicWriteJson(join(app.getPath('userData'), EDITING_HANDOFF_OPTIONS_FILENAME), payload)
+    } catch (err) {
+      logWriteError(EDITING_HANDOFF_OPTIONS_FILENAME, err)
+    }
   })
 
   // ── Upscale factor pref ─────────────────────────────────────────────────────
@@ -98,15 +125,18 @@ export function registerPrefsHandlers(): void {
       const v = JSON.parse(raw)
       if (v === 1 || v === 2 || v === 4) return v as UpscaleFactor
       return null
-    } catch {
+    } catch (err) {
+      logReadError('upscale-factor.json', err)
       return null
     }
   })
 
   ipcMain.handle('prefs:save-upscale-factor', async (_event, payload: UpscaleFactor): Promise<void> => {
     try {
-      await writeFile(join(app.getPath('userData'), 'upscale-factor.json'), JSON.stringify(payload), 'utf-8')
-    } catch { /* non-critical */ }
+      await atomicWriteJson(join(app.getPath('userData'), 'upscale-factor.json'), payload)
+    } catch (err) {
+      logWriteError('upscale-factor.json', err)
+    }
   })
 
   // ── Product type pref ───────────────────────────────────────────────────────
@@ -116,15 +146,18 @@ export function registerPrefsHandlers(): void {
       const v = JSON.parse(raw)
       if (v === 'watch' || v === 'bracelet' || v === 'ring' || v === 'generic') return v as ProductType
       return null
-    } catch {
+    } catch (err) {
+      logReadError('product-type.json', err)
       return null
     }
   })
 
   ipcMain.handle('prefs:save-product-type', async (_event, payload: ProductType): Promise<void> => {
     try {
-      await writeFile(join(app.getPath('userData'), 'product-type.json'), JSON.stringify(payload), 'utf-8')
-    } catch { /* non-critical */ }
+      await atomicWriteJson(join(app.getPath('userData'), 'product-type.json'), payload)
+    } catch (err) {
+      logWriteError('product-type.json', err)
+    }
   })
 
   // ── Preprocessing folder prefs ──────────────────────────────────────────────
@@ -142,15 +175,18 @@ export function registerPrefsHandlers(): void {
         inputDir:  inOk  ? stored.inputDir!  : null,
         outputDir: outOk ? stored.outputDir! : null,
       }
-    } catch {
+    } catch (err) {
+      logReadError('preprocessing-folders.json', err)
       return { inputDir: null, outputDir: null }
     }
   })
 
   ipcMain.handle('prefs:save-preprocessing-folders', async (_event, payload: PreprocessingFolderPrefs): Promise<void> => {
     try {
-      await writeFile(join(app.getPath('userData'), 'preprocessing-folders.json'), JSON.stringify(payload, null, 2), 'utf-8')
-    } catch { /* non-critical */ }
+      await atomicWriteJson(join(app.getPath('userData'), 'preprocessing-folders.json'), payload)
+    } catch (err) {
+      logWriteError('preprocessing-folders.json', err)
+    }
   })
 
   // ── Ring & Bracelet folder prefs (Phase 10D) ────────────────────────────────
@@ -172,7 +208,8 @@ export function registerPrefsHandlers(): void {
         inputDir:  inOk  ? entry.inputDir!  : null,
         outputDir: outOk ? entry.outputDir! : null,
       }
-    } catch {
+    } catch (err) {
+      logReadError('ring-bracelet-folders.json', err)
       return { inputDir: null, outputDir: null }
     }
   })
@@ -186,9 +223,13 @@ export function registerPrefsHandlers(): void {
       let stored: Partial<Record<'ring' | 'bracelet', Partial<RingBraceletFolderPrefs>>> = {}
       try {
         stored = JSON.parse(await readFile(filePath, 'utf-8'))
-      } catch { /* no existing file yet */ }
+      } catch (err) {
+        logReadError('ring-bracelet-folders.json', err)
+      }
       stored[payload.product] = { inputDir: payload.inputDir, outputDir: payload.outputDir }
-      await writeFile(filePath, JSON.stringify(stored, null, 2), 'utf-8')
-    } catch { /* non-critical */ }
+      await atomicWriteJson(filePath, stored)
+    } catch (err) {
+      logWriteError('ring-bracelet-folders.json', err)
+    }
   })
 }

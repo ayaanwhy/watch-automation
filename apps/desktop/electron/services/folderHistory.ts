@@ -6,8 +6,10 @@
 // exposed as its own IPC channel.
 
 import { app } from 'electron'
-import { readFile, writeFile } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { logger } from '../logger'
+import { atomicWriteJson } from './atomicFile'
 
 const FILENAME = 'folder-history.json'
 
@@ -18,7 +20,12 @@ function filePath(): string {
 async function loadAll(): Promise<Record<string, string>> {
   try {
     return JSON.parse(await readFile(filePath(), 'utf-8')) as Record<string, string>
-  } catch {
+  } catch (err) {
+    // ENOENT is normal on first run; anything else (corrupt JSON, permission
+    // error) previously vanished with no diagnostic trail (Phase 11A fix).
+    if ((err as NodeJS.ErrnoException)?.code !== 'ENOENT') {
+      logger.warn('folder-history — failed to read folder-history.json', err)
+    }
     return {}
   }
 }
@@ -32,8 +39,12 @@ export async function setRecentPath(key: string, path: string): Promise<void> {
   try {
     const all = await loadAll()
     all[key] = path
-    await writeFile(filePath(), JSON.stringify(all, null, 2), 'utf-8')
-  } catch {
-    // Non-critical — a picker simply won't remember its last location.
+    // Phase 11E: was a direct writeFile — a crash mid-write could leave a
+    // truncated file that then failed every future read.
+    await atomicWriteJson(filePath(), all)
+  } catch (err) {
+    // Non-critical — a picker simply won't remember its last location — but
+    // now at least logged instead of vanishing silently (Phase 11A fix).
+    logger.warn('folder-history — failed to write folder-history.json', err)
   }
 }

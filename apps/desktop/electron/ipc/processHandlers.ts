@@ -1,4 +1,3 @@
-import { ipcMain } from 'electron'
 import { join } from 'node:path'
 import { processWatch } from '@wpa/processing'
 import { logger } from '../logger'
@@ -49,10 +48,4 @@ export async function runProcessWatch(payload: ProcessWatchPayload): Promise<Pro
     logger.error(`Failed ${sku} after ${ms}ms — ${message}`)
     return { ok: false, sku, error: message }
   }
-}
-
-export function registerProcessHandlers(): void {
-  ipcMain.handle('process:watch', async (_event, payload: ProcessWatchPayload): Promise<ProcessWatchResult> => {
-    return runProcessWatch(payload)
-  })
 }

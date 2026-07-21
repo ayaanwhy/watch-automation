@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { usePreprocessingJob } from '../../context/PreprocessingJobContext'
 import { PreprocessingProgress } from '../PreprocessingProgress'
-import { ThumbnailGrid, findAdjacentImage } from './ThumbnailGrid'
+import { ThumbnailGrid, findAdjacentImage } from '../shared/ThumbnailGrid'
 import { ImagePreviewPanel } from './ImagePreviewPanel'
 import { FullscreenViewer } from '../ui/FullscreenViewer'
-import styles from './PreprocessingRunWorkspace.module.css'
+import styles from '../shared/RunWorkspace.module.css'
 
 interface PreprocessingRunWorkspaceProps {
   inputDir: string
