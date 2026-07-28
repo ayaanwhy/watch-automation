@@ -18,7 +18,6 @@ import type {
   PreprocessEventPayload,
   PreprocessDonePayload,
   PreprocessResolveResult,
-  SamTuningPrefs,
   UpscaleFactor,
   ProductType,
   PreprocessingFolderPrefs,
@@ -31,6 +30,7 @@ import type {
   BatchRenamePayload,
   BatchSetModePayload,
   BatchFindWatchPayload,
+  BatchSetImageNeedsFixingPayload,
   RingBraceletStartPayload,
   RingBraceletStartResult,
   RingBraceletEventPayload,
@@ -38,8 +38,15 @@ import type {
   RingBraceletFolderPrefs,
   RingBraceletFolderPrefsLoadPayload,
   RingBraceletFolderPrefsSavePayload,
+  RingBraceletValidatePayload,
+  PreprocessingPresetDefinitionSavePayload,
 } from './ipc'
 import type { BatchDetailRecord, BatchSummaryRecord } from './batch'
+import type {
+  PreprocessingPreset,
+  PreprocessingPresetDefinition,
+  PreprocessingPresetDefinitions,
+} from '../constants/preprocessingPresets'
 
 declare global {
   interface Window {
@@ -52,8 +59,10 @@ declare global {
       invoke(channel: 'session:load', payload: SessionLoadPayload): Promise<SessionLoadResult>
       invoke(channel: 'prefs:load-last-batch'): Promise<LastBatchPrefs>
       invoke(channel: 'prefs:save-last-batch', payload: LastBatchPrefs): Promise<void>
-      invoke(channel: 'prefs:load-sam-tuning'): Promise<SamTuningPrefs | null>
-      invoke(channel: 'prefs:save-sam-tuning', payload: SamTuningPrefs): Promise<void>
+      invoke(channel: 'prefs:load-preprocessing-preset'): Promise<PreprocessingPreset | null>
+      invoke(channel: 'prefs:save-preprocessing-preset', payload: PreprocessingPreset): Promise<void>
+      invoke(channel: 'prefs:load-preprocessing-preset-definitions'): Promise<PreprocessingPresetDefinitions>
+      invoke(channel: 'prefs:save-preprocessing-preset-definition', payload: PreprocessingPresetDefinitionSavePayload): Promise<PreprocessingPresetDefinition>
       invoke(channel: 'prefs:load-upscale-factor'): Promise<UpscaleFactor | null>
       invoke(channel: 'prefs:save-upscale-factor', payload: UpscaleFactor): Promise<void>
       invoke(channel: 'prefs:load-product-type'): Promise<ProductType | null>
@@ -86,6 +95,7 @@ declare global {
       invoke(channel: 'batch-registry:rename', payload: BatchRenamePayload): Promise<BatchDetailRecord | null>
       invoke(channel: 'batch-registry:set-mode', payload: BatchSetModePayload): Promise<BatchDetailRecord | null>
       invoke(channel: 'batch-registry:find-watch', payload: BatchFindWatchPayload): Promise<BatchDetailRecord | null>
+      invoke(channel: 'batch-registry:set-image-needs-fixing', payload: BatchSetImageNeedsFixingPayload): Promise<BatchDetailRecord | null>
       invoke(channel: 'batch-registry:delete', payload: { id: string }): Promise<boolean>
 
       // Ring & Bracelet asset generation (Phase 10C)
@@ -95,6 +105,7 @@ declare global {
       on(channel: 'ring-bracelet:done', listener: (payload: RingBraceletDonePayload) => void): () => void
       invoke(channel: 'prefs:load-ring-bracelet-folders', payload: RingBraceletFolderPrefsLoadPayload): Promise<RingBraceletFolderPrefs>
       invoke(channel: 'prefs:save-ring-bracelet-folders', payload: RingBraceletFolderPrefsSavePayload): Promise<void>
+      invoke(channel: 'ring-bracelet:validate-input', payload: RingBraceletValidatePayload): Promise<BatchValidationResult>
     }
   }
 }

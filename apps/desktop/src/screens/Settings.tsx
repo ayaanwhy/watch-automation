@@ -1,23 +1,23 @@
+import { useState } from 'react'
 import { PageHeader } from '../components/ui/PageHeader'
 import { SettingsSection } from '../components/ui/SettingsSection'
 import { Button } from '../components/ui/Button'
+import { Select } from '../components/ui/Select'
 import { PythonInterpreterStatus } from '../components/PythonInterpreterStatus'
-import { SamTuningPanel } from '../components/SamTuningPanel'
+import { PresetDefinitionEditor } from '../components/PresetDefinitionEditor'
 import { usePythonInterpreter } from '../hooks/usePythonInterpreter'
-import { useSamTuning } from '../hooks/useSamTuning'
+import { usePreprocessingPresetDefinitions } from '../hooks/usePreprocessingPresetDefinitions'
+import { PREPROCESSING_PRESET_OPTIONS, DEFAULT_PREPROCESSING_PRESET } from '../constants/preprocessingPresets'
+import type { PreprocessingPreset } from '../constants/preprocessingPresets'
 import styles from './Settings.module.css'
 
 // Global Settings — a permanent, revisitable destination (not a modal).
 // Built as a list of SettingsSections so future settings (Appearance, Default
 // Folders, etc.) drop in as one more section with no structural redesign.
-//
-// Phase 9A hosts the two settings that exist today. The Preprocessing screen's
-// own ⚙ SAM modal remains in place for now; both read/write the same persisted
-// prefs. That transitional duplication is consolidated when Preprocessing is
-// rebuilt in Phase 9C.
 export default function Settings() {
   const python = usePythonInterpreter()
-  const sam = useSamTuning()
+  const presetDefs = usePreprocessingPresetDefinitions()
+  const [editingPreset, setEditingPreset] = useState<PreprocessingPreset>(DEFAULT_PREPROCESSING_PRESET)
 
   return (
     <div className={styles.page}>
@@ -52,10 +52,23 @@ export default function Settings() {
           </SettingsSection>
 
           <SettingsSection
-            title="Segmentation (SAM 2)"
-            description="Advanced preprocessing tuning. Overrides the pipeline defaults; leave untouched for standard results."
+            title="Preprocessing Presets"
+            description="Fast, Balanced, and Quality configure the entire preprocessing pipeline. Define what each one means here; the Preprocessing screen only selects between them per batch."
           >
-            <SamTuningPanel prefs={sam.prefs} onUpdate={sam.update} />
+            <Select
+              label="Editing"
+              options={PREPROCESSING_PRESET_OPTIONS}
+              value={editingPreset}
+              onChange={setEditingPreset}
+            />
+            {presetDefs.loaded && (
+              <PresetDefinitionEditor
+                preset={editingPreset}
+                definition={presetDefs.definitions[editingPreset]}
+                onCommit={values => void presetDefs.saveValues(editingPreset, values)}
+                onReset={() => presetDefs.resetToDefault(editingPreset)}
+              />
+            )}
           </SettingsSection>
         </div>
       </div>

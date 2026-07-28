@@ -4,6 +4,8 @@ import { resolvePreprocessingPython } from '../services/pythonResolver'
 import { prepareForEditingHandoff } from '../services/workflowPreparation'
 import { createSubprocessRunner, notifyAllWindows } from '../services/subprocessRunner'
 import { logger } from '../logger'
+import { getPresetDefinition } from '../services/preprocessingPresetDefinitions'
+import { DEFAULT_PREPROCESSING_PRESET } from '../../src/constants/preprocessingPresets'
 import type {
   PreprocessStartPayload,
   PreprocessStartResult,
@@ -39,19 +41,32 @@ function buildArgs(runnerPath: string, payload: PreprocessStartPayload): string[
   if (payload.backgroundColorHex !== undefined) args.push('--background-color', payload.backgroundColorHex)
   if (payload.outputPpi !== undefined)        args.push('--output-ppi',        String(payload.outputPpi))
   if (payload.outputSuffix !== undefined)     args.push('--output-suffix',     payload.outputSuffix)
-  if (payload.refineForeground === true)      args.push('--refine-foreground')
-  if (payload.edgeMode !== undefined)         args.push('--edge-mode',         payload.edgeMode)
-  if (payload.edgeStrength !== undefined)     args.push('--edge-strength',     String(payload.edgeStrength))
-  if (payload.maskBlur !== undefined)         args.push('--mask-blur',         String(payload.maskBlur))
-  if (payload.maskOffset !== undefined)       args.push('--mask-offset',       String(payload.maskOffset))
   if (payload.birefnetModelRoot !== undefined) args.push('--birefnet-model-root', payload.birefnetModelRoot)
   if (payload.samCheckpoint !== undefined)    args.push('--sam-checkpoint',    payload.samCheckpoint)
-  if (payload.samPointsPerSide !== undefined)       args.push('--sam-points-per-side',       String(payload.samPointsPerSide))
-  if (payload.samPointsPerBatch !== undefined)      args.push('--sam-points-per-batch',      String(payload.samPointsPerBatch))
-  if (payload.samPredIouThresh !== undefined)       args.push('--sam-pred-iou-thresh',       String(payload.samPredIouThresh))
-  if (payload.samStabilityScoreThresh !== undefined) args.push('--sam-stability-score-thresh', String(payload.samStabilityScoreThresh))
-  if (payload.samMaxMasks !== undefined)            args.push('--sam-max-masks',             String(payload.samMaxMasks))
-  if (payload.samMultimaskOutput !== undefined)     args.push('--sam-multimask-output',      payload.samMultimaskOutput ? '1' : '0')
+
+  // Phase 11.5B (values now user-editable via Settings as of the 11.5B
+  // follow-up) — every mask/edge/SAM tuning flag is resolved from the
+  // selected preset's live definition, not sent individually by the
+  // renderer. See services/preprocessingPresetDefinitions.ts.
+  const preset = getPresetDefinition(payload.preset ?? DEFAULT_PREPROCESSING_PRESET)
+  if (preset.refineForeground) args.push('--refine-foreground')
+  args.push('--edge-mode', preset.edgeMode)
+  args.push('--edge-strength', String(preset.edgeStrength))
+  args.push('--alpha-sharpen', String(preset.alphaSharpen))
+  args.push('--mask-blur', String(preset.maskBlur))
+  args.push('--mask-offset', String(preset.maskOffset))
+  if (preset.maskThreshold !== null) args.push('--mask-threshold', String(preset.maskThreshold))
+  args.push('--mask-contrast', String(preset.maskContrast))
+  args.push('--mask-antialias-scale', String(preset.maskAntialiasScale))
+  args.push('--analysis-longest-side', String(preset.analysisLongestSide))
+  args.push('--sam-max-image-size', String(preset.samMaxImageSize))
+  args.push('--sam-points-per-side', String(preset.samPointsPerSide))
+  args.push('--sam-points-per-batch', String(preset.samPointsPerBatch))
+  args.push('--sam-pred-iou-thresh', String(preset.samPredIouThresh))
+  args.push('--sam-stability-score-thresh', String(preset.samStabilityScoreThresh))
+  args.push('--sam-max-masks', String(preset.samMaxMasks))
+  args.push('--sam-multimask-output', preset.samMultimaskOutput ? '1' : '0')
+
   return args
 }
 
@@ -68,17 +83,21 @@ const runner = createSubprocessRunner<PreprocessStartPayload>({
   // Records outputDir and the effective run configuration onto the stage —
   // both fields already existed on StageRecord but were never populated
   // before Phase 9D's Batch Details "configuration used" summary needed them.
-  buildStageConfig: (payload) => ({
-    scaleFactor: payload.scaleFactor ?? 1,
-    objectType: payload.objectType ?? 'generic',
-    operations: payload.operations ?? ['background_removal', 'upscale'],
-    samPointsPerSide: payload.samPointsPerSide,
-    samPointsPerBatch: payload.samPointsPerBatch,
-    samPredIouThresh: payload.samPredIouThresh,
-    samStabilityScoreThresh: payload.samStabilityScoreThresh,
-    samMaxMasks: payload.samMaxMasks,
-    samMultimaskOutput: payload.samMultimaskOutput,
-  }),
+  buildStageConfig: (payload) => {
+    const preset = payload.preset ?? DEFAULT_PREPROCESSING_PRESET
+    return {
+      scaleFactor: payload.scaleFactor ?? 1,
+      objectType: payload.objectType ?? 'generic',
+      operations: payload.operations ?? ['background_removal', 'upscale'],
+      // Phase 11.5B (11.5B follow-up: definitions are now user-editable) —
+      // only the preset name + the version of its definition active at run
+      // time are recorded. This is lightweight provenance, not a snapshot:
+      // if the preset is edited later, this batch's recorded version won't
+      // match its current definition — see IMPLEMENTATION_PLAN.md.
+      preset,
+      presetVersion: getPresetDefinition(preset).version,
+    }
+  },
   mapCompleteEvent: (event): Omit<StageImageRecord, 'name'> => ({
     status: 'completed',
     outputPath: (event['output'] as string) ?? null,

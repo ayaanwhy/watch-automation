@@ -210,6 +210,10 @@ export default function App() {
     const outputFolder = watchStage?.outputDir ?? ''
     const spreadsheetPath =
       watchStage && typeof watchStage.config.spreadsheetPath === 'string' ? watchStage.config.spreadsheetPath : ''
+    const processingMode =
+      watchStage && (watchStage.config.processingMode === 'automatic' || watchStage.config.processingMode === 'manual')
+        ? watchStage.config.processingMode
+        : 'manual'
 
     if (watchStage && inputFolder && outputFolder && spreadsheetPath) {
       const validation = await window.api.invoke('batch:validate', { inputFolder, spreadsheetPath, outputFolder })
@@ -217,7 +221,7 @@ export default function App() {
         const load = await window.api.invoke('batch:load', { inputFolder, spreadsheetPath })
         if (load.ok && load.match) {
           const sessionResult = await window.api.invoke('session:load', { inputFolder, outputFolder, spreadsheetPath })
-          const batchState: BatchState = { inputFolder, outputFolder, spreadsheetPath, match: load.match }
+          const batchState: BatchState = { inputFolder, outputFolder, spreadsheetPath, match: load.match, processingMode }
           setPendingBatch(null)
           setHandoffFolder(null)
           setOpenBatchId(null)
@@ -439,7 +443,11 @@ export default function App() {
         status: 'running',
         inputDir: batch.inputFolder,
         outputDir: batch.outputFolder,
-        config: { spreadsheetPath: batch.spreadsheetPath },
+        // processingMode defaults to 'manual' on BatchSetup — recorded here
+        // even though it doesn't yet change annotation behavior (Phase
+        // 11.5C establishes the workflow abstraction; Phase 12 adds the
+        // real Automatic masking behavior for Watch).
+        config: { spreadsheetPath: batch.spreadsheetPath, processingMode: batch.processingMode ?? 'manual' },
       },
     })
     setWatchBatchId(id)

@@ -1,0 +1,83 @@
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.statusRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.version {
+  font-size: 12px;
+  font-weight: 600;
+  color: #888;
+  font-variant-numeric: tabular-nums;
+}
+
+.statusDefault {
+  font-size: 12px;
+  color: #888;
+  flex: 1;
+}
+
+.statusModified {
+  font-size: 12px;
+  color: #a86a1a;
+  flex: 1;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 12px;
+  align-items: center;
+}
+
+.label {
+  font-size: 12px;
+  color: #555;
+}
+
+.input {
+  width: 90px;
+  height: 30px;
+  padding: 0 8px;
+  font-size: 12px;
+  text-align: right;
+  color: #1a1a1a;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #1a1a1a;
+}
+
+.input:disabled {
+  opacity: 0.4;
+}
+
+.checkbox {
+  justify-self: end;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.thresholdPair {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-self: end;
+}
+
+.selectWrap {
+  width: 140px;
+  justify-self: end;
+}

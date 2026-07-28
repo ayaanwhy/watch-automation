@@ -47,9 +47,14 @@ export type BatchMode = 'testing' | 'production'
 
 export interface StageCounts {
   total: number
+  // Completed AND not flagged needsFixing (Phase 11.5E) — a flagged image
+  // is still `status: 'completed'` on its own record (the pipeline itself
+  // succeeded), but no longer counts toward this total. succeeded + failed
+  // + cancelled + needsFixing still sums to total.
   succeeded: number
   failed: number
   cancelled: number
+  needsFixing: number
 }
 
 export interface StageRef {
@@ -85,6 +90,13 @@ export interface StageImageRecord {
   assets?: StageImageAssets
   error: string | null
   durationMs: number | null
+  // Manual QA review flag (Phase 11.5E) — orthogonal to `status`: an image
+  // stays `status: 'completed'` when flagged (the pipeline succeeded; a
+  // human just isn't satisfied with the result). Only ever set on a
+  // completed image, toggled from Batch Details, never written by a
+  // runner. Non-destructive — flagging never removes the image or its
+  // output files, only excludes it from StageCounts.succeeded.
+  needsFixing?: boolean
 }
 
 export interface StageRecord {

@@ -3,6 +3,9 @@ import type { BatchValidationResult, BatchLoadResult, MatchSummary, OpenFileOpti
 import type { BatchState } from '../types/annotation'
 import type { SessionFile } from '../types/session'
 import { PathField } from '../components/PathField'
+import { SegmentedControl } from '../components/ui/SegmentedControl'
+import { PROCESSING_MODE_OPTIONS } from '../constants/processingMode'
+import type { ProcessingMode } from '../constants/processingMode'
 import styles from './BatchSetup.module.css'
 
 interface BatchSetupProps {
@@ -23,6 +26,11 @@ export default function BatchSetup({ onBeginAnnotation, initialBatchName = '', h
   const [loadResult, setLoadResult] = useState<BatchLoadResult | null>(null)
   const [existingSession, setExistingSession] = useState<SessionFile | null>(null)
   const [sessionChecked, setSessionChecked] = useState(false)
+  // Phase 11.5C — defaults to 'manual', the only mode with real behavior
+  // today (splice boundaries are always hand-drawn); Automatic exists as
+  // the workflow abstraction only until Phase 12 adds AI-driven masking, so
+  // it isn't presented as the default choice.
+  const [processingMode, setProcessingMode] = useState<ProcessingMode>('manual')
 
   const canValidate = inputFolder !== '' && spreadsheetPath !== '' && outputFolder !== ''
   const isLoading = loadingMsg !== null
@@ -133,6 +141,7 @@ export default function BatchSetup({ onBeginAnnotation, initialBatchName = '', h
       outputFolder,
       spreadsheetPath,
       match: loadResult!.match!,
+      processingMode,
     }
   }
 
@@ -187,6 +196,17 @@ export default function BatchSetup({ onBeginAnnotation, initialBatchName = '', h
           onPick={() => pickOutputFolder()}
           onDropPath={pickOutputFolder}
         />
+        <SegmentedControl
+          label="Mode"
+          options={PROCESSING_MODE_OPTIONS}
+          value={processingMode}
+          onChange={setProcessingMode}
+        />
+        {processingMode === 'automatic' && (
+          <p className={styles.helperText}>
+            AI-driven Watch masking isn't available yet — Automatic currently behaves the same as Manual (splice boundaries are still hand-drawn during annotation).
+          </p>
+        )}
       </div>
 
       <div className={styles.actions}>

@@ -3,9 +3,15 @@ import { readFile, access } from 'node:fs/promises'
 import { join } from 'node:path'
 import { logger } from '../logger'
 import { atomicWriteJson } from '../services/atomicFile'
+import { getPresetDefinitions, savePresetDefinition } from '../services/preprocessingPresetDefinitions'
+import type {
+  PreprocessingPreset,
+  PreprocessingPresetValues,
+  PreprocessingPresetDefinition,
+  PreprocessingPresetDefinitions,
+} from '../../src/constants/preprocessingPresets'
 import type {
   LastBatchPrefs,
-  SamTuningPrefs,
   UpscaleFactor,
   ProductType,
   PreprocessingFolderPrefs,
@@ -16,7 +22,6 @@ import type {
 } from '../../src/types/ipc'
 
 const PREFS_FILENAME = 'last-batch.json'
-const SAM_TUNING_PREFS_FILENAME = 'sam-tuning.json'
 const EDITING_HANDOFF_OPTIONS_FILENAME = 'editing-handoff-options.json'
 
 function prefsFilePath(): string {
@@ -76,25 +81,44 @@ export function registerPrefsHandlers(): void {
     }
   })
 
-  // ── SAM tuning prefs ────────────────────────────────────────────────────────
-  // Returns null when no prefs have been saved yet; the renderer then falls
-  // back to its own hard-coded defaults (which match config.py).
-  ipcMain.handle('prefs:load-sam-tuning', async (): Promise<SamTuningPrefs | null> => {
+  // ── Preprocessing preset selection (Phase 11.5B) ────────────────────────────
+  // Only the selected preset *name* is persisted here — what that name
+  // currently means is a separate, editable concern (see the preset
+  // definitions handlers below).
+  ipcMain.handle('prefs:load-preprocessing-preset', async (): Promise<PreprocessingPreset | null> => {
     try {
-      const raw = await readFile(join(app.getPath('userData'), SAM_TUNING_PREFS_FILENAME), 'utf-8')
-      return JSON.parse(raw) as SamTuningPrefs
+      const raw = await readFile(join(app.getPath('userData'), 'preprocessing-preset.json'), 'utf-8')
+      const v = JSON.parse(raw)
+      if (v === 'fast' || v === 'balanced' || v === 'quality') return v as PreprocessingPreset
+      return null
     } catch (err) {
-      logReadError(SAM_TUNING_PREFS_FILENAME, err)
+      logReadError('preprocessing-preset.json', err)
       return null
     }
   })
 
-  ipcMain.handle('prefs:save-sam-tuning', async (_event, payload: SamTuningPrefs): Promise<void> => {
+  ipcMain.handle('prefs:save-preprocessing-preset', async (_event, payload: PreprocessingPreset): Promise<void> => {
     try {
-      await atomicWriteJson(join(app.getPath('userData'), SAM_TUNING_PREFS_FILENAME), payload)
+      await atomicWriteJson(join(app.getPath('userData'), 'preprocessing-preset.json'), payload)
     } catch (err) {
-      logWriteError(SAM_TUNING_PREFS_FILENAME, err)
+      logWriteError('preprocessing-preset.json', err)
     }
+  })
+
+  // ── Preprocessing preset definitions (11.5B follow-up) ──────────────────────
+  // What Fast/Balanced/Quality actually mean — editable only from Settings.
+  // Always returns the full set (never null): getPresetDefinitions() falls
+  // back to factory defaults if nothing has been saved yet, so there's
+  // nothing for the renderer to separately default.
+  ipcMain.handle('prefs:load-preprocessing-preset-definitions', async (): Promise<PreprocessingPresetDefinitions> => {
+    return getPresetDefinitions()
+  })
+
+  ipcMain.handle('prefs:save-preprocessing-preset-definition', async (
+    _event,
+    payload: { preset: PreprocessingPreset; values: PreprocessingPresetValues },
+  ): Promise<PreprocessingPresetDefinition> => {
+    return savePresetDefinition(payload.preset, payload.values)
   })
 
   // Remembers the EditingHandoffDialog's last-used Trim/Rotate/Destination

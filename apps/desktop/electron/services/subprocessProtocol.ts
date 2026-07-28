@@ -5,7 +5,7 @@
 // pure/impure split) so it can be unit-tested directly, unlike
 // subprocessRunner.ts which wires this logic to a real ChildProcess,
 // BrowserWindow, and the batch registry.
-import type { StageImageRecord } from '../../src/types/batch'
+import type { StageCounts, StageImageRecord } from '../../src/types/batch'
 
 // Both runners' module docstrings define this the same way: the process
 // exits with this code only when it stopped cooperatively at a safe
@@ -76,6 +76,22 @@ export function classifyExit(
 }
 
 /**
+ * Derives StageCounts from an images array — the one place `succeeded` is
+ * defined as "completed and not flagged needsFixing" (Phase 11.5E), so
+ * reconcileImages, snapshotProgress, and batchRegistry's needs-fixing
+ * toggle all agree on what counts as a completed total.
+ */
+export function countsFromImages(images: StageImageRecord[], total: number): StageCounts {
+  return {
+    total,
+    succeeded: images.filter(i => i.status === 'completed' && !i.needsFixing).length,
+    failed: images.filter(i => i.status === 'failed').length,
+    cancelled: images.filter(i => i.status === 'cancelled').length,
+    needsFixing: images.filter(i => i.needsFixing === true).length,
+  }
+}
+
+/**
  * Reconciles every image the runner announced (via its 'start' event)
  * against the terminal results actually observed — an image that never
  * reached a terminal per-image event (cooperative cancellation stops the
@@ -92,7 +108,7 @@ export function reconcileImages(
   allImages: string[],
   imageResults: Map<string, Omit<StageImageRecord, 'name'>>,
   cancelledByUser: boolean,
-): { images: StageImageRecord[]; counts: { total: number; succeeded: number; failed: number; cancelled: number } } {
+): { images: StageImageRecord[]; counts: StageCounts } {
   const images: StageImageRecord[] = allImages.map(name => {
     const result = imageResults.get(name)
     if (result) return { name, ...result }
@@ -104,11 +120,28 @@ export function reconcileImages(
       durationMs: null,
     }
   })
-  const counts = {
-    total: images.length,
-    succeeded: images.filter(i => i.status === 'completed').length,
-    failed: images.filter(i => i.status === 'failed').length,
-    cancelled: images.filter(i => i.status === 'cancelled').length,
+  return { images, counts: countsFromImages(images, images.length) }
+}
+
+/**
+ * Progress snapshot for a job still in flight (Phase 11.5D) — unlike
+ * reconcileImages (called once, at true job end, which fills in a terminal
+ * status for every straggler), this only reports images that have actually
+ * reached a terminal per-image event so far. `total` still reflects the
+ * full announced batch size (from the 'start' event) so a persisted mid-run
+ * snapshot can show correct "N of total" progress even though `images`
+ * itself is necessarily incomplete. Called after every 'complete'/'error'
+ * event so a crash or force-quit loses at most the one image in flight,
+ * not the whole run's progress.
+ */
+export function snapshotProgress(
+  allImages: string[],
+  imageResults: Map<string, Omit<StageImageRecord, 'name'>>,
+): { images: StageImageRecord[]; counts: StageCounts } {
+  const images: StageImageRecord[] = []
+  for (const name of allImages) {
+    const result = imageResults.get(name)
+    if (result) images.push({ name, ...result })
   }
-  return { images, counts }
+  return { images, counts: countsFromImages(images, allImages.length) }
 }

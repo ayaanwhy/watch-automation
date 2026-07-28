@@ -13,6 +13,11 @@ export interface RingBraceletImageState extends BaseImageState {
   frontFullImage: string | null
   frontImage: string | null
   detected: boolean | null
+  // Manual QA review flag (Phase 11.5E) — always null for a live run (never
+  // set by the runner); populated from the registry only when Batch Details
+  // reconstructs this same shape for a historical batch. See
+  // types/batch.ts's StageImageRecord.needsFixing for the persisted field.
+  needsFixing: boolean | null
 }
 
 interface RingBraceletJobContextValue {
@@ -57,7 +62,7 @@ export function RingBraceletJobProvider({ children }: RingBraceletJobProviderPro
   const job = useSubprocessJob<RingBraceletImageState, RingBraceletStartPayload, RingBraceletDonePayload>({
     startInvoke: (payload) => window.api.invoke('ring-bracelet:start', payload),
     cancelInvoke: (jobId) => window.api.invoke('ring-bracelet:cancel', { jobId }),
-    buildImage: (name) => ({ name, status: 'pending', frontFullImage: null, frontImage: null, detected: null, error: null, durationMs: null }),
+    buildImage: (name) => ({ name, status: 'pending', frontFullImage: null, frontImage: null, detected: null, needsFixing: null, error: null, durationMs: null }),
     applyEvent: (event, { setImages }) => {
       if (event['type'] === 'complete') {
         const image = event['image'] as string

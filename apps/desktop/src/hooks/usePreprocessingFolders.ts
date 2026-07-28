@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 // Persists both preprocessing folders as a single object so neither value
 // goes stale when one is updated. Refs carry the always-current value into
-// stable callbacks, following the same approach used by useSamTuning and
-// useUpscaleFactor for prefs that must be captured at call time.
+// stable callbacks, following the same approach used by useUpscaleFactor
+// for prefs that must be captured at call time.
 export function usePreprocessingFolders() {
   const [inputDir, setInputDirState] = useState('')
   const [outputDir, setOutputDirState] = useState('')

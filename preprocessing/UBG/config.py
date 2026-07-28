@@ -16,9 +16,25 @@ class UpscaleConfig:
 
 @dataclass(frozen=True)
 class EdgeConfig:
-    # Choose: "none", "sharpen", or "soften".
+    # Choose: "none", "sharpen", "crisp", or "soften".
     mode: str = "sharpen"
     strength: float = 1.5
+    # Phase 11.5A: independent alpha-channel sharpening for edge_mode="crisp"
+    # (does not affect "sharpen", which keeps its existing edge_strength-tied
+    # alpha sharpening unchanged). 0.0 = no-op default.
+    alpha_sharpen: float = 0.0
+
+
+@dataclass(frozen=True)
+class AnalysisConfig:
+    # BiRefNet analysis resolution (Phase 11.5A). The model analyzes the
+    # image at this resolution before the mask is resized back up to the
+    # original image size — capped at longest_side, but never exceeding the
+    # source image's own longest side, so a small input isn't needlessly
+    # upscaled before analysis. Previously fixed at 1024x1024 regardless of
+    # input size.
+    longest_side: int = 1024
+    size_multiple: int = 32  # Keep 32 for BiRefNet shape safety.
 
 
 @dataclass(frozen=True)
@@ -26,6 +42,11 @@ class MaskConfig:
     # Tweak the background mask after BiRefNet.
     blur: int = 0
     offset: int = -2
+    # Phase 11.5A additions — all default to no-op values so existing output
+    # is unchanged unless a preset (Phase 11.5B) opts in.
+    threshold: float | None = None  # None keeps smooth edges; e.g. 0.45 makes a hard cut.
+    contrast: float = 1.0  # 1.0 = no change; higher firms the edge, lower softens it.
+    antialias_scale: int = 1  # 1 = no change; higher supersamples the mask edge smoother.
 
 
 @dataclass(frozen=True)
@@ -61,6 +82,7 @@ class SamConfig:
 
 UPSCALE = UpscaleConfig()
 EDGE = EdgeConfig()
+ANALYSIS = AnalysisConfig()
 MASK = MaskConfig()
 PIPELINE = PipelineConfig()
 SAM = SamConfig()

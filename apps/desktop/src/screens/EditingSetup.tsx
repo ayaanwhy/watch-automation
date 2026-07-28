@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { PageHeader } from '../components/ui/PageHeader'
 import { SegmentedControl } from '../components/ui/SegmentedControl'
 import { PathField } from '../components/PathField'
@@ -6,9 +6,12 @@ import BatchSetup from './BatchSetup'
 import { useRingBraceletFolders } from '../hooks/useRingBraceletFolders'
 import { usePythonInterpreter } from '../hooks/usePythonInterpreter'
 import { useRingBraceletJob } from '../context/RingBraceletJobContext'
+import { PROCESSING_MODE_OPTIONS } from '../constants/processingMode'
+import type { ProcessingMode } from '../constants/processingMode'
 import type { BatchState } from '../types/annotation'
 import type { SessionFile } from '../types/session'
 import type { EditingProduct } from '../types/navigation'
+import type { BatchValidationResult } from '../types/ipc'
 import styles from './EditingSetup.module.css'
 
 // Earrings is listed and disabled rather than omitted, matching the
@@ -110,11 +113,40 @@ interface RingBraceletFieldsProps {
 function RingBraceletFields({ product, initialBatchName, handoffFolder, onCreateBatch }: RingBraceletFieldsProps) {
   const [batchName, setBatchName] = useState(initialBatchName)
   const [starting, setStarting] = useState(false)
+  // Defaults to 'automatic' — matches the pre-11.5C behavior of always
+  // running the masking workflow, so an operator who never touches this
+  // control sees no change.
+  const [processingMode, setProcessingMode] = useState<ProcessingMode>('automatic')
+  const [validation, setValidation] = useState<BatchValidationResult | null>(null)
+  const [validating, setValidating] = useState(false)
   const folders = useRingBraceletFolders(product)
   const python = usePythonInterpreter()
   const job = useRingBraceletJob()
 
-  const canStart = folders.inputDir !== '' && folders.outputDir !== '' && python.isValid && !starting
+  // Phase 11.5D — lightweight pre-flight validation: does the input folder
+  // exist and contain at least one image runner.py would actually pick up?
+  // Runs automatically whenever the folder changes (picked, dropped, or
+  // restored from prefs on mount) rather than behind a separate Validate
+  // button — there's nothing else to validate here (no spreadsheet, no
+  // SKU matching), so a dedicated step would be more ceremony than the
+  // check warrants.
+  useEffect(() => {
+    if (folders.inputDir === '') {
+      setValidation(null)
+      return
+    }
+    let cancelled = false
+    setValidating(true)
+    window.api.invoke('ring-bracelet:validate-input', { inputDir: folders.inputDir }).then(result => {
+      if (!cancelled) {
+        setValidation(result)
+        setValidating(false)
+      }
+    })
+    return () => { cancelled = true }
+  }, [folders.inputDir])
+
+  const canStart = folders.inputDir !== '' && folders.outputDir !== '' && python.isValid && !starting && validation?.ok === true
 
   async function pickInputDir(explicitPath?: string) {
     if (starting) return
@@ -138,6 +170,7 @@ function RingBraceletFields({ product, initialBatchName, handoffFolder, onCreate
       outputDir: folders.outputDir,
       batchId,
       product,
+      processingMode,
       ...(overridePath !== '' ? { pythonPath: overridePath } : {}),
     })
     setStarting(false)
@@ -173,6 +206,17 @@ function RingBraceletFields({ product, initialBatchName, handoffFolder, onCreate
         disabled={starting}
         badge={isHandoff ? 'Prepared ✓' : undefined}
       />
+      {validating && (
+        <p className={styles.helperText}>Checking input folder…</p>
+      )}
+      {!validating && validation && !validation.ok && (
+        <div className={styles.errorBanner}>{validation.errors.join(' ')}</div>
+      )}
+      {!validating && validation?.ok && (
+        <p className={styles.helperText}>
+          {validation.imageCount} {validation.imageCount === 1 ? 'image' : 'images'} found.
+        </p>
+      )}
       <PathField
         label="Output Folder"
         value={folders.outputDir}
@@ -180,6 +224,12 @@ function RingBraceletFields({ product, initialBatchName, handoffFolder, onCreate
         onPick={() => pickOutputDir()}
         onDropPath={pickOutputDir}
         disabled={starting}
+      />
+      <SegmentedControl
+        label="Mode"
+        options={PROCESSING_MODE_OPTIONS}
+        value={processingMode}
+        onChange={setProcessingMode}
       />
 
       {job.startError && <div className={styles.errorBanner}>{job.startError}</div>}

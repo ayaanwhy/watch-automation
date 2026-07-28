@@ -23,6 +23,7 @@ import type {
   StageType,
 } from '../../src/types/batch'
 import { applyStagePatch, createBatchDetail, recompute, summarize } from './batchModel'
+import { countsFromImages } from './subprocessProtocol'
 
 interface BatchIndex {
   version: number
@@ -265,6 +266,33 @@ export async function updateStage(
   upsertSummary(index, updated)
   await writeIndex(index)
   return updated
+}
+
+// Manual QA review (Phase 11.5E) — toggles one image's needsFixing flag and
+// recomputes the stage's counts to match, via the same countsFromImages
+// helper subprocessRunner.ts uses so "completed" always means the same
+// thing everywhere. Orthogonal to `status`: only a `completed` image can be
+// flagged (an image that never produced a usable asset has nothing to
+// review); flagging never touches `status`, `images` length, or any output
+// file — non-destructive, per the phase's requirement. Returns null (no
+// write) if the batch/stage/image doesn't exist or the image isn't
+// completed, mirroring updateStage's own not-found behavior.
+export async function setImageNeedsFixing(
+  id: string,
+  stageType: StageType,
+  imageName: string,
+  needsFixing: boolean,
+): Promise<BatchDetailRecord | null> {
+  const detail = await getBatch(id)
+  if (!detail) return null
+  const stage = detail.stages.find(s => s.type === stageType)
+  if (!stage) return null
+  const imageIndex = stage.images.findIndex(img => img.name === imageName)
+  if (imageIndex === -1 || stage.images[imageIndex].status !== 'completed') return null
+
+  const images = stage.images.map((img, i) => (i === imageIndex ? { ...img, needsFixing } : img))
+  const counts = countsFromImages(images, images.length)
+  return updateStage(id, stageType, { images, counts })
 }
 
 export async function renameBatch(id: string, title: string): Promise<BatchDetailRecord | null> {

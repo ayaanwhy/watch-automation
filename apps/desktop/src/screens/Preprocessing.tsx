@@ -4,17 +4,22 @@ import { SnapSlider } from '../components/SnapSlider'
 import { Select } from '../components/ui/Select'
 import { BatchCard } from '../components/batch/BatchCard'
 import { usePythonInterpreter } from '../hooks/usePythonInterpreter'
-import { useSamTuning } from '../hooks/useSamTuning'
+import { usePreprocessingPreset } from '../hooks/usePreprocessingPreset'
 import { useUpscaleFactor } from '../hooks/useUpscaleFactor'
 import { usePreprocessingFolders } from '../hooks/usePreprocessingFolders'
 import { useProductType } from '../hooks/useProductType'
 import { usePreprocessingJob } from '../context/PreprocessingJobContext'
+import { PREPROCESSING_PRESET_OPTIONS } from '../constants/preprocessingPresets'
 import type { BatchSummaryRecord } from '../types/batch'
 import type { PreprocessOperation, ProductType, UpscaleFactor } from '../types/ipc'
 import styles from './Preprocessing.module.css'
 
+// Phase 11.5F — 1× renamed to "None": clearer than a multiplier that reads
+// as "do something" when it actually means "skip upscaling entirely". Purely
+// a label; the underlying value is still UpscaleFactor's 1 (unchanged CLI
+// arg, config, and Python behavior — see upscale.scaleFactor below).
 const UPSCALE_OPTIONS: { value: UpscaleFactor; label: string }[] = [
-  { value: 1, label: '1×' },
+  { value: 1, label: 'None' },
   { value: 2, label: '2×' },
   { value: 4, label: '4×' },
 ]
@@ -92,7 +97,7 @@ export default function Preprocessing({ initialBatchName = '', onCreateBatch, on
   const python  = usePythonInterpreter()
   const upscale = useUpscaleFactor()
   const product = useProductType()
-  const sam     = useSamTuning()
+  const preset  = usePreprocessingPreset()
   const job     = usePreprocessingJob()
 
   const disabled = starting
@@ -154,12 +159,7 @@ export default function Preprocessing({ initialBatchName = '', onCreateBatch, on
       objectType: product.productType,
       operations,
       ...(overridePath !== '' ? { pythonPath: overridePath } : {}),
-      samPointsPerSide:         sam.prefs.pointsPerSide,
-      samPointsPerBatch:        sam.prefs.pointsPerBatch,
-      samPredIouThresh:         sam.prefs.predIouThresh,
-      samStabilityScoreThresh:  sam.prefs.stabilityScoreThresh,
-      samMaxMasks:              sam.prefs.maxMasks,
-      samMultimaskOutput:       sam.prefs.multimaskOutput,
+      preset: preset.preset,
     })
     setStarting(false)
     if (started) onStarted()
@@ -218,7 +218,7 @@ export default function Preprocessing({ initialBatchName = '', onCreateBatch, on
           />
           {opsChoice === 'upscale' && upscale.scaleFactor === 1 && (
             <p className={styles.helperText}>
-              1× upscaling copies images without modification.
+              "None" copies images without modification.
             </p>
           )}
           <Select
@@ -228,6 +228,16 @@ export default function Preprocessing({ initialBatchName = '', onCreateBatch, on
             onChange={product.set}
             disabled={disabled}
           />
+          <Select
+            label="Preset"
+            options={PREPROCESSING_PRESET_OPTIONS}
+            value={preset.preset}
+            onChange={preset.set}
+            disabled={disabled}
+          />
+          <p className={styles.helperText}>
+            {PREPROCESSING_PRESET_OPTIONS.find(o => o.value === preset.preset)?.description}
+          </p>
         </div>
 
         {job.startError && (

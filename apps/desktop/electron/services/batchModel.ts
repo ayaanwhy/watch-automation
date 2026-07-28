@@ -13,7 +13,7 @@ import type {
   StageType,
 } from '../../src/types/batch'
 
-export const ZERO_COUNTS: StageCounts = { total: 0, succeeded: 0, failed: 0, cancelled: 0 }
+export const ZERO_COUNTS: StageCounts = { total: 0, succeeded: 0, failed: 0, cancelled: 0, needsFixing: 0 }
 
 const TERMINAL: StageRecord['status'][] = ['completed', 'failed', 'cancelled']
 

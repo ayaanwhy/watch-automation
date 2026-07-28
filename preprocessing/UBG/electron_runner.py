@@ -241,14 +241,27 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--refine-foreground", action="store_true", default=False,
                    help="Enable BiRefNet foreground refinement pass.")
     p.add_argument("--edge-mode", default="sharpen",
-                   choices=["none", "sharpen", "soften"],
+                   choices=["none", "sharpen", "crisp", "soften"],
                    help="Edge finish applied after background removal.")
     p.add_argument("--edge-strength", type=float, default=1.0,
                    help="Strength of the edge finish (default: 1.0).")
+    p.add_argument("--alpha-sharpen", type=float, default=0.0,
+                   help="Independent alpha-channel sharpening for edge-mode=crisp "
+                        "(default: 0.0 = no-op; does not affect edge-mode=sharpen). Phase 11.5A.")
     p.add_argument("--mask-blur", type=int, default=0,
                    help="Gaussian blur radius applied to the BiRefNet mask.")
     p.add_argument("--mask-offset", type=int, default=-2,
                    help="Mask erosion (negative) or dilation (positive) in pixels.")
+    p.add_argument("--mask-threshold", type=float, default=None,
+                   help="Hard cutoff in [0,1] applied to the mask before smoothing "
+                        "(default: None = smooth edges, no hard cut). Phase 11.5A.")
+    p.add_argument("--mask-contrast", type=float, default=1.0,
+                   help="Mask edge contrast; 1.0 = no-op (default). Phase 11.5A.")
+    p.add_argument("--mask-antialias-scale", type=int, default=1,
+                   help="Mask edge supersampling factor; 1 = no-op (default). Phase 11.5A.")
+    p.add_argument("--analysis-longest-side", type=int, default=None,
+                   help="BiRefNet analysis resolution cap in pixels (default from config.py "
+                        "ANALYSIS.longest_side). Phase 11.5B — preset-controlled.")
     # Model paths — Electron always passes absolute paths so location is unambiguous
     p.add_argument("--birefnet-model-root", default=None,
                    help="Directory containing BiRefNet_dynamic.safetensors + birefnet.py. "
@@ -270,6 +283,9 @@ def _parse_args() -> argparse.Namespace:
                    help="Maximum masks to return after sorting by area (default from config.py).")
     p.add_argument("--sam-multimask-output", type=int, choices=[0, 1], default=None,
                    help="SAM2 multimask output: 1=enabled (SAM2 default), 0=disabled.")
+    p.add_argument("--sam-max-image-size", type=int, default=None,
+                   help="Longest-side cap SAM resizes to before segmenting (default from "
+                        "config.py). Phase 11.5B — preset-controlled.")
     return p.parse_args()
 
 
@@ -289,19 +305,23 @@ def _parse_args() -> argparse.Namespace:
 # config objects, this shim can be removed entirely.
 #
 def _patch_config_if_needed(args: argparse.Namespace) -> None:
-    if args.sam_checkpoint is None:
-        return  # nothing to patch; config.py default path applies
+    # Phase 11.5B: max_image_size joins checkpoint as a patchable field — SAM
+    # has no other override path (unlike points_per_side etc., which are
+    # passed as segment_image() call arguments; see main()'s call site).
+    if args.sam_checkpoint is None and args.sam_max_image_size is None:
+        return  # nothing to patch; config.py defaults apply
 
     import config
     from config import SamConfig
 
     existing = config.SAM
     config.SAM = SamConfig(
-        # Override only the checkpoint path; all tuning parameters keep their
-        # config.py values so callers can still adjust them there.
-        checkpoint=args.sam_checkpoint,
+        # Override only checkpoint/max_image_size; all other tuning
+        # parameters keep their config.py values — points_per_side and the
+        # rest are applied per-call instead (see segment_image() below).
+        checkpoint=args.sam_checkpoint if args.sam_checkpoint is not None else existing.checkpoint,
         model_config=existing.model_config,
-        max_image_size=existing.max_image_size,
+        max_image_size=args.sam_max_image_size if args.sam_max_image_size is not None else existing.max_image_size,
         points_per_side=existing.points_per_side,
         points_per_batch=existing.points_per_batch,
         pred_iou_thresh=existing.pred_iou_thresh,
@@ -403,7 +423,7 @@ def main() -> int:
 
     try:
         with _quiet():
-            remover = BackgroundRemover(model_root=birefnet_root)
+            remover = BackgroundRemover(model_root=birefnet_root, analysis_longest_side=args.analysis_longest_side)
     except FileNotFoundError as exc:
         emit({"type": "fatal", "error": str(exc)})
         return 1
@@ -549,10 +569,14 @@ def main() -> int:
                             upscaled_path,
                             mask_blur=args.mask_blur,
                             mask_offset=args.mask_offset,
+                            mask_threshold=args.mask_threshold,
+                            mask_contrast=args.mask_contrast,
+                            mask_antialias_scale=args.mask_antialias_scale,
                             invert_output=False,
                             refine_foreground=args.refine_foreground,
                             edge_mode=args.edge_mode,
                             edge_strength=args.edge_strength,
+                            alpha_sharpen=args.alpha_sharpen,
                             background=args.background,
                             background_color=args.background_color,
                             artifact_name=input_path.stem,

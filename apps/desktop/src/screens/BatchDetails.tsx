@@ -20,6 +20,7 @@ import {
   readConfigValue,
 } from '../components/batch/batchDisplay'
 import { joinPath } from '../lib/paths'
+import { formatProcessingMode } from '../constants/processingMode'
 import type { BatchDetailRecord, BatchMode, StageRecord } from '../types/batch'
 import type { PreprocessDonePayload } from '../types/ipc'
 import type { PreprocessingImageState } from '../context/PreprocessingJobContext'
@@ -78,11 +79,7 @@ const PREPROCESSING_CONFIG_FIELDS: [string, string, string | undefined][] = [
   ['scaleFactor', 'Upscale Factor', '×'],
   ['objectType', 'Target', undefined],
   ['operations', 'Operations', undefined],
-  ['samPointsPerSide', 'SAM Points/Side', undefined],
-  ['samPointsPerBatch', 'SAM Points/Batch', undefined],
-  ['samPredIouThresh', 'SAM Pred IoU', undefined],
-  ['samStabilityScoreThresh', 'SAM Stability Score', undefined],
-  ['samMaxMasks', 'SAM Max Masks', undefined],
+  ['preset', 'Preset', undefined],
 ]
 
 // Phase 10A — operations is stored as an array (['background_removal', 'upscale']);
@@ -98,8 +95,27 @@ function formatOperations(value: unknown): string | null {
   return value.map(op => OPERATION_LABELS[op as string] ?? String(op)).join(' + ')
 }
 
+// Phase 11.5B — preset is stored as its lowercase name ('fast' | 'balanced' |
+// 'quality'); displayed capitalized to match the Preprocessing screen's Select.
+const PRESET_LABELS: Record<string, string> = {
+  fast: 'Fast',
+  balanced: 'Balanced',
+  quality: 'Quality',
+}
+
+// 11.5B follow-up — presetVersion records which revision of the preset's
+// (now user-editable) definition was active when the batch ran. Older
+// batches predate this field and simply omit it, so the version suffix is
+// only appended when present.
+function formatPreset(value: unknown, version: unknown): string | null {
+  if (typeof value !== 'string' || value === '') return null
+  const label = PRESET_LABELS[value] ?? value
+  return typeof version === 'number' ? `${label} (v${version})` : label
+}
+
 const WATCH_CONFIG_FIELDS: [string, string, string | undefined][] = [
   ['spreadsheetPath', 'Spreadsheet', undefined],
+  ['processingMode', 'Mode', undefined],
 ]
 
 // Phase 10D — "product" here is 'ring' | 'bracelet'; "splitY" is the
@@ -109,6 +125,7 @@ const WATCH_CONFIG_FIELDS: [string, string, string | undefined][] = [
 const EDITING_CONFIG_FIELDS: [string, string, string | undefined][] = [
   ['product', 'Product', undefined],
   ['splitY', 'Fallback Split', undefined],
+  ['processingMode', 'Mode', undefined],
 ]
 
 // Testing/Production is editable after creation (Phase 10F correction) —
@@ -127,8 +144,19 @@ function ConfigGrid({
 }) {
   const entries: { label: string; value: string; suffix: string }[] = []
   for (const [key, label, suffix] of fields) {
-    const value = key === 'operations' ? formatOperations(config[key]) : readConfigValue(config, key)
-    if (value !== null) entries.push({ label, value, suffix: suffix ?? '' })
+    const value =
+      key === 'operations'     ? formatOperations(config[key]) :
+      key === 'preset'         ? formatPreset(config[key], config['presetVersion']) :
+      key === 'processingMode' ? formatProcessingMode(config[key]) :
+      readConfigValue(config, key)
+    if (value === null) continue
+    // Phase 11.5F — matches the Preprocessing screen's 1×→"None" rename;
+    // the suffix ('×') only makes sense once upscaling actually happened.
+    if (key === 'scaleFactor' && value === '1') {
+      entries.push({ label, value: 'None', suffix: '' })
+    } else {
+      entries.push({ label, value, suffix: suffix ?? '' })
+    }
   }
   if (entries.length === 0) return null
   return (
@@ -248,6 +276,21 @@ export default function BatchDetails({
     if (updated) setBatch(updated)
   }
 
+  // Manual QA review (Phase 11.5E) — scoped to the editing stage for this
+  // phase (see IMPLEMENTATION_PLAN.md). Persists immediately; the returned
+  // batch already has counts.needsFixing/succeeded recomputed, so no
+  // separate refetch is needed.
+  async function handleToggleNeedsFixing(imageName: string, next: boolean) {
+    if (!batch) return
+    const updated = await window.api.invoke('batch-registry:set-image-needs-fixing', {
+      id: batch.id,
+      stageType: 'editing',
+      imageName,
+      needsFixing: next,
+    })
+    if (updated) setBatch(updated)
+  }
+
   function handleRunAnother() {
     job.reset()
     onRunAnotherPreprocessing()
@@ -338,6 +381,7 @@ export default function BatchDetails({
       frontFullImage: img.assets?.frontFullImage ?? null,
       frontImage: img.assets?.frontImage ?? null,
       detected: img.assets?.detected ?? null,
+      needsFixing: img.needsFixing ?? null,
       error: img.error,
       durationMs: img.durationMs,
     }))
@@ -515,7 +559,8 @@ export default function BatchDetails({
                 <div className={styles.metaRow}>
                   <span>
                     {editingStage.counts.succeeded}✓
-                    {editingStage.counts.failed > 0 ? ` · ${editingStage.counts.failed}✗` : ''} / {editingStage.counts.total}
+                    {editingStage.counts.failed > 0 ? ` · ${editingStage.counts.failed}✗` : ''}
+                    {editingStage.counts.needsFixing > 0 ? ` · ${editingStage.counts.needsFixing}🚩 needs fixing` : ''} / {editingStage.counts.total}
                   </span>
                 </div>
                 {(editingStage.status === 'completed' ||
@@ -544,7 +589,7 @@ export default function BatchDetails({
               <ThumbnailGrid
                 images={
                   showingEditingImages
-                    ? editingImages.map(img => ({ ...img, lowConfidence: img.detected === false }))
+                    ? editingImages.map(img => ({ ...img, lowConfidence: img.detected === false, needsFixing: img.needsFixing === true }))
                     : images
                 }
                 inputDir={imageInputDir}
@@ -558,6 +603,7 @@ export default function BatchDetails({
                   image={selectedEditingImageState}
                   inputDir={imageInputDir}
                   onExpand={() => setFullscreen(true)}
+                  onToggleNeedsFixing={handleToggleNeedsFixing}
                 />
               ) : (
                 <ImagePreviewPanel
@@ -569,6 +615,22 @@ export default function BatchDetails({
             </div>
           </div>
         </BatchDetailsSection>
+
+        {showingEditingImages && editingStage && editingStage.counts.needsFixing > 0 && (
+          <BatchDetailsSection title="Needs Fixing">
+            <p className={styles.needsFixingHint}>
+              Flagged during manual review — excluded from the completed total above. Select one to review it in the Images panel.
+            </p>
+            <ThumbnailGrid
+              images={editingImages
+                .filter(img => img.needsFixing === true)
+                .map(img => ({ ...img, lowConfidence: img.detected === false, needsFixing: true }))}
+              inputDir={imageInputDir}
+              selectedImage={selectedEditingImageState?.name ?? null}
+              onSelect={setSelectedImage}
+            />
+          </BatchDetailsSection>
+        )}
 
         {fullscreen && (() => {
           const activeList = showingEditingImages ? editingImages : images
@@ -585,7 +647,11 @@ export default function BatchDetails({
               hasNext={nextName !== null}
             >
               {showingEditingImages ? (
-                <RingBraceletImagePreviewPanel image={selectedEditingImageState} inputDir={imageInputDir} />
+                <RingBraceletImagePreviewPanel
+                  image={selectedEditingImageState}
+                  inputDir={imageInputDir}
+                  onToggleNeedsFixing={handleToggleNeedsFixing}
+                />
               ) : (
                 <ImagePreviewPanel image={selectedImageState} inputDir={imageInputDir} />
               )}

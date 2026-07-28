@@ -7,6 +7,7 @@ import type {
   BatchRenamePayload,
   BatchSetModePayload,
   BatchFindWatchPayload,
+  BatchSetImageNeedsFixingPayload,
 } from '../../src/types/ipc'
 
 // Thin handlers over the batch registry service (Phase 9B). All logic and
@@ -42,5 +43,9 @@ export function registerBatchRegistryHandlers(): void {
 
   ipcMain.handle('batch-registry:delete', async (_e, p: { id: string }): Promise<boolean> =>
     registry.deleteBatch(p.id),
+  )
+
+  ipcMain.handle('batch-registry:set-image-needs-fixing', async (_e, p: BatchSetImageNeedsFixingPayload): Promise<BatchDetailRecord | null> =>
+    registry.setImageNeedsFixing(p.id, p.stageType, p.imageName, p.needsFixing),
   )
 }

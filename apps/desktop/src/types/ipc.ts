@@ -159,26 +159,30 @@ export interface PreprocessStartPayload {
   backgroundColorHex?: string
   outputPpi?: number
   outputSuffix?: string
-  refineForeground?: boolean
-  edgeMode?: 'none' | 'sharpen' | 'soften'
-  edgeStrength?: number
-  maskBlur?: number
-  maskOffset?: number
+  // Preprocessing quality preset (Phase 11.5B) — replaces the old individual
+  // mask/edge/SAM tuning fields. The renderer only selects between named
+  // presets ('fast' | 'balanced' | 'quality', see constants/preprocessingPresets.ts);
+  // the main process resolves the preset into the full parameter set and
+  // builds the CLI args from that. Omitted means the default preset
+  // ('balanced') applies.
+  preset?: import('../constants/preprocessingPresets').PreprocessingPreset
   birefnetModelRoot?: string
-  // SAM tuning — renderer-controlled overrides forwarded to electron_runner.py via CLI.
-  // When absent, config.py SAM defaults apply unchanged.
-  samPointsPerSide?: number
-  samPointsPerBatch?: number
-  samPredIouThresh?: number
-  samStabilityScoreThresh?: number
-  samMaxMasks?: number
-  samMultimaskOutput?: boolean
   samCheckpoint?: string
 }
 
 export type PreprocessStartResult =
   | { ok: true; jobId: string }
   | { ok: false; error: string }
+
+// ── Preprocessing preset definitions (11.5B follow-up) ──────────────────────
+// What Fast/Balanced/Quality actually mean, editable only from Settings —
+// see constants/preprocessingPresets.ts for the value shape and factory
+// defaults, and electron/services/preprocessingPresetDefinitions.ts for how
+// the main process persists/resolves the active (possibly-edited) values.
+export interface PreprocessingPresetDefinitionSavePayload {
+  preset: import('../constants/preprocessingPresets').PreprocessingPreset
+  values: import('../constants/preprocessingPresets').PreprocessingPresetValues
+}
 
 export interface PreprocessMask {
   index: number
@@ -213,16 +217,6 @@ export interface PreprocessDonePayload {
 
 export interface PreprocessResolveResult {
   pythonPath: string | null
-}
-
-// Persisted SAM tuning settings. Defaults match the current config.py SAM values.
-export interface SamTuningPrefs {
-  pointsPerSide: number
-  pointsPerBatch: number
-  predIouThresh: number
-  stabilityScoreThresh: number
-  maxMasks: number
-  multimaskOutput: boolean
 }
 
 // ── Preprocessing → Editing hand-off preparation (Phase 10F) ────────────────
@@ -276,6 +270,15 @@ export interface BatchStageUpdatePayload {
   patch: import('./batch').StagePatch
 }
 
+// Manual QA review (Phase 11.5E) — toggles one image's needsFixing flag.
+// Scoped to the 'editing' stage type for this phase (see IMPLEMENTATION_PLAN.md).
+export interface BatchSetImageNeedsFixingPayload {
+  id: string
+  stageType: import('./batch').StageType
+  imageName: string
+  needsFixing: boolean
+}
+
 export interface BatchRenamePayload {
   id: string
   title: string
@@ -318,6 +321,19 @@ export interface RingBraceletStartPayload {
   // renderer override on an unchanged default (0.5), same pattern as SAM
   // tuning in PreprocessStartPayload.
   splitY?: number
+  // Automatic/Manual workflow abstraction (Phase 11.5C, constants/processingMode.ts)
+  // — Automatic runs the existing masking workflow before shadow generation;
+  // Manual skips masking and proceeds straight to shadow generation. Omitted
+  // means 'automatic', matching pre-11.5C behavior exactly.
+  processingMode?: import('../constants/processingMode').ProcessingMode
+}
+
+// Phase 11.5D — lightweight pre-flight check before Start, mirroring the
+// spirit of Watch's batch:validate without its spreadsheet/SKU-matching
+// (Ring & Bracelet has neither). Reuses BatchValidationResult's shape
+// (ok/errors/imageCount) rather than a near-duplicate type.
+export interface RingBraceletValidatePayload {
+  inputDir: string
 }
 
 export type RingBraceletStartResult =

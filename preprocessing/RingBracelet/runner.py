@@ -2,26 +2,39 @@
 """
 runner.py — Ring & Bracelet asset generator (Phase 10C; product dispatch
 added in Phase 10E; orchestration shared with Universal Preprocessing via
-runner_base.py in Phase 11D).
+runner_base.py in Phase 11D; Automatic/Manual processing modes and shadow
+generation added in Phase 11.5C; idempotent reruns added in Phase 11.5D,
+mirroring electron_runner.py's Phase 11E behavior — an image whose expected
+outputs already exist is skipped rather than reprocessed).
 
 Consumes the transparent PNGs Universal Preprocessing has already produced
 (background-removed, optionally upscaled) and bakes two assets per image:
 
   SKU;frontFullImage.png — the preprocessed image, unmodified.
   SKU;frontImage.png     — the same image with the shank-occluded region's
-                            alpha reduced, using a per-product mask function.
+                            alpha reduced (--processing-mode=automatic only;
+                            skipped entirely in manual mode — see below),
+                            then the Ring & Bracelet shadow profile applied
+                            (shadow.py) — both processing modes converge on
+                            this same shadow step.
+
+--processing-mode (automatic, the default, or manual) is the shared
+Automatic/Manual workflow abstraction (IMPLEMENTATION_PLAN.md, Phase
+11.5C) applied to this pipeline: automatic runs the masking step below
+exactly as before; manual treats the input as already masked externally
+and skips straight to shadow generation.
 
 This runner owns only its own per-image processing; batching, cancellation,
 input discovery, and the NDJSON/exit-code protocol come from runner_base.py
 (shared with electron_runner.py) — see that module's docstring. The mask-
 generation step is the one part of the pipeline that diverges by product —
-everything else here (file naming, alpha subtraction) is shared and
-identical regardless of --product. shank_mask.py (bracelet, verified) and
-ring_mask.py (ring, independently developed) are both pure algorithm modules
-with no I/O of their own — see their own docstrings for how each is
-verified/unverified. SKU is the input filename's stem — there is no
-spreadsheet/SKU-matching mechanism for Ring & Bracelet yet (that remains
-Watch-specific).
+everything else here (file naming, alpha subtraction, shadow generation) is
+shared and identical regardless of --product. shank_mask.py (bracelet,
+verified) and ring_mask.py (ring, independently developed) are both pure
+algorithm modules with no I/O of their own — see their own docstrings for
+how each is verified/unverified. SKU is the input filename's stem — there
+is no spreadsheet/SKU-matching mechanism for Ring & Bracelet yet (that
+remains Watch-specific).
 
 Status (temporary, Phase 10E): ring_mask.py's dedicated rear-shank algorithm
 is currently NOT wired in — both --product values run shank_mask.py's
@@ -58,6 +71,7 @@ from shank_mask import generate_wrap_mask  # noqa: E402
 # Imported but not currently called — see the temporary-rollback note on the
 # --product dispatch in _process_one below and ring_mask.py's own docstring.
 from ring_mask import generate_ring_mask  # noqa: E402,F401
+from shadow import composite_with_shadow, RING_BRACELET_SHADOW  # noqa: E402
 import runner_base as rb  # noqa: E402
 
 SUPPORTED_EXTENSIONS = {".png", ".webp"}
@@ -75,45 +89,78 @@ def _parse_args():
     p.add_argument("--split-y", type=float, default=0.5,
                    help="Fallback vertical split (band-relative) used when no hole topology is found. "
                         "Bracelet only — ring_mask.py does not currently use this.")
+    # Phase 11.5C — Automatic / Manual is a shared workflow abstraction (see
+    # IMPLEMENTATION_PLAN.md), not a Ring & Bracelet-specific concept.
+    # Automatic runs the masking step below exactly as before; Manual skips
+    # it entirely (the input is treated as already masked externally) and
+    # both converge on the same shadow-generation step.
+    p.add_argument("--processing-mode", choices=("automatic", "manual"), default="automatic",
+                   help="Automatic: run the shank/wrap masking workflow before continuing. "
+                        "Manual: masking has already been done externally — skip straight to "
+                        "shadow generation. (default: automatic)")
     return p.parse_args()
 
 
-def _process_one_image(input_path: Path, output_dir: Path, product: str, split_y: float) -> dict:
+def _expected_output_paths(input_path: Path, output_dir: Path) -> tuple[Path, Path]:
+    return (
+        output_dir / f"{input_path.stem};frontFullImage.png",
+        output_dir / f"{input_path.stem};frontImage.png",
+    )
+
+
+def _process_one_image(input_path: Path, output_dir: Path, product: str, split_y: float, processing_mode: str) -> dict:
     """Returns the fields to merge into a 'complete' event. Raises on failure."""
     img = Image.open(input_path).convert("RGBA")
     arr = np.array(img)
     alpha = arr[:, :, 3]
 
-    # The only product-dispatched step in the whole pipeline — see module
-    # docstring. Both functions share the same (mask, detected) contract, so
-    # nothing below this line needs to know which product it is.
-    if product == "ring":
-        # Temporary rollback (Phase 10E): ring_mask.generate_ring_mask is
-        # experimental and not yet validated broadly enough to run in
-        # production — see ring_mask.py's module docstring for status. Both
-        # branches currently call the proven bracelet implementation; the
-        # --product dispatch itself stays in place so re-enabling the
-        # dedicated ring algorithm later is a one-line change, right here:
-        #     mask, detected = generate_ring_mask(alpha)
-        mask, detected = generate_wrap_mask(alpha, split_y=split_y)
+    if processing_mode == "manual":
+        # Masking has already been done externally (per-SKU input already
+        # background-removed and manually prepared) — nothing to detect, and
+        # nothing here should be flagged as a low-confidence automatic
+        # result (Batch Details' "needs review" badge keys off
+        # detected === false, not the absence of masking).
+        masked_alpha = alpha
+        detected = True
     else:
-        mask, detected = generate_wrap_mask(alpha, split_y=split_y)
+        # The only product-dispatched step in the whole pipeline — see
+        # module docstring. Both functions share the same (mask, detected)
+        # contract, so nothing below this line needs to know which product
+        # it is.
+        if product == "ring":
+            # Temporary rollback (Phase 10E): ring_mask.generate_ring_mask is
+            # experimental and not yet validated broadly enough to run in
+            # production — see ring_mask.py's module docstring for status.
+            # Both branches currently call the proven bracelet
+            # implementation; the --product dispatch itself stays in place
+            # so re-enabling the dedicated ring algorithm later is a
+            # one-line change, right here:
+            #     mask, detected = generate_ring_mask(alpha)
+            mask, detected = generate_wrap_mask(alpha, split_y=split_y)
+        else:
+            mask, detected = generate_wrap_mask(alpha, split_y=split_y)
 
-    front_full_path = output_dir / f"{input_path.stem};frontFullImage.png"
-    front_path = output_dir / f"{input_path.stem};frontImage.png"
+        # Alpha reduced in the shank-occluded region. Never increases alpha
+        # — the occluded region can only become more transparent, everywhere
+        # else is untouched.
+        masked_alpha = (alpha.astype(np.float32) * (1.0 - mask.astype(np.float32) / 255.0))
+        masked_alpha = np.clip(masked_alpha, 0, 255).astype(np.uint8)
+
+    front_full_path, front_path = _expected_output_paths(input_path, output_dir)
 
     # frontFullImage: the preprocessed image, unmodified (re-encoded to PNG
-    # regardless of input format, so the output contract is always PNG).
+    # regardless of input format, so the output contract is always PNG) —
+    # unconditional, same in both processing modes.
     img.save(front_full_path)
 
-    # frontImage: same image, alpha reduced in the shank-occluded region.
-    # Never increases alpha — the occluded region can only become more
-    # transparent, everywhere else is untouched.
-    new_alpha = (alpha.astype(np.float32) * (1.0 - mask.astype(np.float32) / 255.0))
-    new_alpha = np.clip(new_alpha, 0, 255).astype(np.uint8)
-    front_arr = arr.copy()
-    front_arr[:, :, 3] = new_alpha
-    Image.fromarray(front_arr, mode="RGBA").save(front_path)
+    # frontImage: the (possibly masked) image with the Ring & Bracelet
+    # shadow profile applied — the shared downstream step both processing
+    # modes converge on. See shadow.py for the ported algorithm.
+    masked_arr = arr.copy()
+    masked_arr[:, :, 3] = masked_alpha
+    masked_img = Image.fromarray(masked_arr, mode="RGBA")
+    shadowed_img = composite_with_shadow(masked_img, RING_BRACELET_SHADOW)
+    shadowed_img.save(front_path)
 
     return {
         "frontFullImage": str(front_full_path),
@@ -137,10 +184,37 @@ def main() -> int:
     rb.emit_start(images)
 
     def process_one(index: int, total: int, input_path: Path) -> None:
-        rb.emit({"type": "progress", "index": index, "total": total,
-                  "image": input_path.name, "stage": "shank_mask", "status": "start"})
         t0 = time.perf_counter()
-        result = _process_one_image(input_path, output_dir, args.product, args.split_y)
+        front_full_path, front_path = _expected_output_paths(input_path, output_dir)
+
+        # Idempotent reruns (Phase 11.5D) — mirrors electron_runner.py's
+        # existing behavior (Phase 11E): an image whose expected outputs
+        # already exist was already processed in a previous run against
+        # this same output directory — most commonly, retrying a batch a
+        # crash or force-quit interrupted. Skip straight to reporting it
+        # complete instead of reprocessing. `detected` is reported as True
+        # on skip — a neutral placeholder, not a re-derived value, the same
+        # accepted information loss electron_runner.py's own skip path has
+        # for `masks`.
+        if front_full_path.exists() and front_path.exists():
+            print(f"Skipping {input_path.name} — output already exists.", file=sys.stderr)
+            duration_ms = int((time.perf_counter() - t0) * 1000)
+            rb.emit({
+                "type": "complete",
+                "index": index,
+                "total": total,
+                "image": input_path.name,
+                "duration_ms": duration_ms,
+                "frontFullImage": str(front_full_path),
+                "frontImage": str(front_path),
+                "detected": True,
+            })
+            return
+
+        stage = "shank_mask" if args.processing_mode == "automatic" else "shadow"
+        rb.emit({"type": "progress", "index": index, "total": total,
+                  "image": input_path.name, "stage": stage, "status": "start"})
+        result = _process_one_image(input_path, output_dir, args.product, args.split_y, args.processing_mode)
         duration_ms = int((time.perf_counter() - t0) * 1000)
         rb.emit({
             "type": "complete",

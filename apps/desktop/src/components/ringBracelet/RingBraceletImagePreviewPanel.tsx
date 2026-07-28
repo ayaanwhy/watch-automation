@@ -12,6 +12,11 @@ interface RingBraceletImagePreviewPanelProps {
   inputDir: string
   // Fullscreen review (Phase 10F) — see ImagePreviewPanel's identical prop.
   onExpand?: () => void
+  // Manual QA review (Phase 11.5E) — omitted entirely by callers with no
+  // review concept (RingBraceletRunWorkspace's live grid), which is what
+  // keeps the toggle button from rendering there; only Batch Details passes
+  // this.
+  onToggleNeedsFixing?: (name: string, next: boolean) => void
 }
 
 // Mirrors ImagePreviewPanel's structure and status-driven branching exactly,
@@ -19,7 +24,7 @@ interface RingBraceletImagePreviewPanelProps {
 // outputs) rather than an original-vs-processed pair — there is no separate
 // "original" here once an image has completed; the input *is* Universal
 // Preprocessing's already-prepared transparent PNG.
-export function RingBraceletImagePreviewPanel({ image, inputDir, onExpand }: RingBraceletImagePreviewPanelProps) {
+export function RingBraceletImagePreviewPanel({ image, inputDir, onExpand, onToggleNeedsFixing }: RingBraceletImagePreviewPanelProps) {
   const [background, setBackground] = useState<ComparisonBackground>('transparent')
 
   if (!image) {
@@ -37,6 +42,14 @@ export function RingBraceletImagePreviewPanel({ image, inputDir, onExpand }: Rin
       <div className={styles.panel}>
         <div className={styles.header}>
           <span className={styles.name}>{image.name}</span>
+          {onToggleNeedsFixing && (
+            <button
+              className={`${styles.needsFixingToggle} ${image.needsFixing ? styles.needsFixingToggleActive : ''}`}
+              onClick={() => onToggleNeedsFixing(image.name, !image.needsFixing)}
+            >
+              {image.needsFixing ? '✓ Needs Fixing' : 'Mark as Needs Fixing'}
+            </button>
+          )}
           {onExpand && (
             <button className={styles.expandButton} onClick={onExpand} aria-label="View fullscreen" title="View fullscreen">
               ⤢
@@ -56,6 +69,12 @@ export function RingBraceletImagePreviewPanel({ image, inputDir, onExpand }: Rin
           <div className={styles.lowConfidence}>
             <span className={styles.lowConfidenceIcon} aria-hidden="true">⚠</span>
             <span>No clear shank boundary found — this mask used a fallback estimate. Worth a closer look.</span>
+          </div>
+        )}
+        {image.needsFixing === true && (
+          <div className={styles.needsFixing}>
+            <span className={styles.needsFixingIcon} aria-hidden="true">🚩</span>
+            <span>Flagged during manual review — excluded from the batch's completed total until fixed.</span>
           </div>
         )}
       </div>

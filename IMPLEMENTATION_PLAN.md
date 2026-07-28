@@ -1185,6 +1185,298 @@ Remaining technical debt carried forward (none blocking, none part of this run's
 
 ⸻
 
+Phase 11.5 — Workflow & Product Refinements
+
+Goal
+
+Build upon the architectural foundation established in Phase 11 by refining the end-user workflow across all editing pipelines. This phase focuses on improving consistency, usability, and maintainability before introducing new feature work in Phase 12.
+
+The work is divided into incremental milestones covering preprocessing improvements, workflow standardization, batch management, quality assurance, and user experience polish.
+
+⸻
+
+Phase 11.5A — Background Removal Pipeline Modernization
+
+Objective
+
+Review and integrate the latest improvements to the Background Removal pipeline before expanding preprocessing workflows.
+
+The /bg remove reference files are an algorithm and behaviour reference only, not an architectural replacement. The goal is not to replace the preprocessing architecture built during Phase 11 with the standalone reference scripts, but to extract and integrate their approved algorithmic and behavioural improvements into that existing architecture.
+
+Scope
+
+* Review the four updated Background Removal files located in the /bg remove directory.
+* Compare the updated implementation against the existing pipeline.
+* Identify behavioural improvements, architectural changes, and any potential regressions.
+* Produce an integration proposal for review before implementation.
+* After approval, integrate the approved algorithmic and behavioural improvements into the existing Phase 11 preprocessing architecture, preserving everything introduced during Phase 11 where applicable, including:
+    * runner_base.py
+    * electron_runner.py
+    * the NDJSON protocol
+    * cooperative cancellation
+    * profiling
+    * structured logging
+    * heartbeat handling
+    * MPS device support
+    * the shared orchestration architecture
+* Where the reference implementation regresses an already-solved problem (for example, its missing MPS device branch), preserve the existing, already-correct implementation rather than carrying the regression forward.
+
+No workflow changes should be introduced until the updated Background Removal pipeline has been validated and integrated.
+
+Deliverable
+
+An updated Background Removal pipeline incorporating the approved improvements and serving as the new preprocessing baseline.
+
+⸻
+
+Background Removal Integration — Resolved Decisions
+
+This subsection records the outcome of the integration proposal comparing `/bg remove`'s four reference files against the current pipeline (`config.py`, `stage0/background_remover.py`, `services/upscaler.py`), item by item, approved before any code was written.
+
+1. **Device selection — reject the reference, preserve current behaviour.** The reference files select device via `cuda → cpu` only, with no MPS branch — a regression of an already-solved problem (see Phase 11's own MPS findings). Current code's `cuda → mps → cpu` selection in both `background_remover.py` and `upscaler.py` is preserved exactly, unchanged.
+2. **FP16 precision policy — reject the reference, preserve current behaviour.** The reference only uses fp16 on CUDA, defaulting to fp32 on MPS/CPU. Current code uses fp16 unconditionally. Phase 11's validation and benchmarks were performed against current fp16-everywhere behaviour, with no evidence a precision-policy change would improve output or performance on this application's actual target hardware (Apple Silicon / MPS). Current behaviour is preserved unchanged.
+3. **Adaptive analysis resolution — adopted.** BiRefNet's analysis resolution changes from a fixed 1024×1024 to `min(analysis_longest_side, image_longest_side)` rounded to a multiple of 32 — avoiding unnecessary upscale-then-analyze for inputs already smaller than 1024px on their longest side. This is a genuine, accepted improvement; it is the one change in this integration that is not fully output-preserving for that specific input-size range, and that tradeoff is accepted.
+4. **New mask/edge parameter surface — adopted with behaviour-preserving defaults.** `mask_threshold`, `mask_contrast`, `mask_antialias_scale`, `alpha_sharpen`, and a new `edge_mode="crisp"` option are introduced now, defaulted to neutral/no-op values (`mask_contrast=1.0`, `mask_antialias_scale=1`, `alpha_sharpen=0`, `mask_threshold=None`, default `edge_mode` remains `"sharpen"`) so an unconfigured rerun produces the same output as before this integration. The reference implementation's own tuned values for these parameters are deliberately not adopted as defaults here — Phase 11.5B is where this parameter surface gets exposed and tuned through the preprocessing preset system. 11.5A must not silently change visual output.
+5. **Adaptive upscale-by-image-size — rejected, out of scope for this phase.** The reference upscaler overrides the user's selected scale factor based on image dimensions (forcing 1× above a size threshold, 4× below another). This is explicitly rejected: the user's selected scale factor is the source of truth and must be applied exactly as selected, with no implicit override based on image dimensions. Current upscaling behaviour is preserved exactly — no scale-by-size logic is integrated. Adaptive upscaling may be revisited in the future as an explicit, separately-selected mode if there is sufficient demand; it is not part of Phase 11.5A and must not be introduced as hidden behaviour behind the existing scale selector.
+
+⸻
+
+Phase 11.5B — Preprocessing Presets
+
+Objective
+
+Replace low-level preprocessing configuration with user-friendly quality presets covering the entire preprocessing pipeline, while preserving the existing configurability internally.
+
+This phase originally referred only to the SAM2 configuration, because SAM2 was the only configurable preprocessing stage at the time it was written. Following Phase 11.5A, the preprocessing pipeline contains additional tunable behaviour. Fast / Balanced / Quality must therefore represent complete preprocessing presets, not SAM2-only presets.
+
+Scope
+
+* Replace the current SAM2 configuration in the Settings page with configurable quality presets (e.g. Fast, Balanced, Quality).
+* Each preset defines the complete set of underlying technical preprocessing parameters for that quality level — every tunable preprocessing behaviour, including SAM2 and any additional parameters introduced by Phase 11.5A's Background Removal integration — not SAM2 parameters alone.
+* Introduce preset selection within the Preprocessing workflow.
+* Preset selection is stored on a per-batch basis.
+* Default all new batches to the Balanced preset.
+
+The Settings page remains responsible for defining preset values across the entire preprocessing pipeline, while the Preprocessing workflow is responsible only for selecting between them.
+
+Deliverable
+
+A simplified preprocessing configuration workflow using reusable, complete-pipeline quality presets.
+
+⸻
+
+Preprocessing Presets — Approved Specification
+
+This subsection is the authoritative source of truth for Phase 11.5B, approved before implementation.
+
+These presets configure the preprocessing pipeline only. They do not change workflow behaviour, scale factor selection, product-specific logic, or orchestration.
+
+General principles:
+* Balanced is the default preset and serves as the regression anchor for the current production configuration.
+* Fast reduces processing time by lowering analysis and sampling fidelity, while keeping finishing behaviour identical to Balanced.
+* Quality enables the enhanced preprocessing capabilities introduced in 11.5A (crisp edge mode, alpha sharpening, mask contrast) while preserving the same underlying pipeline.
+* User-selected upscale factor remains the source of truth and must never be overridden by a preset.
+* Product workflows remain unchanged.
+* No additional tuning is introduced beyond what is specified below. No silhouette-defining parameters change between presets beyond the approved values. Orchestration, IPC, batch persistence, and workflow behaviour are not modified by this phase.
+
+| Parameter | Fast | Balanced (default) | Quality |
+|---|---|---|---|
+| analysis.longest_side | 768 | 1024 (existing production value) | 1024 |
+| analysis.size_multiple | 32 | 32 (existing production value) | 32 |
+| refine_foreground | false | false (existing production value) | false |
+| mask_blur | 0 | 0 (existing production value) | 0 |
+| mask_offset | -2 | -2 (existing production value) | -2 |
+| mask_threshold | None | None (behaviour-preserving default) | None |
+| mask_contrast | 1.0 | 1.0 (behaviour-preserving default) | 1.15 |
+| mask_antialias_scale | 1 | 1 (behaviour-preserving default) | 1 |
+| edge_mode | sharpen | sharpen (behaviour-preserving default) | crisp |
+| edge_strength | 1.0 (matches Balanced — preserves identical finishing behaviour) | 1.0 (existing production value — see note below) | 1.5 (deliberately raised for this milestone — see note below) |
+| alpha_sharpen | 0.0 | 0.0 (behaviour-preserving default) | 1.0 |
+| SAM max_image_size | 768 | 1024 (existing production value) | 1024 |
+| SAM points_per_side | 24 | 32 (existing production value) | 48 |
+| SAM points_per_batch | 64 | 16 (existing production value — intentionally not raised to 64) | 64 |
+| SAM pred_iou_thresh | 0.8 | 0.8 (existing production value) | 0.8 |
+| SAM stability_score_thresh | 0.92 | 0.92 (existing production value) | 0.92 |
+| SAM min_mask_region_area | 100 | 100 (existing production value) | 100 |
+| SAM max_masks | 32 | 32 (existing production value) | 32 |
+| SAM multimask_output | false | true (existing production value) | true |
+
+Notes:
+* Balanced's `points_per_batch` is deliberately kept at its existing production value (16) rather than raised to 64, even though 64 may be a valid optimization — Balanced's purpose is to stay as close as possible to today's validated production configuration, not to also carry a speculative improvement.
+* `edge_strength`'s original value in this table (1.5 for all three presets) was corrected after implementation-time verification. The pre-11.5B renderer never actually sent `--edge-strength` (no UI control existed for it), so true historical production behaviour used the CLI's argparse default of **1.0**, not 1.5 as originally assumed. This was confirmed empirically: reconstructing the exact pre-11.5B payload and running it through the real pipeline produced byte-identical output to Balanced only when `edge_strength=1.0`; `1.5` diverged. Balanced and Fast now use `1.0` (Fast explicitly, to preserve identical finishing behaviour to Balanced per the general principles above). Quality intentionally raises `edge_strength` to `1.5` for this milestone, evaluated alongside its other changes (`crisp` edge mode, `alpha_sharpen`, `mask_contrast`) rather than in isolation from them.
+* Every "behaviour-preserving default" value above is identical to the no-op default introduced in Phase 11.5A — Balanced and Fast never engage `mask_threshold`, `mask_antialias_scale`, or `alpha_sharpen` at all; only Quality does, and only for the two dimensions explicitly approved (`mask_contrast`, `alpha_sharpen`, `edge_mode`).
+
+Phase 11.5B follow-up — Editable Preset Definitions
+
+Approved before implementation. Restores the original design intent — Settings owns what Fast/Balanced/Quality mean; Preprocessing only selects between them — without reintroducing per-batch tuning.
+
+* The values in `constants/preprocessingPresets.ts` (`DEFAULT_PREPROCESSING_PRESETS`) are the **factory defaults**, used to initialize the persisted definitions on first run and as the target of "Reset to default." They are no longer the live values consumed at run time.
+* The **active preset definitions** — the values actually used to build CLI args — are persisted separately (`preprocessing-preset-definitions.json`), editable only from Settings. Preprocessing continues to send only a preset name; batch persistence continues to store only the preset name.
+* Each preset definition carries a **version number**, incremented every time that preset is saved (including a "Reset to default," which is itself a save). Batch persistence records the preset name *and* the version that was active when the batch ran — lightweight provenance without snapshotting the full parameter set onto every batch. A batch's recorded version does not track further edits made to that preset after the batch ran; this is an accepted trade-off of storing only a name + version rather than a full snapshot.
+* Settings shows a subtle "Using factory defaults" / "Modified" indicator for the currently-selected preset, computed by comparing its active values against `DEFAULT_PREPROCESSING_PRESETS` for that preset (not a separately-stored flag, so it can never drift out of sync with the actual values). "Reset to default" restores both the factory values and this status by saving the factory values back (incrementing the version, same as any other save).
+* Because `buildArgs` in `preprocessHandlers.ts` is called synchronously when a job starts (`subprocessRunner.ts`'s contract), the main process holds the active definitions in an in-memory cache (mirroring `pythonResolver.ts`'s `_cached` pattern) hydrated once at app startup — before the window opens, before any job could start — and updated in place on every save.
+
+⸻
+
+Phase 11.5C — Automatic & Manual Processing Modes
+
+Objective
+
+Standardize processing modes across all editing pipelines through a shared Automatic / Manual workflow abstraction, implemented using shared infrastructure wherever practical rather than pipeline-specific implementations.
+
+Automatic / Manual is a shared workflow abstraction, not an AI-specific toggle:
+
+* **Automatic** means: use the product's automated masking workflow before continuing through the remainder of the editing pipeline.
+* **Manual** means: masking has already been completed externally — skip the automated masking stage and continue with the downstream editing pipeline.
+
+Scope
+
+* Introduce an Automatic / Manual selector during batch creation for every editing pipeline.
+* Store the selected mode as part of the batch configuration.
+* Display the selected mode within the Batch Details page.
+* For Ring & Bracelet generation:
+    * Automatic performs the product's existing automated masking workflow before continuing.
+    * Manual skips masking entirely and proceeds directly to the downstream editing pipeline.
+    * Both modes must converge on the same downstream editing pipeline.
+    * Apply shadow generation using a dedicated Ring & Bracelet shadow profile — see "Ring & Bracelet Shadow Generation" below for the resolved integration approach and settings. The goal is shared visual behaviour (same masking/falloff technique, product-specific tuning) rather than a single shared implementation at any cost.
+* For Watch generation:
+    * Manual continues to behave exactly as the current implementation.
+    * Automatic establishes the workflow abstraction only; AI-driven Watch generation will be introduced during Phase 12.
+
+The implementation should prioritize a shared workflow abstraction while allowing individual pipelines to retain their product-specific processing behaviour where that results in a simpler architecture (e.g. which masking algorithm Automatic invokes per product; how shadow generation is implemented per pipeline — see below).
+
+Deliverable
+
+A unified processing-mode workflow shared across all editing pipelines — including visually consistent, product-tuned shadow generation for Ring & Bracelet.
+
+⸻
+
+Ring & Bracelet Shadow Generation — Resolved Integration Approach
+
+This subsection records the outcome of an explicit architecture investigation (two candidate approaches were compared before any code was written) and the resulting decision, so the reasoning survives independently of the chat history that produced it.
+
+**Decision: port the shadow algorithm into the Python Ring & Bracelet pipeline. Do not introduce a new Python ↔ Electron processing boundary to reuse the TypeScript implementation.**
+
+Two approaches were investigated:
+1. **Reuse the existing TypeScript shadow engine** (`packages/processing/src/processing/shadowEngine.ts`) cross-process — Electron would read Python's output, invoke the TS engine, write the final file. Rejected: this pipeline runs start-to-finish in one Python process today, with no mid-flight handback to Node; introducing one would require extending the Phase 11B/11D shared subprocess orchestration, the batch status model, cancellation semantics, and Phase 11E's idempotent-rerun logic to account for a new intermediate ("masked but not yet shadowed") state — a nontrivial change to four already-stabilized subsystems, solely to avoid a second implementation of one self-contained, dependency-free image-processing function.
+2. **Port the algorithm into Python.** Accepted. The underlying operations (alpha threshold, max-filter dilate, Gaussian blur, translate/offset, a horizontal gradient mask, hex-color compositing) are standard PIL/numpy operations — the same toolchain `RingBracelet/runner.py` and `shank_mask.py` already use for comparable alpha-channel work. No new dependency, no new process model. The cost is verification, not implementation risk: the port must be checked against the existing TS engine's output (matching settings, representative test images, direct pixel comparison) before being considered equivalent — this is a required validation step for this milestone, not optional polish.
+
+The existing TypeScript shadow engine (`shadowEngine.ts`) is not modified by this work and remains the Watch pipeline's implementation, unchanged.
+
+**Masking/falloff technique is preserved, not simplified.** Ring & Bracelet shadows use the same masked-shadow approach as Watch — including the horizontal fade-in/fade-out falloff (`maskAlphaAtX` in the TS original) — not a uniform, unmasked drop shadow. The difference between Watch and Ring & Bracelet shadows is tuning, not technique.
+
+One necessary generalization: the TS original's falloff breakpoints (100 / 400 / 1600 / 1900) are absolute pixel values assuming a fixed 2000×2000 canvas, which Ring & Bracelet images do not use (their dimensions vary per image, driven by upstream preprocessing/upscaling). The Python port expresses these breakpoints proportionally — 5% / 20% / 80% / 95% of the image's actual width — preserving the same relative falloff shape (fade in over the first 15% of width, full strength through the middle 60%, fade out over the last 15%) at whatever size the image actually is, rather than reproducing the literal pixel values out of context.
+
+**Ring & Bracelet has its own named shadow profile** (e.g. a `RING_BRACELET_SHADOW` settings constant, distinct from Watch's `defaultShadowSettings`) — not a shared settings object with override fields. The two profiles use the same underlying shadow algorithm and the same masking/falloff behaviour, but are independently defined and independently tunable: future tuning of one profile must not unintentionally affect the other. This is a straightforward consequence of porting the algorithm as a parameterized function and supplying two separate settings values to it — not two separate algorithm implementations, just two separate config values, kept structurally independent rather than one deriving from or partially overriding the other.
+
+**Ring & Bracelet shadow profile — confirmed values** (mapped from the supplied Photoshop-style layer-style values into the engine's parameter shape; all values below are approved, not provisional):
+
+| Photoshop-style input | Engine parameter | Value | Note |
+|---|---|---|---|
+| Blend Mode: Normal | — | — | No parameter needed — the engine already composites a solid-color layer through an alpha mask, equivalent to Normal blend; nothing to configure. |
+| Color: #2e170a | `color` | `"#2e170a"` | Same value as Watch's own default. |
+| Opacity: 30% | `opacity` | `0.3` | Same value as Watch's own default. |
+| Angle: 90°, Distance: 50px | `xOffset`, `yOffset` | `0`, `50` | Approved. Photoshop angle convention: 90° = light from directly above → shadow cast straight down, which is positive Y in image pixel space. Same direction as Watch's own default (`yOffset: 54`), different magnitude. |
+| Spread: 0% | `spread` | `0` | Direct mapping. |
+| Size (Blur): 40px | `blurRadius` | `40` | Direct mapping. |
+| *(not specified)* | `density` | `1.75` | Approved as an intentional design decision: the Ring & Bracelet profile uses the same density value as Watch's existing shadow profile, to preserve the current visual language. This does not require additional tuning or validation — it is a deliberate match, not a placeholder. |
+
+**Application scope:** the shadow is applied only to the final asset image, never to intermediate masks or auxiliary assets:
+* **Automatic mode:** applied to the generated `frontImage` (the masked asset) after the automated masking workflow completes — not to `frontFullImage`, which remains an unmodified reference copy of the preprocessed input, as it is today.
+* **Manual mode:** applied to the single per-SKU input image provided (already background-removed and manually prepared) — there is no internal masking step to wait for in this mode.
+* **Confirmed: Manual mode preserves the existing output contract exactly.** `frontFullImage` remains the untouched reference copy of the as-provided input; `frontImage` is that same image with the shadow applied. The output schema (field names, shape, meaning) is identical regardless of processing mode — Automatic and Manual differ only in whether an automated masking step runs before the shadow step, never in what fields the pipeline emits.
+
+**Follow-up refinement — canvas compositing to eliminate shadow clipping.** The initial implementation generated the shadow directly on the tightly-cropped working image, which could clip the shadow against the image's own edges (confirmed empirically: a downward-offset, blurred shadow extended to within a few pixels of a test image's bottom edge). Resolved by adopting the same canvas approach Watch's `exportEngine.ts` uses: the working image is centered on a temporary transparent canvas (`max(2000, image width/height + 200px margin)` — 2000 for consistency with Watch's own canvas size, growing only if the image itself would exceed that), the shadow is generated on that padded canvas so blur/offset have unclipped room in every direction, the subject is composited back over the shadow, and the result is auto-trimmed to its non-transparent content bounds on all four sides before export (Watch's `trimTransparentTopBottom` trims top/bottom only, since Watch's canvas width *is* its fixed output width by design; Ring & Bracelet has no such fixed-width contract, so trimming reclaims padding on every side). The horizontal falloff breakpoints remain proportional to the *working image's own width*, not the padded canvas width — computed relative to the subject's position on the canvas — so padding never changes the falloff's shape, only how much room exists around it. `frontFullImage` is unaffected (produced before any of this, from the unmodified input). `frontImage`'s exported dimensions may now differ slightly from the pre-shadow crop — larger where the shadow needed room, potentially smaller where the original crop had unused transparent margin neither the subject nor its shadow occupy — this is the intended effect of trimming to actual content rather than an unexpected side effect. Ring & Bracelet's shadow profile (`RING_BRACELET_SHADOW`) remains fully independent of Watch's `defaultShadowSettings`; only the compositing *approach* is now shared, not the tuning.
+
+⸻
+
+Phase 11.5D — Batch Persistence Expansion
+
+Objective
+
+Extend the existing batch persistence architecture beyond Watches to all editing pipelines.
+
+Scope
+
+* Extend batch discovery, validation, restoration, and resume functionality to Rings, Bracelets, and future editing workflows.
+* Maintain the existing Watch batch persistence behaviour while generalizing the underlying infrastructure.
+* Persist batch configuration, processing mode, preprocessing preset, and progress.
+* Manual editing batches must support interruption and resume.
+* Automatic processing should preserve progress wherever practical, while allowing implementation details to be determined during development if technical constraints arise.
+
+The user experience should remain consistent regardless of product type.
+
+Deliverable
+
+A unified batch persistence and recovery system shared across every editing pipeline.
+
+Resolved scope (approved before implementation, after a research pass into current behavior):
+
+1. **Idempotent reruns for Ring & Bracelet** (`runner.py`) — mirrors `electron_runner.py`'s existing Phase 11E behavior exactly: an image whose expected outputs already exist is skipped and reported complete rather than reprocessed.
+2. **Incremental progress persistence** (`subprocessRunner.ts`, `subprocessProtocol.ts`) — the canonical fix. Previously, per-image results only reached the batch registry once, in the process-close handler; a crash or force-quit mid-batch lost all progress from that run, even images that had genuinely finished. Progress (`images`/`counts`) is now persisted to the registry after every per-image `complete`/`error` event, serialized through a per-job promise queue (`job.persistQueue`) so concurrent registry writes — which have no locking of their own — can never race and silently drop an update. This is shared infrastructure, so it applies uniformly to Preprocessing and Ring & Bracelet (and any future editing pipeline) without pipeline-specific work.
+3. **Lightweight pre-flight validation for Ring & Bracelet** (`ring-bracelet:validate-input`) — checks the input folder exists and contains at least one supported image before Start is enabled, matching the spirit of Watch's `batch:validate` without its spreadsheet/SKU-matching (Ring & Bracelet has neither) and without requiring the output folder to pre-exist (`runner.py` creates it).
+
+**Deferred to a follow-up**: a "Resume" action on Batch Details that restarts a failed/cancelled batch against its own already-recorded folders instead of routing to a disconnected "Run Another." Deferred deliberately — items 1–2 above are most of the infrastructure such an action would need, and reviewing that foundation first was preferred over adding new navigation/workflow state in the same pass.
+
+**Explicitly out of scope**: Watch's existing session-based interruption/resume is unchanged — this phase does not introduce new Watch-specific workflow behavior.
+
+**Persistence guarantee** (architectural note, see `subprocessRunner.ts`'s module docstring for the full version): once a runner's per-image terminal event (`complete` or `error`) has been processed, that image's result is written to the batch registry before the next event is handled, not deferred to process close — so an unexpected interruption loses at most the one image in flight, never previously-completed work. Combined with each runner's idempotent-rerun behavior, a subsequent rerun against the same output directory reuses that already-persisted work rather than redoing it. This is why a future "Resume" action can be a thin orchestration layer on top of already-durable state, rather than infrastructure in its own right.
+
+⸻
+
+Phase 11.5E — Manual Quality Review Workflow
+
+Objective
+
+Introduce a lightweight quality-assurance workflow for manual editing pipelines without disrupting overall batch progress.
+
+Scope
+
+* Introduce a Needs Fixing status for manually reviewed assets.
+* Allow assets to be marked as Needs Fixing during manual review.
+* Assets marked Needs Fixing:
+    * remain associated with the batch,
+    * are excluded from completed totals,
+    * appear within a dedicated section on the Batch Details page,
+    * retain their status across application restarts and resumed sessions.
+* This workflow must be non-destructive and must not delete or remove assets from the batch.
+
+This provides a lightweight QA process for identifying assets requiring further work while allowing the remainder of the batch to continue uninterrupted.
+
+Deliverable
+
+A persistent quality-review workflow integrated into all manual editing pipelines.
+
+Resolved scope (approved before implementation, after a research pass into current Batch Details architecture):
+
+* **Needs Fixing is an orthogonal flag, not a new processing status.** `StageImageRecord.status` (`completed`/`failed`/`cancelled`) still describes whether the pipeline itself succeeded; `needsFixing` is a separate, human-set boolean layered on top, toggleable only on an already-`completed` image. This is a workflow concern, not a persistence concern — the flag lives wherever the underlying image record already lives, rather than inventing a parallel state machine.
+* **Scoped to Ring & Bracelet (the `editing` stage type) for this pass.** Research found two genuinely different persistence models behind the same-looking Batch Details UI: Preprocessing and Editing store per-image results as `StageImageRecord[]` in the batch registry; Watch has no registry-backed images at all — its Batch Details view is synthesized on every render from `SessionFile` (`session:save`/`session:load`), a different shape entirely. Proving the concept on the registry-backed model first, then bringing the same *experience* to Watch's session model as its own follow-up, avoids forcing both persistence systems to evolve together in one pass. Preprocessing is excluded entirely — it isn't an editing pipeline and has no manual-review concept today.
+* `StageCounts` gains a `needsFixing` count; `succeeded` no longer includes flagged images, so the existing counts continue to sum to `total`.
+* A dedicated "Needs Fixing" section on Batch Details, and a distinct badge on the existing thumbnail grid (flagged images remain visible everywhere they already appeared — nothing is hidden or removed, only excluded from the numeric completed count).
+
+⸻
+
+Phase 11.5F — User Experience Polish
+
+Objective
+
+Improve terminology and clarity within the preprocessing workflow.
+
+Scope
+
+* Rename the preprocessing Upscaling option currently labelled 1× to None.
+* Preserve all existing functionality.
+* No behavioural changes are introduced.
+
+Deliverable
+
+A clearer preprocessing interface with improved user-facing terminology.
+
+Implemented as a label-only change: the Preprocessing screen's Upscale Factor selector and its accompanying helper text. Also extended, for consistency, to Batch Details' Configuration summary — the same scaleFactor value is displayed there too, and leaving it as "1×" while the selector now says "None" would have reintroduced the exact inconsistency this phase exists to remove. The underlying `UpscaleFactor` value, CLI arguments, and Python upscale behavior are all unchanged.
+
+____
+
+
 Phase 12 — AI-Assisted Watch Annotation & Boundary Detection
 
 Goal

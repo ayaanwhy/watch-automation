@@ -115,6 +115,16 @@
   color: #1a1a1a;
 }
 
+/* A third, human-set flag (Phase 11.5E) — bottom corner, just above the
+   name bar, so it never collides with the status (top-right) or
+   lowConfidence (top-left) badges even when all three apply at once. */
+.badgeNeedsFixing {
+  top: auto;
+  bottom: 18px;
+  right: 4px;
+  background: #ff6961;
+}
+
 .name {
   position: absolute;
   left: 0;

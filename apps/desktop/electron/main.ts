@@ -9,6 +9,7 @@ import { registerPreprocessHandlers } from './ipc/preprocessHandlers'
 import { registerBatchRegistryHandlers } from './ipc/batchRegistryHandlers'
 import { registerRingBraceletHandlers } from './ipc/ringBraceletHandlers'
 import { reconcileBatchesOnStartup } from './services/batchRegistry'
+import { hydratePresetDefinitions } from './services/preprocessingPresetDefinitions'
 import { logger, pruneOldLogs } from './logger'
 
 process.on('uncaughtException', (err) => {
@@ -54,6 +55,10 @@ app.whenReady().then(async () => {
   // this point can only mean the previous run crashed or was force-quit —
   // no subprocess for it can possibly still be alive (Phase 11E).
   await reconcileBatchesOnStartup()
+  // Must resolve before createWindow() — buildArgs/buildStageConfig read
+  // preset definitions synchronously when a job starts, so the in-memory
+  // cache needs to already be populated before the renderer can trigger one.
+  await hydratePresetDefinitions()
   // Non-blocking — a slow prune shouldn't delay window startup, and a
   // failed one is already swallowed internally (see pruneOldLogs).
   void pruneOldLogs()

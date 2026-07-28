@@ -3,6 +3,7 @@ import {
   applyNdjsonEvent,
   classifyExit,
   reconcileImages,
+  snapshotProgress,
   EXIT_CANCELLED,
   type JobBookkeeping,
 } from '../apps/desktop/electron/services/subprocessProtocol.js'
@@ -127,7 +128,7 @@ describe('reconcileImages', () => {
     ])
     const { images, counts } = reconcileImages(['a.png'], results, false)
     expect(images).toEqual([{ name: 'a.png', status: 'completed', outputPath: '/out/a.png', error: null, durationMs: 100 }])
-    expect(counts).toEqual({ total: 1, succeeded: 1, failed: 0, cancelled: 0 })
+    expect(counts).toEqual({ total: 1, succeeded: 1, failed: 0, cancelled: 0, needsFixing: 0 })
   })
 
   // Phase 10G regression coverage: an image announced by 'start' but never
@@ -139,13 +140,13 @@ describe('reconcileImages', () => {
       { name: 'a.png', status: 'cancelled', outputPath: null, error: null, durationMs: null },
       { name: 'b.png', status: 'cancelled', outputPath: null, error: null, durationMs: null },
     ])
-    expect(counts).toEqual({ total: 2, succeeded: 0, failed: 0, cancelled: 2 })
+    expect(counts).toEqual({ total: 2, succeeded: 0, failed: 0, cancelled: 2, needsFixing: 0 })
   })
 
   it('fills in a never-completed image as failed when the batch was not cancelled', () => {
     const { images, counts } = reconcileImages(['a.png'], new Map(), false)
     expect(images).toEqual([{ name: 'a.png', status: 'failed', outputPath: null, error: 'Not completed', durationMs: null }])
-    expect(counts).toEqual({ total: 1, succeeded: 0, failed: 1, cancelled: 0 })
+    expect(counts).toEqual({ total: 1, succeeded: 0, failed: 1, cancelled: 0, needsFixing: 0 })
   })
 
   it('derives counts from the reconciled array, not just succeeded/failed images', () => {
@@ -154,6 +155,35 @@ describe('reconcileImages', () => {
       ['b.png', { status: 'failed', outputPath: null, error: 'boom', durationMs: null }],
     ])
     const { counts } = reconcileImages(['a.png', 'b.png', 'c.png'], results, true)
-    expect(counts).toEqual({ total: 3, succeeded: 1, failed: 1, cancelled: 1 })
+    expect(counts).toEqual({ total: 3, succeeded: 1, failed: 1, cancelled: 1, needsFixing: 0 })
+  })
+})
+
+// Phase 11.5D — the mid-run counterpart to reconcileImages, used to persist
+// progress incrementally rather than only at process close.
+describe('snapshotProgress', () => {
+  it('reports an empty snapshot before any image has completed', () => {
+    const { images, counts } = snapshotProgress(['a.png', 'b.png'], new Map())
+    expect(images).toEqual([])
+    expect(counts).toEqual({ total: 2, succeeded: 0, failed: 0, cancelled: 0, needsFixing: 0 })
+  })
+
+  it('includes only images that have actually reached a terminal event, unlike reconcileImages', () => {
+    const results = new Map<string, Omit<StageImageRecord, 'name'>>([
+      ['a.png', { status: 'completed', outputPath: '/out/a.png', error: null, durationMs: 100 }],
+    ])
+    const { images, counts } = snapshotProgress(['a.png', 'b.png', 'c.png'], results)
+    expect(images).toEqual([{ name: 'a.png', status: 'completed', outputPath: '/out/a.png', error: null, durationMs: 100 }])
+    // total still reflects the full announced batch, even though b/c haven't finished.
+    expect(counts).toEqual({ total: 3, succeeded: 1, failed: 0, cancelled: 0, needsFixing: 0 })
+  })
+
+  it('never reports a cancelled count — nothing is cancelled until the job actually ends', () => {
+    const results = new Map<string, Omit<StageImageRecord, 'name'>>([
+      ['a.png', { status: 'completed', outputPath: '/out/a.png', error: null, durationMs: 100 }],
+      ['b.png', { status: 'failed', outputPath: null, error: 'boom', durationMs: null }],
+    ])
+    const { counts } = snapshotProgress(['a.png', 'b.png'], results)
+    expect(counts.cancelled).toBe(0)
   })
 })

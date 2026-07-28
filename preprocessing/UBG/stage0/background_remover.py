@@ -11,7 +11,7 @@ from PIL import Image, ImageFilter
 from safetensors.torch import load_file
 from torchvision import transforms
 
-from config import EDGE, MASK, PIPELINE
+from config import ANALYSIS, EDGE, MASK, PIPELINE
 
 
 MODEL_FILENAME = "BiRefNet_dynamic.safetensors"
@@ -46,7 +46,31 @@ def _refine_foreground(image_rgb: Image.Image, mask: Image.Image) -> Image.Image
     return Image.fromarray((refined_fg * 255.0).astype(np.uint8))
 
 
-def _apply_edge_finish(image: Image.Image, edge_mode: str = "none", edge_strength: float = 1.0) -> Image.Image:
+# Phase 11.5A additions — ported from the /bg remove reference, both are
+# true no-ops at their MASK.* default values (contrast=1.0, antialias_scale=1)
+# so existing output is unchanged unless a preset (Phase 11.5B) opts in.
+def _adjust_mask_contrast(mask: Image.Image, contrast: float) -> Image.Image:
+    contrast = max(0.0, float(contrast))
+    if contrast == 1.0:
+        return mask
+    return mask.point(lambda px: max(0, min(255, int(128 + contrast * (px - 128)))))
+
+
+def _antialias_mask(mask: Image.Image, scale: int) -> Image.Image:
+    scale = max(1, int(scale))
+    if scale == 1:
+        return mask
+    width, height = mask.size
+    large = mask.resize((width * scale, height * scale), Image.Resampling.LANCZOS)
+    return large.resize((width, height), Image.Resampling.LANCZOS)
+
+
+def _apply_edge_finish(
+    image: Image.Image,
+    edge_mode: str = "none",
+    edge_strength: float = 1.0,
+    alpha_sharpen: float = 0.0,
+) -> Image.Image:
     edge_mode = edge_mode.lower().strip()
     if edge_mode == "none":
         return image
@@ -56,7 +80,7 @@ def _apply_edge_finish(image: Image.Image, edge_mode: str = "none", edge_strengt
     rgb = rgba.convert("RGB")
     alpha = rgba.getchannel("A")
 
-    # Change these two blocks if you want a stronger or softer edge finish.
+    # Change these blocks if you want a stronger or softer edge finish.
     if edge_mode == "sharpen":
         sharpened_rgb = rgb.filter(
             ImageFilter.UnsharpMask(
@@ -74,16 +98,47 @@ def _apply_edge_finish(image: Image.Image, edge_mode: str = "none", edge_strengt
         )
         return Image.merge("RGBA", (*sharpened_rgb.split(), sharpened_alpha))
 
+    if edge_mode == "crisp":
+        # Phase 11.5A: new option, additive — does not change "sharpen"
+        # above. Same RGB sharpening as "sharpen", but alpha-channel
+        # sharpening is a separate, independently-tunable control
+        # (alpha_sharpen) rather than being tied to edge_strength.
+        sharpened_rgb = rgb.filter(
+            ImageFilter.UnsharpMask(
+                radius=1.5 * edge_strength,
+                percent=int(150 * edge_strength),
+                threshold=3,
+            )
+        )
+        sharpened_alpha = alpha
+        alpha_sharpen = max(0.0, float(alpha_sharpen))
+        if alpha_sharpen > 0:
+            sharpened_alpha = alpha.filter(
+                ImageFilter.UnsharpMask(
+                    radius=0.8 * alpha_sharpen,
+                    percent=int(120 * alpha_sharpen),
+                    threshold=2,
+                )
+            )
+        return Image.merge("RGBA", (*sharpened_rgb.split(), sharpened_alpha))
+
     if edge_mode == "soften":
         softened_rgb = rgb.filter(ImageFilter.GaussianBlur(radius=0.8 * edge_strength))
         softened_alpha = alpha.filter(ImageFilter.GaussianBlur(radius=0.6 * edge_strength))
         return Image.merge("RGBA", (*softened_rgb.split(), softened_alpha))
 
-    raise ValueError("Invalid edge_mode. Use 'none', 'sharpen', or 'soften'.")
+    raise ValueError("Invalid edge_mode. Use 'none', 'sharpen', 'crisp', or 'soften'.")
 
 
 class BackgroundRemover:
-    def __init__(self, model_root: str | os.PathLike | None = None):
+    def __init__(
+        self,
+        model_root: str | os.PathLike | None = None,
+        # Phase 11.5B: preset-controlled — defaults to ANALYSIS.longest_side
+        # (config.py) when not given, matching pre-11.5B behavior for any
+        # caller that doesn't pass this explicitly.
+        analysis_longest_side: int | None = None,
+    ):
         # Priority: CUDA (NVIDIA) → MPS (Apple Silicon) → CPU
         if torch.cuda.is_available():
             self.device = torch.device("cuda")
@@ -93,6 +148,9 @@ class BackgroundRemover:
             self.device = torch.device("cpu")
         print(f"Device: {self.device.type.upper()}", file=sys.stderr)
         self.model_root = self._resolve_model_root(model_root)
+        self.analysis_longest_side = (
+            ANALYSIS.longest_side if analysis_longest_side is None else analysis_longest_side
+        )
         self.model = None
         torch.set_float32_matmul_precision("high")
         self._load_model_once()
@@ -141,9 +199,19 @@ class BackgroundRemover:
     def _preprocess(self, image: Image.Image) -> tuple[torch.Tensor, int, int]:
         image = image.convert("RGB")
         width, height = image.size
+        # Phase 11.5A: adaptive analysis resolution — capped at
+        # self.analysis_longest_side (Phase 11.5B: preset-controlled), but
+        # never exceeding the source image's own longest side, rounded to a
+        # multiple of ANALYSIS.size_multiple (required for BiRefNet's
+        # internal downsampling; not preset-controlled — constant across all
+        # presets). Previously fixed at 1024x1024 regardless of input size.
+        longest = max(width, height)
+        target = min(self.analysis_longest_side, longest)
+        size_multiple = max(1, int(ANALYSIS.size_multiple))
+        target = max(size_multiple, (target // size_multiple) * size_multiple)
         transform_image = transforms.Compose(
             [
-                transforms.Resize((1024, 1024), interpolation=transforms.InterpolationMode.BICUBIC),
+                transforms.Resize((target, target), interpolation=transforms.InterpolationMode.BICUBIC),
                 transforms.ToTensor(),
                 transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
             ]
@@ -158,11 +226,17 @@ class BackgroundRemover:
         # Change MASK.* in config.py if you want a different baseline edge/mask look.
         mask_blur: int = MASK.blur,
         mask_offset: int = MASK.offset,
+        # Phase 11.5A additions — see MaskConfig in config.py for defaults/docs.
+        mask_threshold: float | None = MASK.threshold,
+        mask_contrast: float = MASK.contrast,
+        mask_antialias_scale: int = MASK.antialias_scale,
         invert_output: bool = False,
         refine_foreground: bool = False,
         # Set EDGE.* in config.py to change the default edge finish.
         edge_mode: str = EDGE.mode,
         edge_strength: float = EDGE.strength,
+        # Phase 11.5A addition — only affects edge_mode="crisp".
+        alpha_sharpen: float = EDGE.alpha_sharpen,
         background: str = PIPELINE.background,
         background_color: str = PIPELINE.background_color,
         artifact_name: str = "object",
@@ -189,6 +263,15 @@ class BackgroundRemover:
         pred_pil = transforms.ToPILImage()(pred)
         mask = pred_pil.resize((width, height), Image.BICUBIC)
 
+        # Phase 11.5A: threshold runs first (binarize before smoothing),
+        # matching the reference ordering. blur/offset stay in their existing
+        # relative order, unchanged from before this phase. contrast/
+        # antialias run after, before invert — both are true no-ops at their
+        # MASK.* default values (1.0 / 1), so this insertion doesn't change
+        # existing output when unconfigured.
+        if mask_threshold is not None:
+            threshold_value = max(0.0, min(1.0, float(mask_threshold)))
+            mask = mask.point(lambda px: 255 if (px / 255.0) >= threshold_value else 0)
         if mask_blur > 0:
             mask = mask.filter(ImageFilter.GaussianBlur(radius=mask_blur))
         if mask_offset > 0:
@@ -197,6 +280,8 @@ class BackgroundRemover:
         elif mask_offset < 0:
             for _ in range(-mask_offset):
                 mask = mask.filter(ImageFilter.MinFilter(3))
+        mask = _adjust_mask_contrast(mask, mask_contrast)
+        mask = _antialias_mask(mask, mask_antialias_scale)
         if invert_output:
             mask = Image.fromarray(255 - np.asarray(mask))
 
@@ -208,12 +293,16 @@ class BackgroundRemover:
         foreground = Image.merge("RGBA", (r, g, b, mask))
 
         if background == "Alpha":
-            finished = _apply_edge_finish(foreground, edge_mode=edge_mode, edge_strength=edge_strength)
+            finished = _apply_edge_finish(
+                foreground, edge_mode=edge_mode, edge_strength=edge_strength, alpha_sharpen=alpha_sharpen
+            )
             return finished
 
         bg = Image.new("RGBA", image.size, _hex_to_rgba(background_color))
         finished = Image.alpha_composite(bg, foreground)
-        finished = _apply_edge_finish(finished, edge_mode=edge_mode, edge_strength=edge_strength)
+        finished = _apply_edge_finish(
+            finished, edge_mode=edge_mode, edge_strength=edge_strength, alpha_sharpen=alpha_sharpen
+        )
         return finished
 
 
@@ -224,11 +313,15 @@ def remove_background(
     # Change MASK.* in config.py if you want a different baseline edge/mask look.
     mask_blur: int = MASK.blur,
     mask_offset: int = MASK.offset,
+    mask_threshold: float | None = MASK.threshold,
+    mask_contrast: float = MASK.contrast,
+    mask_antialias_scale: int = MASK.antialias_scale,
     invert_output: bool = False,
     refine_foreground: bool = False,
     # Set EDGE.* in config.py to change the default edge finish.
     edge_mode: str = EDGE.mode,
     edge_strength: float = EDGE.strength,
+    alpha_sharpen: float = EDGE.alpha_sharpen,
     background: str = PIPELINE.background,
     background_color: str = PIPELINE.background_color,
     artifact_name: str = "object",
@@ -243,10 +336,14 @@ def remove_background(
         image,
         mask_blur=mask_blur,
         mask_offset=mask_offset,
+        mask_threshold=mask_threshold,
+        mask_contrast=mask_contrast,
+        mask_antialias_scale=mask_antialias_scale,
         invert_output=invert_output,
         refine_foreground=refine_foreground,
         edge_mode=edge_mode,
         edge_strength=edge_strength,
+        alpha_sharpen=alpha_sharpen,
         background=background,
         background_color=background_color,
         artifact_name=artifact_name,

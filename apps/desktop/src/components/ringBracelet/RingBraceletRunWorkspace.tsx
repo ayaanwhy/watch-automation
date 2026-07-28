@@ -26,8 +26,10 @@ export function RingBraceletRunWorkspace({ inputDir }: RingBraceletRunWorkspaceP
   const selectedImage = job.images.find(img => img.name === selectedName) ?? null
   // ThumbnailGrid's lowConfidence badge (Phase 10F) surfaces this job's own
   // existing detected flag — not a new signal, just visible earlier than
-  // clicking through to the full preview panel.
-  const gridImages = job.images.map(img => ({ ...img, lowConfidence: img.detected === false }))
+  // clicking through to the full preview panel. needsFixing is always null
+  // for a live run (Phase 11.5E — there's no manual-review concept until
+  // Batch Details), so it's never worth badging here.
+  const gridImages = job.images.map(img => ({ ...img, lowConfidence: img.detected === false, needsFixing: img.needsFixing === true }))
 
   // Fullscreen review (Phase 10F) — reuses the same selection state above;
   // no separate index tracking needed.

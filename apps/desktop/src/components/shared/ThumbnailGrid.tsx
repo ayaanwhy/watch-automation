@@ -16,6 +16,10 @@ export interface ThumbnailGridImage {
   // state their own stage already tracks; stages with no such concept (Watch,
   // Preprocessing) simply never set it.
   lowConfidence?: boolean
+  // Manual QA review flag (Phase 11.5E) — a human-set decision, distinct
+  // from lowConfidence's algorithm-derived one; the two can both apply to
+  // the same image and render as separate badges.
+  needsFixing?: boolean
 }
 
 // Fullscreen review (Phase 10F) prev/next navigation — every ThumbnailGrid
@@ -119,6 +123,7 @@ export function ThumbnailGrid({ images, inputDir, selectedImage, onSelect }: Thu
               name={img.name}
               status={img.status}
               lowConfidence={img.lowConfidence}
+              needsFixing={img.needsFixing}
               src={toFileUrl(joinPath(inputDir, img.name))}
               selected={img.name === selectedImage}
               onClick={() => onSelect(img.name)}

@@ -17,7 +17,6 @@ __pycache__/
 
 # Mac junk
 .DS_Store
-**/.DS_Store
 
 # Environment
 .env
@@ -31,7 +30,6 @@ __pycache__/
 
 #Extras
 .idea/
-*;frontImage*.png
 
 #Docs
 CLAUDE.md
