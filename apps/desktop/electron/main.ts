@@ -8,6 +8,8 @@ import { registerQueueHandlers } from './ipc/queueHandlers'
 import { registerPreprocessHandlers } from './ipc/preprocessHandlers'
 import { registerBatchRegistryHandlers } from './ipc/batchRegistryHandlers'
 import { registerRingBraceletHandlers } from './ipc/ringBraceletHandlers'
+import { registerMetadataHandlers } from './ipc/metadataHandlers'
+import { registerEarringHandlers } from './ipc/earringHandlers'
 import { reconcileBatchesOnStartup } from './services/batchRegistry'
 import { hydratePresetDefinitions } from './services/preprocessingPresetDefinitions'
 import { logger, pruneOldLogs } from './logger'
@@ -70,6 +72,8 @@ app.whenReady().then(async () => {
   registerPreprocessHandlers()
   registerBatchRegistryHandlers()
   registerRingBraceletHandlers()
+  registerMetadataHandlers()
+  registerEarringHandlers()
   createWindow()
 
   app.on('activate', () => {

@@ -17,14 +17,34 @@ interface RingBraceletImagePreviewPanelProps {
   // keeps the toggle button from rendering there; only Batch Details passes
   // this.
   onToggleNeedsFixing?: (name: string, next: boolean) => void
+  // Slider labels (Phase 12C) — default to Ring & Bracelet's own "Full"/
+  // "Front-Facing" wording so existing callers are unaffected; Earring's
+  // callers (EarringRunWorkspace, BatchDetails) override these since its two
+  // images mean something different (compare vs. shadow-composited).
+  beforeLabel?: string
+  afterLabel?: string
+  // Low-confidence copy (Phase 12D) — default is Ring & Bracelet's own
+  // shank-specific wording; Hoop's callers override it since "shank
+  // boundary" doesn't describe what Hoop's detected flag actually measures.
+  lowConfidenceMessage?: string
 }
 
 // Mirrors ImagePreviewPanel's structure and status-driven branching exactly,
 // but compares frontFullImage against frontImage (both Ring & Bracelet
 // outputs) rather than an original-vs-processed pair — there is no separate
 // "original" here once an image has completed; the input *is* Universal
-// Preprocessing's already-prepared transparent PNG.
-export function RingBraceletImagePreviewPanel({ image, inputDir, onExpand, onToggleNeedsFixing }: RingBraceletImagePreviewPanelProps) {
+// Preprocessing's already-prepared transparent PNG. Reused as-is for Earring
+// (Phase 12C) — see EarringImageState's doc comment for why no separate
+// preview component was needed there.
+export function RingBraceletImagePreviewPanel({
+  image,
+  inputDir,
+  onExpand,
+  onToggleNeedsFixing,
+  beforeLabel = 'Full',
+  afterLabel = 'Front-Facing',
+  lowConfidenceMessage = 'No clear shank boundary found — this mask used a fallback estimate. Worth a closer look.',
+}: RingBraceletImagePreviewPanelProps) {
   const [background, setBackground] = useState<ComparisonBackground>('transparent')
 
   if (!image) {
@@ -60,15 +80,15 @@ export function RingBraceletImagePreviewPanel({ image, inputDir, onExpand, onTog
           key={image.name}
           beforeSrc={toFileUrl(image.frontFullImage)}
           afterSrc={toFileUrl(image.frontImage)}
-          beforeLabel="Full"
-          afterLabel="Front-Facing"
+          beforeLabel={beforeLabel}
+          afterLabel={afterLabel}
           background={background}
           onBackgroundChange={setBackground}
         />
         {image.detected === false && (
           <div className={styles.lowConfidence}>
             <span className={styles.lowConfidenceIcon} aria-hidden="true">⚠</span>
-            <span>No clear shank boundary found — this mask used a fallback estimate. Worth a closer look.</span>
+            <span>{lowConfidenceMessage}</span>
           </div>
         )}
         {image.needsFixing === true && (

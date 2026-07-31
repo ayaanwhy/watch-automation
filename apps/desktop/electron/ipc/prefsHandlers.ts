@@ -19,6 +19,7 @@ import type {
   RingBraceletFolderPrefsLoadPayload,
   RingBraceletFolderPrefsSavePayload,
   EditingHandoffOptionsPrefs,
+  EarringFolderPrefs,
 } from '../../src/types/ipc'
 
 const PREFS_FILENAME = 'last-batch.json'
@@ -254,6 +255,39 @@ export function registerPrefsHandlers(): void {
       await atomicWriteJson(filePath, stored)
     } catch (err) {
       logWriteError('ring-bracelet-folders.json', err)
+    }
+  })
+
+  // ── Earring folder + metadata sheet prefs (Phase 12C) ───────────────────────
+  // One shared slot (unlike Ring/Bracelet's product-keyed file) — there's
+  // only one Earring product to remember inputs for. Validates the two
+  // folders and the metadata sheet path all still exist before restoring
+  // them, same pattern as prefs:load-preprocessing-folders.
+  ipcMain.handle('prefs:load-earring-folders', async (): Promise<EarringFolderPrefs> => {
+    try {
+      const raw = await readFile(join(app.getPath('userData'), 'earring-folders.json'), 'utf-8')
+      const stored = JSON.parse(raw) as Partial<EarringFolderPrefs>
+      const [inOk, outOk, metaOk] = await Promise.all([
+        stored.inputDir ? exists(stored.inputDir) : Promise.resolve(false),
+        stored.outputDir ? exists(stored.outputDir) : Promise.resolve(false),
+        stored.metadataFilePath ? exists(stored.metadataFilePath) : Promise.resolve(false),
+      ])
+      return {
+        inputDir: inOk ? stored.inputDir! : null,
+        outputDir: outOk ? stored.outputDir! : null,
+        metadataFilePath: metaOk ? stored.metadataFilePath! : null,
+      }
+    } catch (err) {
+      logReadError('earring-folders.json', err)
+      return { inputDir: null, outputDir: null, metadataFilePath: null }
+    }
+  })
+
+  ipcMain.handle('prefs:save-earring-folders', async (_event, payload: EarringFolderPrefs): Promise<void> => {
+    try {
+      await atomicWriteJson(join(app.getPath('userData'), 'earring-folders.json'), payload)
+    } catch (err) {
+      logWriteError('earring-folders.json', err)
     }
   })
 }

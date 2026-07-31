@@ -132,10 +132,14 @@ export function registerPreprocessHandlers(): void {
     _event,
     payload: EditingHandoffPayload,
   ): Promise<EditingHandoffResult> => {
-    logger.info(`preprocess:prepare-for-editing-handoff — starting for ${payload.sourceDir} (trim=${payload.trim}, rotate=${payload.rotate})`)
-    const result = await prepareForEditingHandoff(payload.sourceDir, { trim: payload.trim, rotate: payload.rotate }, (completed, total) => {
-      notifyAllWindows('preprocess:prepare-progress', { completed, total })
-    })
+    logger.info(`preprocess:prepare-for-editing-handoff — starting for ${payload.sourceDir} (trim=${payload.trim}, rotate=${payload.rotate}, resizeToHeight=${payload.resizeToHeight ?? 'none'})`)
+    const result = await prepareForEditingHandoff(
+      payload.sourceDir,
+      { trim: payload.trim, rotate: payload.rotate, resizeToHeight: payload.resizeToHeight },
+      (completed, total) => {
+        notifyAllWindows('preprocess:prepare-progress', { completed, total })
+      },
+    )
     if (result.ok) {
       logger.info(
         `preprocess:prepare-for-editing-handoff — done: ${result.imageCount} prepared, ` +

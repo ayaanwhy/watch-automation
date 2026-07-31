@@ -82,6 +82,46 @@
   border-radius: 6px;
 }
 
+.matchSummary {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 16px;
+  border-radius: 6px;
+  border: 1px solid;
+}
+
+.matchSummaryOk {
+  background: #f4faf4;
+  border-color: #cfe8cf;
+}
+
+.matchSummaryWarn {
+  background: #fffaf0;
+  border-color: #f0dca0;
+}
+
+.matchSummaryRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1a1a1a;
+}
+
+.unmappedList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.unmappedItem {
+  font-size: 12px;
+  color: #a06c00;
+  padding-left: 8px;
+}
+
 .actions {
   display: flex;
   justify-content: flex-end;

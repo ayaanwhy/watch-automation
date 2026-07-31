@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { usePreprocessingJob } from '../context/PreprocessingJobContext'
 import { useRingBraceletJob } from '../context/RingBraceletJobContext'
+import { useEarringJob } from '../context/EarringJobContext'
 import { PreprocessingSummary } from '../components/PreprocessingSummary'
 import type { EditingHandoffOptions } from '../components/preprocessing/EditingHandoffDialog'
 import { BatchDetailsSection } from '../components/batch/BatchDetailsSection'
@@ -43,9 +44,10 @@ interface BatchDetailsProps {
     outputDir: string,
     options: EditingHandoffOptions
   ) => Promise<{ ok: boolean; error?: string }>
-  // Ring & Bracelet (Phase 10D) — same "run another" semantic, returning to
-  // the shared Editing setup screen with the same product preselected.
-  onRunAnotherEditing: (product: 'ring' | 'bracelet') => void
+  // Ring & Bracelet & Earring (Phase 10D, extended in 12C) — same "run
+  // another" semantic, returning to the shared Editing setup screen with the
+  // same product preselected.
+  onRunAnotherEditing: (product: 'ring' | 'bracelet' | 'earring') => void
 }
 
 // Builds a PreprocessingSummary-shaped payload purely from a persisted stage
@@ -118,13 +120,27 @@ const WATCH_CONFIG_FIELDS: [string, string, string | undefined][] = [
   ['processingMode', 'Mode', undefined],
 ]
 
-// Phase 10D — "product" here is 'ring' | 'bracelet'; "splitY" is the
-// fallback vertical split used when no hole topology is found (see
-// shank_mask.py). Both are plain readConfigValue lookups, no special
-// formatting needed.
+// Earring's RingBraceletImagePreviewPanel overrides (Phase 12C/12D) — same
+// slider labels and low-confidence copy used in EarringRunWorkspace, so a
+// Hoop image reads identically whether viewed live or reopened here.
+const EARRING_PREVIEW_OVERRIDES = {
+  beforeLabel: 'Compare',
+  afterLabel: 'Shadow',
+  lowConfidenceMessage:
+    'No confident front/rear split found — this split used a fallback estimate. Worth a closer look.',
+}
+
+// Phase 10D — "product" here is 'ring' | 'bracelet' | 'earring'; "splitY" is
+// the fallback vertical split used when no hole topology is found (see
+// shank_mask.py), Ring & Bracelet only. "metadataPath" (Phase 12F) is
+// Earring only — the product-metadata sheet earringHandlers.ts's
+// buildStageConfig records under that key; readConfigValue already skips a
+// field a given product's config doesn't have, so Ring/Bracelet batches
+// simply never show this row, same as Earring never shows Fallback Split.
 const EDITING_CONFIG_FIELDS: [string, string, string | undefined][] = [
   ['product', 'Product', undefined],
   ['splitY', 'Fallback Split', undefined],
+  ['metadataPath', 'Metadata Sheet', undefined],
   ['processingMode', 'Mode', undefined],
 ]
 
@@ -197,6 +213,7 @@ export default function BatchDetails({
 }: BatchDetailsProps) {
   const job = usePreprocessingJob()
   const ringBraceletJob = useRingBraceletJob()
+  const earringJob = useEarringJob()
   const [batch, setBatch] = useState<BatchDetailRecord | null>(null)
   const [loading, setLoading] = useState(true)
   const [editingTitle, setEditingTitle] = useState(false)
@@ -296,8 +313,12 @@ export default function BatchDetails({
     onRunAnotherPreprocessing()
   }
 
-  function handleRunAnotherEditing(product: 'ring' | 'bracelet') {
-    ringBraceletJob.reset()
+  function handleRunAnotherEditing(product: 'ring' | 'bracelet' | 'earring') {
+    if (product === 'earring') {
+      earringJob.reset()
+    } else {
+      ringBraceletJob.reset()
+    }
     onRunAnotherEditing(product)
   }
 
@@ -329,7 +350,12 @@ export default function BatchDetails({
 
   const preprocessingStage = batch.stages.find(s => s.type === 'preprocessing')
   const editingStage = batch.stages.find(s => s.type === 'editing')
-  const editingProduct = editingStage?.config.product === 'bracelet' ? 'bracelet' : 'ring'
+  const editingProduct: 'ring' | 'bracelet' | 'earring' =
+    editingStage?.config.product === 'bracelet'
+      ? 'bracelet'
+      : editingStage?.config.product === 'earring'
+        ? 'earring'
+        : 'ring'
   const completedAt = latestCompletedAt(batch.stages)
 
   // Unified Images data — whichever stage has actually produced something,
@@ -378,7 +404,12 @@ export default function BatchDetails({
     editingImages = editingStage.images.map(img => ({
       name: img.name,
       status: img.status,
-      frontFullImage: img.assets?.frontFullImage ?? null,
+      // Earring's persisted asset is 'compare' (StageImageAssets), not
+      // 'frontFullImage' — see EarringImageState's doc comment for why the
+      // live job context already normalizes this to frontFullImage; this
+      // fallback does the same for the historical/persisted path so
+      // RingBraceletImagePreviewPanel renders both without a new component.
+      frontFullImage: img.assets?.frontFullImage ?? img.assets?.compare ?? null,
       frontImage: img.assets?.frontImage ?? null,
       detected: img.assets?.detected ?? null,
       needsFixing: img.needsFixing ?? null,
@@ -604,6 +635,7 @@ export default function BatchDetails({
                   inputDir={imageInputDir}
                   onExpand={() => setFullscreen(true)}
                   onToggleNeedsFixing={handleToggleNeedsFixing}
+                  {...(editingProduct === 'earring' ? EARRING_PREVIEW_OVERRIDES : {})}
                 />
               ) : (
                 <ImagePreviewPanel
@@ -651,6 +683,7 @@ export default function BatchDetails({
                   image={selectedEditingImageState}
                   inputDir={imageInputDir}
                   onToggleNeedsFixing={handleToggleNeedsFixing}
+                  {...(editingProduct === 'earring' ? EARRING_PREVIEW_OVERRIDES : {})}
                 />
               ) : (
                 <ImagePreviewPanel image={selectedImageState} inputDir={imageInputDir} />

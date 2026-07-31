@@ -1,11 +1,10 @@
-import { createContext, useContext, useEffect, type ReactNode } from 'react'
-import type { PreprocessDonePayload, PreprocessEventPayload, PreprocessStartPayload } from '../types/ipc'
+import type { PreprocessDonePayload, PreprocessStartPayload } from '../types/ipc'
 import {
-  useSubprocessJob,
   type BaseImageState,
   type CancelPhase,
   type ProgressState,
 } from './useSubprocessJob'
+import { createJobContext } from './createJobContext'
 
 export type PreprocessingPhase = 'idle' | 'running' | 'done'
 export type { CancelPhase, ProgressState as PreprocessingProgressState }
@@ -40,29 +39,26 @@ interface PreprocessingJobContextValue {
   reset(): void
 }
 
-const PreprocessingJobContext = createContext<PreprocessingJobContextValue | null>(null)
-
-export function usePreprocessingJob(): PreprocessingJobContextValue {
-  const ctx = useContext(PreprocessingJobContext)
-  if (!ctx) throw new Error('usePreprocessingJob must be used within PreprocessingJobProvider')
-  return ctx
-}
-
-interface PreprocessingJobProviderProps {
-  children: ReactNode
-}
-
 // Owns the preprocess:* job lifecycle for the lifetime of the app, not the
 // lifetime of whichever screen happens to be mounted. Mounting this provider
 // above the conditionally-rendered content (in App.tsx) lets an in-progress
 // job's state and IPC subscription survive navigating away and back.
 //
-// Shared state machine lives in useSubprocessJob (Phase 11C) — this provider
-// supplies only what's genuinely Preprocessing-specific: the image shape,
-// the IPC channels, and how 'complete' (plus the pipeline-only 'progress'
-// per-image stage / 'initializing' / 'heartbeat' events) update that shape.
-export function PreprocessingJobProvider({ children }: PreprocessingJobProviderProps) {
-  const job = useSubprocessJob<PreprocessingImageState, PreprocessStartPayload, PreprocessDonePayload>({
+// Shared state machine lives in useSubprocessJob (Phase 11C); shared
+// context/provider/subscription boilerplate lives in createJobContext
+// (Phase 12C) — this file supplies only what's genuinely
+// Preprocessing-specific: the image shape, the IPC channels, and how
+// 'complete' (plus the pipeline-only 'progress' per-image stage /
+// 'initializing' / 'heartbeat' events) update that shape. start() is
+// exposed exactly as useSubprocessJob returns it (Promise<boolean>) — see
+// RingBraceletJobContext.tsx for the one context that wraps this
+// differently, and createJobContext.tsx's own docstring for why that
+// difference is preserved rather than unified.
+const preprocessingJob = createJobContext<PreprocessingImageState, PreprocessStartPayload, PreprocessDonePayload, PreprocessingJobContextValue>({
+  hookErrorMessage: 'usePreprocessingJob must be used within PreprocessingJobProvider',
+  eventChannel: 'preprocess:event',
+  doneChannel: 'preprocess:done',
+  jobConfig: {
     startInvoke: (payload) => window.api.invoke('preprocess:start', payload),
     cancelInvoke: (jobId) => window.api.invoke('preprocess:cancel', { jobId }),
     buildImage: (name) => ({ name, status: 'pending', stage: null, outputPath: null, error: null, durationMs: null }),
@@ -92,28 +88,9 @@ export function PreprocessingJobProvider({ children }: PreprocessingJobProviderP
         }
       }
     },
-  })
+  },
+  buildValue: (job) => job,
+})
 
-  useEffect(() => {
-    // Subscribe before any job can start, per the established pattern of
-    // never missing the first notification.
-    const offEvent = window.api.on('preprocess:event', (payload: PreprocessEventPayload) => {
-      if (payload.jobId !== job.jobIdRef.current) return
-      job.dispatchEvent(payload)
-    })
-    const offDone = window.api.on('preprocess:done', (payload: PreprocessDonePayload) => {
-      if (payload.jobId !== job.jobIdRef.current) return
-      job.dispatchDone(payload)
-    })
-    return () => {
-      offEvent()
-      offDone()
-    }
-  }, [job])
-
-  return (
-    <PreprocessingJobContext.Provider value={job}>
-      {children}
-    </PreprocessingJobContext.Provider>
-  )
-}
+export const usePreprocessingJob = preprocessingJob.useJob
+export const PreprocessingJobProvider = preprocessingJob.Provider

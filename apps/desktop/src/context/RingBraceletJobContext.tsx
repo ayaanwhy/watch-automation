@@ -1,6 +1,6 @@
-import { createContext, useContext, useEffect, type ReactNode } from 'react'
-import type { RingBraceletDonePayload, RingBraceletEventPayload, RingBraceletStartPayload } from '../types/ipc'
-import { useSubprocessJob, type BaseImageState, type CancelPhase, type ProgressState } from './useSubprocessJob'
+import type { RingBraceletDonePayload, RingBraceletStartPayload } from '../types/ipc'
+import { type BaseImageState, type CancelPhase, type ProgressState } from './useSubprocessJob'
+import { createJobContext } from './createJobContext'
 
 export type RingBraceletPhase = 'idle' | 'running' | 'done'
 
@@ -34,23 +34,12 @@ interface RingBraceletJobContextValue {
   reset(): void
 }
 
-const RingBraceletJobContext = createContext<RingBraceletJobContextValue | null>(null)
-
-export function useRingBraceletJob(): RingBraceletJobContextValue {
-  const ctx = useContext(RingBraceletJobContext)
-  if (!ctx) throw new Error('useRingBraceletJob must be used within RingBraceletJobProvider')
-  return ctx
-}
-
-interface RingBraceletJobProviderProps {
-  children: ReactNode
-}
-
-// Mirrors PreprocessingJobProvider's structure exactly (mounted for the
+// Mirrors PreprocessingJobContext's structure exactly (mounted for the
 // lifetime of the app, not the lifetime of whichever screen is visible, so
 // an in-progress job survives navigation) — see that file for the fuller
-// rationale, and useSubprocessJob (Phase 11C) for the shared state machine
-// both providers build on. runner.py's protocol has no heartbeat/
+// rationale, and useSubprocessJob (Phase 11C) for the shared state machine,
+// createJobContext (Phase 12C) for the shared context/provider/subscription
+// wiring both build on. runner.py's protocol has no heartbeat/
 // initializing-stage concept, so those two progress fields are simply never
 // populated here; PreprocessingProgress already renders their absence
 // gracefully.
@@ -58,8 +47,12 @@ interface RingBraceletJobProviderProps {
 // start() intentionally returns Promise<void>, not Promise<boolean> like
 // Preprocessing's — Ring & Bracelet has no equivalent of Preprocessing's
 // Phase 10F "only navigate to the workspace on a successful start" need.
-export function RingBraceletJobProvider({ children }: RingBraceletJobProviderProps) {
-  const job = useSubprocessJob<RingBraceletImageState, RingBraceletStartPayload, RingBraceletDonePayload>({
+// That's why buildValue wraps job.start rather than passing it through.
+const ringBraceletJob = createJobContext<RingBraceletImageState, RingBraceletStartPayload, RingBraceletDonePayload, RingBraceletJobContextValue>({
+  hookErrorMessage: 'useRingBraceletJob must be used within RingBraceletJobProvider',
+  eventChannel: 'ring-bracelet:event',
+  doneChannel: 'ring-bracelet:done',
+  jobConfig: {
     startInvoke: (payload) => window.api.invoke('ring-bracelet:start', payload),
     cancelInvoke: (jobId) => window.api.invoke('ring-bracelet:cancel', { jobId }),
     buildImage: (name) => ({ name, status: 'pending', frontFullImage: null, frontImage: null, detected: null, needsFixing: null, error: null, durationMs: null }),
@@ -82,26 +75,9 @@ export function RingBraceletJobProvider({ children }: RingBraceletJobProviderPro
         )
       }
     },
-  })
+  },
+  buildValue: (job) => ({ ...job, start: async (payload) => { await job.start(payload) } }),
+})
 
-  useEffect(() => {
-    const offEvent = window.api.on('ring-bracelet:event', (payload: RingBraceletEventPayload) => {
-      if (payload.jobId !== job.jobIdRef.current) return
-      job.dispatchEvent(payload)
-    })
-    const offDone = window.api.on('ring-bracelet:done', (payload: RingBraceletDonePayload) => {
-      if (payload.jobId !== job.jobIdRef.current) return
-      job.dispatchDone(payload)
-    })
-    return () => {
-      offEvent()
-      offDone()
-    }
-  }, [job])
-
-  return (
-    <RingBraceletJobContext.Provider value={{ ...job, start: async (payload) => { await job.start(payload) } }}>
-      {children}
-    </RingBraceletJobContext.Provider>
-  )
-}
+export const useRingBraceletJob = ringBraceletJob.useJob
+export const RingBraceletJobProvider = ringBraceletJob.Provider

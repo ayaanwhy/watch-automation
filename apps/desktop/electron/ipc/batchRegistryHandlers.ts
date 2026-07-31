@@ -8,6 +8,7 @@ import type {
   BatchSetModePayload,
   BatchFindWatchPayload,
   BatchSetImageNeedsFixingPayload,
+  BatchSetHoopSplitPayload,
 } from '../../src/types/ipc'
 
 // Thin handlers over the batch registry service (Phase 9B). All logic and
@@ -47,5 +48,9 @@ export function registerBatchRegistryHandlers(): void {
 
   ipcMain.handle('batch-registry:set-image-needs-fixing', async (_e, p: BatchSetImageNeedsFixingPayload): Promise<BatchDetailRecord | null> =>
     registry.setImageNeedsFixing(p.id, p.stageType, p.imageName, p.needsFixing),
+  )
+
+  ipcMain.handle('batch-registry:set-hoop-split', async (_e, p: BatchSetHoopSplitPayload): Promise<BatchDetailRecord | null> =>
+    registry.setHoopSplit(p.id, p.stageType, p.sku, p.splitX),
   )
 }

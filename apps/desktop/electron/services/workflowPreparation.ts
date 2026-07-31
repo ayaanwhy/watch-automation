@@ -90,12 +90,21 @@ async function mapWithConcurrency<T>(
 
 /**
  * Prepares a completed preprocessing output folder for use as an Editing
- * destination's (Watch/Ring/Bracelet) input folder: optionally trims each
- * image to its non-transparent bounding box and/or rotates it, and writes
- * the result into a new "<sourceDir> - Ready" sibling folder.
+ * destination's (Watch/Ring/Bracelet/Earring) input folder: optionally trims
+ * each image to its non-transparent bounding box, rotates it, and/or resizes
+ * it to a fixed height, then writes the result into a new
+ * "<sourceDir> - Ready" sibling folder.
  *
  * trim=true, rotate='ccw' reproduces the original hardcoded Watch-only
  * behavior exactly (Phase 8.5D) — this is now just the dialog's default.
+ *
+ * resizeToHeight (Phase 12A) is unconditional and aspect-preserving —
+ * applied last, after trim and rotate, so it normalizes the final oriented
+ * image rather than being undone by a subsequent rotation. It intentionally
+ * enlarges a source shorter than the target height: this is a canvas-basis
+ * normalization (Earring's shadow profiles are authored against a fixed
+ * 1000px basis), not a size cap. Omitted (undefined) means no resize step
+ * at all — existing callers (Watch/Ring/Bracelet) are unaffected.
  *
  * The original sourceDir is only ever read, never written to.
  * Per-image failures (corrupt file, fully-transparent image) are skipped
@@ -104,7 +113,7 @@ async function mapWithConcurrency<T>(
  */
 export async function prepareForEditingHandoff(
   sourceDir: string,
-  options: { trim: boolean; rotate: EditingHandoffRotate },
+  options: { trim: boolean; rotate: EditingHandoffRotate; resizeToHeight?: number },
   onProgress?: (completed: number, total: number) => void
 ): Promise<EditingHandoffResult> {
   try {
@@ -158,6 +167,12 @@ export async function prepareForEditingHandoff(
         pipeline = pipeline.extract(bbox)
       }
       if (rotateDegrees !== null) pipeline = pipeline.rotate(rotateDegrees)
+      if (options.resizeToHeight !== undefined) {
+        // Aspect-preserving by construction — sharp computes width to match
+        // when only height is given. withoutEnlargement is deliberately not
+        // set: the normalization is unconditional (see function docstring).
+        pipeline = pipeline.resize({ height: options.resizeToHeight })
+      }
       await pipeline.toFile(outputPath)
     } catch (err) {
       skipped++

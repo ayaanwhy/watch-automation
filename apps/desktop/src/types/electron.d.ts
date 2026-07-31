@@ -31,6 +31,7 @@ import type {
   BatchSetModePayload,
   BatchFindWatchPayload,
   BatchSetImageNeedsFixingPayload,
+  BatchSetHoopSplitPayload,
   RingBraceletStartPayload,
   RingBraceletStartResult,
   RingBraceletEventPayload,
@@ -40,6 +41,14 @@ import type {
   RingBraceletFolderPrefsSavePayload,
   RingBraceletValidatePayload,
   PreprocessingPresetDefinitionSavePayload,
+  ProductMetadataLoadPayload,
+  ProductMetadataLoadResult,
+  EarringStartPayload,
+  EarringStartResult,
+  EarringEventPayload,
+  EarringDonePayload,
+  EarringFolderPrefs,
+  EarringValidatePayload,
 } from './ipc'
 import type { BatchDetailRecord, BatchSummaryRecord } from './batch'
 import type {
@@ -96,6 +105,7 @@ declare global {
       invoke(channel: 'batch-registry:set-mode', payload: BatchSetModePayload): Promise<BatchDetailRecord | null>
       invoke(channel: 'batch-registry:find-watch', payload: BatchFindWatchPayload): Promise<BatchDetailRecord | null>
       invoke(channel: 'batch-registry:set-image-needs-fixing', payload: BatchSetImageNeedsFixingPayload): Promise<BatchDetailRecord | null>
+      invoke(channel: 'batch-registry:set-hoop-split', payload: BatchSetHoopSplitPayload): Promise<BatchDetailRecord | null>
       invoke(channel: 'batch-registry:delete', payload: { id: string }): Promise<boolean>
 
       // Ring & Bracelet asset generation (Phase 10C)
@@ -106,6 +116,19 @@ declare global {
       invoke(channel: 'prefs:load-ring-bracelet-folders', payload: RingBraceletFolderPrefsLoadPayload): Promise<RingBraceletFolderPrefs>
       invoke(channel: 'prefs:save-ring-bracelet-folders', payload: RingBraceletFolderPrefsSavePayload): Promise<void>
       invoke(channel: 'ring-bracelet:validate-input', payload: RingBraceletValidatePayload): Promise<BatchValidationResult>
+
+      // Generic product metadata (Phase 12B) — first consumed by Earring's
+      // setup screen below (Phase 12C).
+      invoke(channel: 'product-metadata:load', payload: ProductMetadataLoadPayload): Promise<ProductMetadataLoadResult>
+
+      // Earring asset generation (Phase 12C)
+      invoke(channel: 'earring:start', payload: EarringStartPayload): Promise<EarringStartResult>
+      invoke(channel: 'earring:cancel', payload: { jobId: string }): Promise<{ ok: boolean }>
+      on(channel: 'earring:event', listener: (payload: EarringEventPayload) => void): () => void
+      on(channel: 'earring:done', listener: (payload: EarringDonePayload) => void): () => void
+      invoke(channel: 'prefs:load-earring-folders'): Promise<EarringFolderPrefs>
+      invoke(channel: 'prefs:save-earring-folders', payload: EarringFolderPrefs): Promise<void>
+      invoke(channel: 'earring:validate-input', payload: EarringValidatePayload): Promise<BatchValidationResult>
     }
   }
 }

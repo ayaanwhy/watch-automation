@@ -1,15 +1,18 @@
-"""Drop-shadow generation for Ring & Bracelet assets (Phase 11.5C; canvas
-compositing added in a Phase 11.5C follow-up).
+"""Shared drop-shadow generation engine (Phase 11.5C; canvas compositing
+added in a Phase 11.5C follow-up; promoted from RingBracelet/ to this shared
+location, generalized with per-profile capability flags, and given a second
+consumer — Earring — in Phase 12C).
 
 Ported from packages/processing/src/processing/shadowEngine.ts (the Watch
 pipeline's existing TypeScript shadow engine) — see IMPLEMENTATION_PLAN.md,
 "Ring & Bracelet Shadow Generation — Resolved Integration Approach" for the
 full architecture decision. This is a straight algorithmic port (threshold →
 density dilation → optional spread dilation → Gaussian blur → offset →
-horizontal falloff mask), not a reinterpretation: Ring & Bracelet uses the
-same masked-shadow technique as Watch, with its own tuning (RING_BRACELET_SHADOW)
-kept structurally independent of Watch's defaultShadowSettings so tuning one
-never affects the other.
+horizontal falloff mask), not a reinterpretation: every consumer uses the
+same masked-shadow technique as Watch, with its own tuning
+(RING_BRACELET_SHADOW / EARRING_SHADOW) kept structurally independent of
+Watch's defaultShadowSettings and of each other, so tuning one profile never
+affects another.
 
 Canvas approach (follow-up refinement): like Watch's exportEngine.ts, the
 shadow is not generated directly on the tightly-cropped working image — it
@@ -19,11 +22,11 @@ gives the shadow room to extend beyond the working image's own crop (blur
 spread, vertical offset) without being clipped by the image's edges, and
 makes shadow behavior independent of how tightly upstream preprocessing
 happened to crop that particular SKU. Unlike Watch — whose 2000x2000 canvas
-is also its fixed final output width — Ring & Bracelet has no fixed-width
-output contract, so the canvas here is a temporary working surface only;
-the final export is auto-trimmed to its own content bounds on all four
-sides (Watch's trimTransparentTopBottom trims top/bottom only, since its
-canvas width *is* the output width by design).
+is also its fixed final output width — neither Ring & Bracelet nor Earring
+has a fixed-width output contract, so the canvas here is a temporary working
+surface only; the final export is auto-trimmed to its own content bounds on
+all four sides (Watch's trimTransparentTopBottom trims top/bottom only,
+since its canvas width *is* the output width by design).
 
 The horizontal falloff breakpoints (5%/20%/80%/95%, generalizing
 shadowEngine.ts's fixed 100/400/1600/1900px) are computed relative to the
@@ -31,6 +34,26 @@ shadowEngine.ts's fixed 100/400/1600/1900px) are computed relative to the
 same image would get a different-looking falloff depending on how much
 padding happened to be needed, which is exactly the crop-dependence this
 refinement is meant to eliminate.
+
+Per-profile capability flags (Phase 12C) — every one defaults to whatever
+value reproduces RING_BRACELET_SHADOW's exact pre-12C behavior, so that
+profile needs no changes and the promotion is behavior-preserving by
+construction, not by careful test-writing:
+  horizontal_falloff (default True)  — see _apply_horizontal_mask. Earring
+    sets this False (Resolved Decision 5): the falloff is a Watch/Ring &
+    Bracelet-specific visual language choice, not applied to Earring.
+  casting_region (default None)      — an optional top-fraction source-alpha
+    clip, e.g. 0.10 restricts shadow casting to the subject's own top 10%
+    (Drop's "upper anchor region"). Relative to the *subject's* position via
+    subject_top/subject_height, the same way horizontal falloff is already
+    relative to subject_left/subject_width — otherwise the anchor region
+    would silently drift depending on how much canvas padding a given image
+    happened to need.
+  canvas_base (default 2000)         — Earring's working canvas basis is
+    1000 (Resolved Decision 2); Ring & Bracelet's stays 2000.
+  trim_output (default True)         — False skips the final trim-to-content
+    step, returning the full padded-canvas composite untrimmed. Exists for
+    Phase 12D's Hoop alignment contract; not exercised by Stud/Drop.
 """
 from __future__ import annotations
 
@@ -53,6 +76,42 @@ RING_BRACELET_SHADOW = {
     "color": "#2e170a",
 }
 
+# Phase 12 Resolved Decision 5. Photoshop layer style -> engine parameter:
+#   Color #2e170a          -> color            (same as Watch/Ring & Bracelet)
+#   Opacity 40%             -> opacity 0.4
+#   Angle 90 deg, Dist 20px -> x_offset 0, y_offset 20 (same convention as
+#                              Ring & Bracelet: 90 deg = straight down)
+#   Size 24px               -> blur_radius 24
+#   Spread 30%               -> spread 7px — SEE MAPPING NOTE BELOW
+#   (unspecified)            -> density 1.75 (same as Watch/Ring & Bracelet)
+#   (unspecified)            -> horizontal_falloff False, canvas_base 1000
+#
+# Spread mapping (approved before implementation, Phase 12C): this engine's
+# own `spread` field has always been a raw pixel dilation radius
+# (_dilate(mask, round(settings["spread"]))), never a percentage — it was
+# never previously exercised with a nonzero value, since Ring & Bracelet's
+# Spread is 0% (where the unit ambiguity doesn't matter: 0 either way).
+# EARRING_SHADOW's Spread: 30% is the first nonzero case, so an explicit
+# mapping was required. Approved convention, to be followed by any future
+# profile: spread_px = round(size_px * spread_percent), i.e. Spread is a
+# fraction of Size (this profile: round(24 * 0.30) = 7).
+#
+# casting_region is deliberately NOT part of this profile — it varies by
+# earring type (Stud: none; Drop/Hoop: 0.10), so preprocessing/Earring/runner.py
+# merges it in per-image based on the resolved type, rather than baking one
+# fixed value into the shared profile.
+EARRING_SHADOW = {
+    "x_offset": 0,
+    "y_offset": 20,
+    "blur_radius": 24,
+    "spread": 7,
+    "density": 1.75,
+    "opacity": 0.4,
+    "color": "#2e170a",
+    "horizontal_falloff": False,
+    "canvas_base": 1000,
+}
+
 # Watch's canvas (2000x2000) is also its fixed output width, so it never
 # needs extra padding beyond that. Ring & Bracelet has no such contract, so
 # on top of matching Watch's 2000px baseline, a fixed margin is added on
@@ -60,6 +119,11 @@ RING_BRACELET_SHADOW = {
 # RING_BRACELET_SHADOW's own reach (blur_radius 40's visible tail plus a
 # 50px offset is on the order of 100-150px) with headroom for future
 # retuning of that one profile without this margin needing to change too.
+# canvas_base itself became a per-profile settings key in Phase 12C (see
+# composite_with_shadow); this constant remains the *default* base
+# (Ring & Bracelet's own canvas_base) and CANVAS_MARGIN stays a shared,
+# unparameterized constant — the plan calls for canvas_base to vary per
+# profile, not the margin.
 BASE_CANVAS_SIZE = 2000
 CANVAS_MARGIN = 200
 
@@ -147,10 +211,32 @@ def _horizontal_falloff(canvas_width: int, subject_left: int, subject_width: int
     return result
 
 
-def _apply_horizontal_mask(alpha: np.ndarray, opacity: float, subject_left: int, subject_width: int) -> np.ndarray:
-    row_mask = _horizontal_falloff(alpha.shape[1], subject_left, subject_width)
+def _apply_horizontal_mask(
+    alpha: np.ndarray, opacity: float, subject_left: int, subject_width: int, use_falloff: bool = True
+) -> np.ndarray:
+    row_mask = (
+        _horizontal_falloff(alpha.shape[1], subject_left, subject_width)
+        if use_falloff
+        else np.ones(alpha.shape[1], dtype=np.float64)
+    )
     result = alpha.astype(np.float64) * (opacity * row_mask)[np.newaxis, :]
     return np.clip(np.round(result), 0, 255).astype(np.uint8)
+
+
+def _clip_casting_region(alpha: np.ndarray, subject_top: int, subject_height: int, fraction: float) -> np.ndarray:
+    """Zeroes source alpha outside the top `fraction` of the *subject's* own
+    height (e.g. 0.10 for Drop/Hoop's upper-anchor-only casting region) —
+    restricts WHERE the shadow is cast from; the downstream density/spread/
+    blur/offset/falloff steps still operate on the full (now-clipped) mask
+    exactly as before. Relative to subject_top the same way horizontal
+    falloff is relative to subject_left — see module docstring."""
+    clipped = alpha.copy()
+    if subject_top > 0:
+        clipped[:subject_top, :] = 0
+    cutoff = subject_top + max(0, round(subject_height * fraction))
+    if cutoff < clipped.shape[0]:
+        clipped[cutoff:, :] = 0
+    return clipped
 
 
 def create_drop_shadow(
@@ -158,6 +244,8 @@ def create_drop_shadow(
     settings: dict = RING_BRACELET_SHADOW,
     subject_left: int = 0,
     subject_width: int | None = None,
+    subject_top: int = 0,
+    subject_height: int | None = None,
 ) -> Image.Image:
     """Given an RGBA image, returns a new RGBA image of the same size
     containing only the shadow layer (solid color + computed alpha) — the
@@ -166,7 +254,8 @@ def create_drop_shadow(
 
     subject_left/subject_width scope the horizontal falloff to the actual
     subject rather than the full (possibly padded) image — see
-    _horizontal_falloff. Defaults to the whole image, i.e. calling this
+    _horizontal_falloff. subject_top/subject_height (Phase 12C) do the same
+    for casting_region. Both default to the whole image, i.e. calling this
     directly on an unpadded image reproduces the original per-image
     behavior exactly (this is what the TS-engine equivalence check in
     IMPLEMENTATION_PLAN.md validated)."""
@@ -174,6 +263,12 @@ def create_drop_shadow(
     alpha = np.array(img)[:, :, 3]
     if subject_width is None:
         subject_width = alpha.shape[1] - subject_left
+    if subject_height is None:
+        subject_height = alpha.shape[0] - subject_top
+
+    casting_region = settings.get("casting_region")
+    if casting_region is not None:
+        alpha = _clip_casting_region(alpha, subject_top, subject_height, casting_region)
 
     color = _parse_hex_color(settings["color"])
     mask = _threshold_alpha(alpha)
@@ -182,7 +277,13 @@ def create_drop_shadow(
         mask = _dilate(mask, round(settings["spread"]))
     mask = _blur(mask, settings["blur_radius"])
     mask = _offset(mask, settings["x_offset"], settings["y_offset"])
-    final_alpha = _apply_horizontal_mask(mask, max(0.0, min(1.0, settings["opacity"])), subject_left, subject_width)
+    final_alpha = _apply_horizontal_mask(
+        mask,
+        max(0.0, min(1.0, settings["opacity"])),
+        subject_left,
+        subject_width,
+        use_falloff=settings.get("horizontal_falloff", True),
+    )
 
     shadow_arr = np.zeros((*alpha.shape, 4), dtype=np.uint8)
     shadow_arr[:, :, 0] = color[0]
@@ -212,18 +313,27 @@ def composite_with_shadow(image: Image.Image, settings: dict = RING_BRACELET_SHA
     """Places `image` centered on a padded transparent canvas, generates the
     shadow on that canvas (so blur/offset have room regardless of how
     tightly `image` was cropped), composites the subject back over the
-    shadow, then trims to content bounds — the exported image grows just
-    enough to include the full shadow; nothing about the subject itself
-    changes. Same output contract as before this refinement (a single RGBA
-    PNG), just not clipped to the pre-shadow crop."""
+    shadow, then trims to content bounds (unless settings disables that via
+    trim_output=False — Phase 12C, see module docstring) — the exported
+    image grows just enough to include the full shadow; nothing about the
+    subject itself changes. Same output contract as before the original
+    (Phase 11.5C) canvas refinement: a single RGBA PNG, just not clipped to
+    the pre-shadow crop."""
     img = image.convert("RGBA")
-    canvas_size = max(BASE_CANVAS_SIZE, img.width + CANVAS_MARGIN, img.height + CANVAS_MARGIN)
+    canvas_base = settings.get("canvas_base", BASE_CANVAS_SIZE)
+    canvas_size = max(canvas_base, img.width + CANVAS_MARGIN, img.height + CANVAS_MARGIN)
     canvas = Image.new("RGBA", (canvas_size, canvas_size), (0, 0, 0, 0))
     paste_x = (canvas_size - img.width) // 2
     paste_y = (canvas_size - img.height) // 2
     canvas.paste(img, (paste_x, paste_y), img)
 
-    shadow = create_drop_shadow(canvas, settings, subject_left=paste_x, subject_width=img.width)
+    shadow = create_drop_shadow(
+        canvas, settings,
+        subject_left=paste_x, subject_width=img.width,
+        subject_top=paste_y, subject_height=img.height,
+    )
     composited = Image.alpha_composite(shadow, canvas)
 
+    if not settings.get("trim_output", True):
+        return composited
     return _trim_to_content(composited)

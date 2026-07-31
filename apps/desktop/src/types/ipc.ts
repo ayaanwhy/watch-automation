@@ -51,6 +51,53 @@ export interface BatchLoadResult {
   match?: MatchSummary
 }
 
+// ── Generic product metadata (Phase 12B) ────────────────────────────────────
+// SKU/Category/Sub-Category/Dimensions — a product-agnostic metadata sheet
+// system; Earring is the first consumer, not the reason it exists (see
+// IMPLEMENTATION_PLAN.md, Phase 12 Resolved Decision 1). Mirrors
+// SpreadsheetRowData/MatchSummary's existing pattern: a renderer-facing DTO
+// shape kept separate from @wpa/processing's own internal types (structurally
+// identical by design, not a direct re-export).
+
+export interface ProductMetadataRowData {
+  sku: string
+  category: string
+  subCategory: string
+  dimensions: string
+}
+
+export interface ProductMetadataSummary {
+  totalMetadataRecords: number
+  totalImages: number
+  matched: string[]
+  missingImages: string[]
+  missingMetadataRecords: string[]
+  duplicateMetadataSkus: string[]
+  duplicateImageSkus: string[]
+  rows: Record<string, ProductMetadataRowData>
+}
+
+// Earring-specific classification layered on top of the generic match
+// summary by metadataHandlers.ts (app-side — see constants/earringClassification.ts).
+// unmapped lists matched SKUs whose Sub-Category didn't resolve to a known
+// type, reported explicitly rather than guessed.
+export interface ProductMetadataClassification {
+  bySku: Record<string, import('../constants/earringClassification').EarringType>
+  unmapped: string[]
+}
+
+export interface ProductMetadataLoadPayload {
+  metadataFilePath: string
+  inputFolder: string
+}
+
+export interface ProductMetadataLoadResult {
+  ok: boolean
+  errors: string[]
+  match?: ProductMetadataSummary
+  classification?: ProductMetadataClassification
+}
+
 export interface SessionSavePayload {
   outputFolder: string
   session: import('./session').SessionFile
@@ -128,7 +175,10 @@ export interface QueueRestorePayload {
 
 export type UpscaleFactor = 1 | 2 | 4
 
-export type ProductType = 'watch' | 'bracelet' | 'ring' | 'generic'
+// 'earring' added in Phase 12A — Universal Preprocessing support only
+// (plugins/earring.py, target selector). The dedicated Earring editing
+// destination/workflow is introduced in Phase 12C.
+export type ProductType = 'watch' | 'bracelet' | 'ring' | 'earring' | 'generic'
 
 // Phase 10A — which preprocessing stages to run. Not persisted (each run
 // defaults to both); recorded on the batch stage config purely for history.
@@ -234,6 +284,11 @@ export interface EditingHandoffPayload {
   sourceDir: string
   trim: boolean
   rotate: EditingHandoffRotate
+  // Phase 12A — unconditional, aspect-preserving normalization to a fixed
+  // height, applied after trim/rotate. Omitted means no resize step (every
+  // caller before Earring). Not yet surfaced in EditingHandoffDialog.tsx —
+  // wired to the UI in Phase 12C alongside the Earring destination itself.
+  resizeToHeight?: number
 }
 
 export type EditingHandoffResult =
@@ -251,7 +306,7 @@ export interface PrepareProgressPayload {
 export interface EditingHandoffOptionsPrefs {
   trim: boolean
   rotate: EditingHandoffRotate
-  destination: 'watch' | 'ring' | 'bracelet'
+  destination: 'watch' | 'ring' | 'bracelet' | 'earring'
 }
 
 // ── Batch registry (Phase 9B) ───────────────────────────────────────────────
@@ -277,6 +332,19 @@ export interface BatchSetImageNeedsFixingPayload {
   stageType: import('./batch').StageType
   imageName: string
   needsFixing: boolean
+}
+
+// Hoop Manual boundary placement (Phase 12E) — persists one SKU's split
+// position into the editing stage's config.hoopSplits as it's placed (see
+// batchRegistry.setHoopSplit). splitX is normalized: a fraction (0-1) of
+// the source image's own full width, not the hoop's own bounding box —
+// resolution-independent, and directly convertible back to the same
+// absolute-pixel space hoop_mask.py's automatic detector already works in.
+export interface BatchSetHoopSplitPayload {
+  id: string
+  stageType: import('./batch').StageType
+  sku: string
+  splitX: number
 }
 
 export interface BatchRenamePayload {
@@ -384,4 +452,84 @@ export interface RingBraceletFolderPrefsLoadPayload {
 
 export interface RingBraceletFolderPrefsSavePayload extends RingBraceletFolderPrefs {
   product: 'ring' | 'bracelet'
+}
+
+// ── Earring asset generation (Phase 12C) ────────────────────────────────────
+// Consumes Universal Preprocessing's already-prepared, resized-to-1000px
+// transparent PNGs (Phase 12A). Wire contract deliberately independent of
+// RingBraceletStartPayload/Event/Done, per the same "keep asset-generation
+// pipelines cleanly separated" precedent Ring & Bracelet itself established
+// relative to Preprocessing.
+
+export interface EarringStartPayload {
+  inputDir: string
+  outputDir: string
+  batchId?: string
+  pythonPath?: string
+  // Path to the product metadata sheet (CSV/XLSX) — SKU/Category/Sub-Category/
+  // Dimensions (Phase 12B). Parsed, matched, and classified into a resolved
+  // {sku: earringType} sidecar by the main process before the runner spawns
+  // (electron/ipc/earringHandlers.ts) — the Python runner never re-interprets
+  // Category/Sub-Category itself (Phase 12C explicit requirement).
+  metadataFilePath: string
+  processingMode?: import('../constants/processingMode').ProcessingMode
+}
+
+// Mirrors RingBraceletValidatePayload's lightweight pre-flight spirit,
+// applied to the input image folder — the metadata sheet's own errors
+// surface through earring:start's own result instead (mirroring batch:load's
+// pattern, since sheet parsing/matching genuinely can fail in ways a plain
+// folder check can't).
+export interface EarringValidatePayload {
+  inputDir: string
+}
+
+export type EarringStartResult =
+  | { ok: true; jobId: string }
+  | { ok: false; error: string }
+
+export type EarringEventPayload = { jobId: string } & (
+  | { type: 'start'; total: number; images: string[] }
+  | { type: 'progress'; index: number; total: number; image: string; stage: string; status: 'start' }
+  | {
+      type: 'complete'
+      index: number
+      total: number
+      image: string
+      compare: string
+      frontImage: string
+      earringType: string
+      duration_ms: number
+      // Hoop only (Phase 12D) — Stud/Drop's complete events never carry
+      // these. frontFullImage is an unmodified duplicate of compare;
+      // detected mirrors Ring & Bracelet's own confidence signal (false ->
+      // low-confidence, route to manual review), reported here from
+      // hoop_mask.py's (mask, detected) contract.
+      frontFullImage?: string
+      detected?: boolean
+    }
+  | { type: 'error'; index: number; total: number; image: string; error: string; fatal: boolean }
+  | { type: 'fatal'; error: string }
+  | { type: 'cancel_requested' }
+  | { type: 'done'; succeeded: number; failed: number; total_duration_ms: number; cancelled: boolean }
+)
+
+export interface EarringDonePayload {
+  jobId: string
+  exitCode: number | null
+  succeeded: number
+  failed: number
+  totalDurationMs: number
+  cancelledByUser: boolean
+  spawnError?: string
+}
+
+// One shared slot (unlike Ring/Bracelet's product-keyed prefs) — there's
+// only one Earring product to remember folders for. Bundles the metadata
+// sheet path alongside the folders rather than a separate one-string prefs
+// file, since all three are "this screen's last-used inputs" together.
+export interface EarringFolderPrefs {
+  inputDir: string | null
+  outputDir: string | null
+  metadataFilePath: string | null
 }

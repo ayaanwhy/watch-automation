@@ -295,6 +295,34 @@ export async function setImageNeedsFixing(
   return updateStage(id, stageType, { images, counts })
 }
 
+// Hoop Manual boundary placement (Phase 12E) — persists one SKU's normalized
+// split position (0-1, fraction of the source image's own width) into the
+// editing stage's config.hoopSplits as it's placed, the same
+// read-current-merge-one-write-whole pattern setImageNeedsFixing uses for
+// its own map-shaped field. Written well before any image has been
+// processed (the stage is 'configuring', not yet 'running'), so — unlike
+// setImageNeedsFixing — there is no per-image record to look up or gate on;
+// only the stage itself needs to exist. This is what makes a split survive
+// an interruption and resume: HoopBoundaryEditor always reads splits back
+// from the registry, never from renderer-only state.
+export async function setHoopSplit(
+  id: string,
+  stageType: StageType,
+  sku: string,
+  splitX: number,
+): Promise<BatchDetailRecord | null> {
+  const detail = await getBatch(id)
+  if (!detail) return null
+  const stage = detail.stages.find(s => s.type === stageType)
+  if (!stage) return null
+
+  const existingSplits = (stage.config['hoopSplits'] as Record<string, number> | undefined) ?? {}
+  const hoopSplits = { ...existingSplits, [sku]: splitX }
+  // applyStagePatch shallow-merges config with the stage's existing config
+  // (see batchModel.ts), so only the changed key needs to be sent here.
+  return updateStage(id, stageType, { config: { hoopSplits } })
+}
+
 export async function renameBatch(id: string, title: string): Promise<BatchDetailRecord | null> {
   const detail = await getBatch(id)
   if (!detail) return null

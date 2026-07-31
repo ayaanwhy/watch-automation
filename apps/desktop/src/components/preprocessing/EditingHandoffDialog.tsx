@@ -24,14 +24,13 @@ const ROTATE_OPTIONS: { value: EditingHandoffRotate; label: string }[] = [
   { value: '180', label: '180°' },
 ]
 
-// Watch, Ring and Bracelet are all fully wired destinations (Phase 10F) —
-// none are disabled placeholders. Earrings isn't offered here at all yet
-// (no Editing workflow exists for it), consistent with keeping this one
-// dialog rather than a second version per destination.
+// Watch, Ring, Bracelet, and (Phase 12C) Earring are all fully wired
+// destinations — none are disabled placeholders.
 const DESTINATION_OPTIONS: { value: EditingProduct; label: string }[] = [
   { value: 'watch', label: 'Watch' },
   { value: 'ring', label: 'Ring' },
   { value: 'bracelet', label: 'Bracelet' },
+  { value: 'earring', label: 'Earring' },
 ]
 
 // Generic Preprocessing → Editing hand-off dialog (Phase 10F) — generalized
@@ -56,8 +55,16 @@ export function EditingHandoffDialog({ onConfirm, onClose }: EditingHandoffDialo
     })
   }, [])
 
+  // Earring's shadow profiles are authored against a fixed 1000px canvas
+  // basis (Phase 12A/12C) that assumes a trimmed, unrotated subject — so
+  // Trim/Rotate aren't left to the operator's last-used values here the way
+  // they are for every other destination.
+  const isEarring = destination === 'earring'
+  const effectiveTrim = isEarring ? true : trim
+  const effectiveRotate = isEarring ? 'none' : rotate
+
   function handleConfirm() {
-    const options: EditingHandoffOptions = { trim, rotate, destination }
+    const options: EditingHandoffOptions = { trim: effectiveTrim, rotate: effectiveRotate, destination }
     void window.api.invoke('prefs:save-editing-handoff-options', options)
     onConfirm(options)
   }
@@ -75,11 +82,17 @@ export function EditingHandoffDialog({ onConfirm, onClose }: EditingHandoffDialo
     >
       <div className={styles.body}>
         <label className={styles.checkboxRow}>
-          <input type="checkbox" checked={trim} onChange={e => setTrim(e.target.checked)} />
+          <input type="checkbox" checked={effectiveTrim} disabled={isEarring} onChange={e => setTrim(e.target.checked)} />
           Trim Image
         </label>
 
-        <SegmentedControl label="Rotate" options={ROTATE_OPTIONS} value={rotate} onChange={setRotate} />
+        <SegmentedControl label="Rotate" options={ROTATE_OPTIONS} value={effectiveRotate} onChange={setRotate} disabled={isEarring} />
+
+        {isEarring && (
+          <p className={styles.earringNote}>
+            Earring requires a trimmed, unrotated image — Trim and Rotate are fixed for this destination.
+          </p>
+        )}
 
         <SegmentedControl label="Destination" options={DESTINATION_OPTIONS} value={destination} onChange={setDestination} />
       </div>

@@ -33,6 +33,7 @@ const TARGET_OPTIONS: { value: ProductType; label: string }[] = [
   { value: 'watch',    label: 'Watch' },
   { value: 'ring',     label: 'Ring' },
   { value: 'bracelet', label: 'Bracelet' },
+  { value: 'earring',  label: 'Earring' },
 ]
 
 // Phase 10A — which preprocessing stages to run. Not persisted: every run

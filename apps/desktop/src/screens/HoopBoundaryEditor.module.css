@@ -1,0 +1,84 @@
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 4px 0;
+}
+
+.backButton {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 4px;
+}
+
+.backButton:hover {
+  color: #fff;
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.count {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.hint {
+  margin: 0 4px;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #d9b45a;
+  background: rgba(217, 180, 90, 0.1);
+  border: 1px solid rgba(217, 180, 90, 0.25);
+  border-radius: 6px;
+}
+
+.errorBanner {
+  margin: 0 4px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: #ff6b6b;
+  background: rgba(255, 107, 107, 0.1);
+  border: 1px solid rgba(255, 107, 107, 0.25);
+  border-radius: 6px;
+}
+
+.runButton {
+  margin: 0 4px;
+  padding: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #0a0a0a;
+  background: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.runButton:hover:not(:disabled) {
+  background: #ddd;
+}
+
+.runButton:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.loading,
+.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
+}

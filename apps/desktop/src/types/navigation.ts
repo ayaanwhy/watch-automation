@@ -18,4 +18,4 @@ export type AppView = 'home' | 'preprocessing' | 'preprocessingWorkspace' | 'edi
 // Which product the shared Editing setup screen is currently configuring.
 // Sidebar shortcuts (Watches/Rings/Bracelets) each preselect one; Home's
 // generic "Editing" entry leaves it at the screen's own default.
-export type EditingProduct = 'watch' | 'ring' | 'bracelet'
+export type EditingProduct = 'watch' | 'ring' | 'bracelet' | 'earring'

@@ -23,6 +23,11 @@ interface SegmentedControlProps<T extends string> {
   variant?: SegmentedControlVariant
   'aria-label'?: string
   className?: string
+  // Disables every option regardless of its own per-option `disabled` (Phase
+  // 12C) — for a control whose whole group is temporarily locked (e.g.
+  // EditingHandoffDialog's Rotate control while Earring is selected), rather
+  // than the per-option flag's "this one choice isn't implemented yet".
+  disabled?: boolean
 }
 
 // All-options-visible segmented/tile selector — the toggle-group counterpart
@@ -38,24 +43,28 @@ export function SegmentedControl<T extends string>({
   variant = 'tile',
   'aria-label': ariaLabel,
   className,
+  disabled: groupDisabled,
 }: SegmentedControlProps<T>) {
   return (
     <div className={[styles.field, className].filter(Boolean).join(' ')}>
       {label && <label className={styles.label}>{label}</label>}
       <div className={`${styles.group} ${styles[variant]}`} role="group" aria-label={ariaLabel ?? label}>
-        {options.map(opt => (
-          <button
-            key={opt.value}
-            type="button"
-            className={[styles.option, opt.value === value ? styles.optionActive : ''].join(' ').trim()}
-            disabled={opt.disabled}
-            aria-pressed={opt.value === value}
-            aria-disabled={opt.disabled || undefined}
-            onClick={opt.disabled ? undefined : () => onChange(opt.value)}
-          >
-            {opt.label}
-          </button>
-        ))}
+        {options.map(opt => {
+          const optionDisabled = groupDisabled || opt.disabled
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              className={[styles.option, opt.value === value ? styles.optionActive : ''].join(' ').trim()}
+              disabled={optionDisabled}
+              aria-pressed={opt.value === value}
+              aria-disabled={optionDisabled || undefined}
+              onClick={optionDisabled ? undefined : () => onChange(opt.value)}
+            >
+              {opt.label}
+            </button>
+          )
+        })}
       </div>
     </div>
   )

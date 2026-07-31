@@ -8,11 +8,15 @@ import Settings from './screens/Settings'
 import Home from './screens/Home'
 import BatchDetails from './screens/BatchDetails'
 import { RingBraceletRunWorkspace } from './components/ringBracelet/RingBraceletRunWorkspace'
+import { EarringRunWorkspace } from './components/earring/EarringRunWorkspace'
+import HoopBoundaryEditor from './screens/HoopBoundaryEditor'
 import { AppShell } from './components/shell/AppShell'
 import { PreprocessingJobProvider } from './context/PreprocessingJobContext'
 import { RingBraceletJobProvider } from './context/RingBraceletJobContext'
+import { EarringJobProvider } from './context/EarringJobContext'
 import { PreprocessingBatchSync } from './components/batch/PreprocessingBatchSync'
 import { RingBraceletBatchSync } from './components/batch/RingBraceletBatchSync'
+import { EarringBatchSync } from './components/batch/EarringBatchSync'
 import { findStageStatus } from './components/batch/batchDisplay'
 import type { BatchState } from './types/annotation'
 import type { SessionFile } from './types/session'
@@ -185,7 +189,7 @@ export default function App() {
     if (detail.status === 'in_progress' && detail.currentStage === 'editing') {
       const editingStage = detail.stages.find(s => s.type === 'editing')
       const product = editingStage?.config.product
-      setEditingProduct(product === 'bracelet' ? 'bracelet' : 'ring')
+      setEditingProduct(product === 'bracelet' ? 'bracelet' : product === 'earring' ? 'earring' : 'ring')
       setPendingBatch(null)
       setPendingEditingTitle('')
       setEditingBatch(detail)
@@ -298,6 +302,26 @@ export default function App() {
     return id
   }
 
+  // Same 'editing' StageType, same shared editingBatch state as Ring &
+  // Bracelet above — Earring's own product is recorded on the stage config
+  // by earring:start itself (see earringHandlers.ts), not here.
+  async function handleCreateEarringBatch(sourceDir: string, title: string): Promise<string> {
+    const id = await createBatch(['editing'], sourceDir, title)
+    const detail = await window.api.invoke('batch-registry:get', { id })
+    setEditingBatch(detail)
+    return id
+  }
+
+  // Hoop Manual boundary placement (Phase 12E) — EditingSetup's EarringFields
+  // already persisted status:'configuring' onto the editing stage (via
+  // batch-registry:update-stage) before calling this; adopting that same
+  // already-updated detail here is what makes renderContent()'s
+  // status-driven branch below pick up HoopBoundaryEditor on the very next
+  // render, with no separate setView call needed (already 'editing').
+  function handleEnterHoopBoundaryEditor(detail: BatchDetailRecord) {
+    setEditingBatch(detail)
+  }
+
   // Clears whatever batch App.tsx was tracking and returns to a fresh
   // Preprocessing Configure screen — the same "Run another batch" semantic
   // Phase 9D introduced, now reachable identically from either the live
@@ -312,11 +336,11 @@ export default function App() {
     setView('preprocessing')
   }
 
-  // Same semantic as handleRunAnotherPreprocessing, for Ring/Bracelet
-  // (Phase 10D) — returns to the shared Editing setup screen with the same
-  // product preselected, so "Run Another Batch" from a completed Ring batch
-  // doesn't dump the user back on Watch.
-  function handleRunAnotherEditing(product: 'ring' | 'bracelet') {
+  // Same semantic as handleRunAnotherPreprocessing, for Ring/Bracelet/Earring
+  // (Phase 10D, extended in 12C) — returns to the shared Editing setup screen
+  // with the same product preselected, so "Run Another Batch" from a
+  // completed Ring batch doesn't dump the user back on Watch.
+  function handleRunAnotherEditing(product: 'ring' | 'bracelet' | 'earring') {
     setEditingBatch(null)
     setEditingProduct(product)
     setPendingEditingTitle('')
@@ -359,6 +383,10 @@ export default function App() {
       sourceDir: outputDir,
       trim: options.trim,
       rotate: options.rotate,
+      // Earring's shadow profiles are authored against a fixed 1000px canvas
+      // basis (Phase 12A) — every other destination leaves this unset (no
+      // resize step, matching pre-12A behavior exactly).
+      ...(options.destination === 'earring' ? { resizeToHeight: 1000 } : {}),
     })
     if (!result.ok) {
       return { ok: false, error: result.error }
@@ -377,6 +405,19 @@ export default function App() {
       })
       setPendingBatch({ pipeline: batch.pipeline, title: batch.title, continueBatchId: batch.id })
       setPendingEditingTitle('')
+    } else if (options.destination === 'earring') {
+      // Preserves whatever metadata sheet was last remembered (a single
+      // shared slot, not product-keyed — see EarringFolderPrefs) rather than
+      // clobbering it to null the way outputDir is deliberately reset below.
+      const currentEarringPrefs = await window.api.invoke('prefs:load-earring-folders')
+      await window.api.invoke('prefs:save-earring-folders', {
+        inputDir: result.preparedDir,
+        outputDir: null,
+        metadataFilePath: currentEarringPrefs.metadataFilePath,
+      })
+      setPendingBatch(null)
+      setPendingEditingTitle(batch.title)
+      setEditingBatch(null)
     } else {
       await window.api.invoke('prefs:save-ring-bracelet-folders', {
         product: options.destination,
@@ -556,11 +597,13 @@ export default function App() {
           onBeginAnnotation={handleBeginAnnotation}
           handoffFolder={handoffFolder}
           onCreateRingBraceletBatch={handleCreateRingBraceletBatch}
+          onCreateEarringBatch={handleCreateEarringBatch}
+          onEnterHoopBoundaryEditor={handleEnterHoopBoundaryEditor}
         />
       )
     }
 
-    // editingProduct is 'ring' or 'bracelet'
+    // editingProduct is 'ring', 'bracelet', or 'earring'
     const editingStageStatus = findStageStatus(editingBatch, 'editing')
     if (editingStageStatus === 'completed' || editingStageStatus === 'failed' || editingStageStatus === 'cancelled') {
       return (
@@ -575,7 +618,16 @@ export default function App() {
     }
     if (editingStageStatus === 'running') {
       const stage = editingBatch?.stages.find(s => s.type === 'editing')
-      return <RingBraceletRunWorkspace inputDir={stage?.inputDir || ''} />
+      return editingProduct === 'earring'
+        ? <EarringRunWorkspace inputDir={stage?.inputDir || ''} />
+        : <RingBraceletRunWorkspace inputDir={stage?.inputDir || ''} />
+    }
+    // Hoop Manual boundary placement (Phase 12E) — 'configuring' only ever
+    // appears for Earring (Ring & Bracelet has no equivalent step), reached
+    // either fresh (EditingSetup just persisted it) or resumed (reopened
+    // from Home while splits were still being placed).
+    if (editingStageStatus === 'configuring') {
+      return <HoopBoundaryEditor batchId={editingBatch!.id} onBack={() => setView('home')} />
     }
     return (
       <EditingSetup
@@ -585,6 +637,8 @@ export default function App() {
         onBeginAnnotation={handleBeginAnnotation}
         handoffFolder={handoffFolder}
         onCreateRingBraceletBatch={handleCreateRingBraceletBatch}
+        onCreateEarringBatch={handleCreateEarringBatch}
+        onEnterHoopBoundaryEditor={handleEnterHoopBoundaryEditor}
       />
     )
   }
@@ -600,17 +654,23 @@ export default function App() {
     // that (Phase 9C).
     <PreprocessingJobProvider>
       <RingBraceletJobProvider>
-        <PreprocessingBatchSync
-          batchId={preprocessBatch?.id ?? null}
-          onBatchUpdated={setPreprocessBatch}
-        />
-        <RingBraceletBatchSync
-          batchId={editingBatch?.id ?? null}
-          onBatchUpdated={setEditingBatch}
-        />
-        <AppShell view={view} editingProduct={view === 'editing' ? editingProduct : null} onNavigate={navigate}>
-          {renderContent()}
-        </AppShell>
+        <EarringJobProvider>
+          <PreprocessingBatchSync
+            batchId={preprocessBatch?.id ?? null}
+            onBatchUpdated={setPreprocessBatch}
+          />
+          <RingBraceletBatchSync
+            batchId={editingBatch?.id ?? null}
+            onBatchUpdated={setEditingBatch}
+          />
+          <EarringBatchSync
+            batchId={editingBatch?.id ?? null}
+            onBatchUpdated={setEditingBatch}
+          />
+          <AppShell view={view} editingProduct={view === 'editing' ? editingProduct : null} onNavigate={navigate}>
+            {renderContent()}
+          </AppShell>
+        </EarringJobProvider>
       </RingBraceletJobProvider>
     </PreprocessingJobProvider>
   )

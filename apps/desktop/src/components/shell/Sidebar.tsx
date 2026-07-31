@@ -27,7 +27,7 @@ interface EditingCategory {
 const EDITING_CATEGORIES: EditingCategory[] = [
   { label: 'Rings', product: 'ring' },
   { label: 'Bracelets', product: 'bracelet' },
-  { label: 'Earrings', product: null },
+  { label: 'Earrings', product: 'earring' },
   { label: 'Necklaces', product: null },
   { label: 'Watches', product: 'watch' },
 ]

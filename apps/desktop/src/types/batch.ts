@@ -77,6 +77,15 @@ export interface StageImageAssets {
   // Batch Details — the review step this flag exists for — can surface it
   // for a historical batch too, not only a run still in progress.
   detected?: boolean
+  // Earring (Phase 12C) — the immutable output of Universal Background
+  // Removal + trim, which every editing operation derives from but never
+  // modifies (Phase 12 Architectural Rules). Deliberately its own field
+  // rather than reusing frontFullImage: Stud/Drop only ever produce
+  // compare + frontImage, never a frontFullImage (that's Hoop-specific,
+  // Phase 12D). BatchDetails.tsx's generic editing-stage mapping falls back
+  // to this when frontFullImage is absent, so the existing preview panel
+  // renders it without needing an Earring-specific component.
+  compare?: string
 }
 
 // A single image's terminal outcome within a stage, persisted so a stage's

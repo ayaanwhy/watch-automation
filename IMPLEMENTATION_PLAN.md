@@ -1474,10 +1474,432 @@ A clearer preprocessing interface with improved user-facing terminology.
 
 Implemented as a label-only change: the Preprocessing screen's Upscale Factor selector and its accompanying helper text. Also extended, for consistency, to Batch Details' Configuration summary — the same scaleFactor value is displayed there too, and leaving it as "1×" while the selector now says "None" would have reintroduced the exact inconsistency this phase exists to remove. The underlying `UpscaleFactor` value, CLI arguments, and Python upscale behavior are all unchanged.
 
+⸻
+
+Phase 12 — Earring Asset Generation
+
+Goal
+
+Introduce Earring asset generation as another product-specific asset generator built on the universal preprocessing pipeline established in Phase 10.
+
+The implementation should extend the shared preprocessing architecture with an earring-specific editing pipeline capable of generating production-ready assets for multiple earring styles while maintaining consistency with the application’s existing processing workflows.
+
+Deliverables
+
+Processing Pipeline
+
+All earring images should pass through the shared preprocessing pipeline:
+
+* Optional Upscale
+* Background Removal
+* Trim
+* Resize to 1000px height while preserving aspect ratio (corrected from an earlier 2000px draft — the earring shadow profiles are designed around a 1000×1000 working canvas; see Resolved Decisions below)
+
+Upon continuing to editing, images should enter an earring-specific asset generation workflow.
+
+Processing Modes
+
+Support two processing modes:
+
+* Automatic — computer vision performs any required segmentation or split detection.
+* Manual — user provides the required editing input where applicable.
+
+Earring Types
+
+Support three earring categories:
+
+Stud
+
+* Shadow applied to the full earring silhouette.
+* Generates:
+    * SKU;compare.png
+    * SKU;frontImage.png
+
+Drop
+
+* Shadow generated only from the upper anchor region (approximately the upper 10% of the earring), preventing shadows from extending unrealistically along the hanging portion.
+* Generates:
+    * SKU;compare.png
+    * SKU;frontImage.png
+
+Hoop
+
+Support both Automatic and Manual editing.
+
+Automatic:
+
+* Detect the front/rear split using a computer vision approach analogous to the existing bracelet segmentation pipeline, adapted for vertically-oriented earrings.
+
+Manual:
+
+* Allow the user to position a single split boundary defining the front portion of the hoop.
+
+Generate:
+
+* SKU;compare.png
+* SKU;frontFullImage.png
+* SKU;frontImage.png
+
+frontImage should preserve the exact canvas dimensions of frontFullImage; the rear portion of the hoop should become transparent rather than being cropped, ensuring both assets remain perfectly aligned.
+
+Shadow Generation
+
+Apply Photoshop-equivalent drop shadows using the existing shadow generation architecture.
+
+Default shadow profile:
+
+* Blend Mode: Normal
+* Opacity: 40%
+* Angle: 90°
+* Distance: 20 px
+* Spread: 30%
+* Size: 24 px
+
+Shadow casting region:
+
+* Stud: Entire silhouette
+* Drop: Upper anchor region (~10%)
+* Hoop: Upper anchor region (~10%) after front-half isolation
+
+Output
+
+All generated assets should be PNGs with transparent backgrounds.
+
+Outputs vary by earring type:
+
+Stud / Drop
+
+* SKU;compare.png
+* SKU;frontImage.png
+
+Hoop
+
+* SKU;compare.png
+* SKU;frontFullImage.png
+* SKU;frontImage.png
+
+Architectural Rules
+
+* compare represents the immutable output of Universal Background Removal followed by trimming.
+* All editing operations derive from compare.
+* frontImage is always the edited production asset.
+* For Hoop earrings, frontFullImage is an unmodified duplicate of compare, retained for downstream Virtual Try-On usage.
+* Product-specific editing must never modify the canonical compare asset.
+
+⸻
+
+Phase 12 — Resolved Decisions
+
+Approved before implementation. These decisions supersede any conflicting wording in the phase text above.
+
+1. **Earring classification comes from a product metadata sheet, not a UI selector.** The user supplies a CSV/XLSX sheet with columns: SKU, Category, Sub-Category, Dimensions. This is designed as a **generic product-metadata system** (future products reuse the same parser, matching, and persistence), not an earring-specific feature. The earring type (Stud / Drop / Hoop) is derived per SKU from the normalized Sub-Category at validation time; unrecognized values are reported explicitly in the match summary, never silently defaulted. Dimensions are parsed and persisted with the batch but are **not** consumed by the processing pipeline — stored for future use only. A consequence embraced deliberately: batches are mixed-type by default, and the runner dispatches per image by resolved type, not per batch.
+2. **Resize target is 1000px height** (not 2000px as originally drafted). The earring shadow profiles and compositing canvas are designed around a 1000×1000 basis; the earring canvas base is 1000 accordingly (Ring & Bracelet's 2000 base is unchanged).
+3. **compare is created after the complete shared preprocessing chain** (background removal → trim → resize-to-1000). It is the immutable image immediately before any masking or shadow generation, equals the editing stage's input exactly, and every editing operation derives from it.
+4. **Hoop's alignment contract outranks Ring/Bracelet compositing parity.** Hoop `frontImage` is composited on the fixed compare-sized canvas with **no post-shadow trim**, guaranteeing byte-identical canvas dimensions to `frontFullImage`; minor shadow edge-clipping is accepted. Stud and Drop, which carry no alignment constraint, use the shared canvas-composite-then-trim approach (with the 1000px canvas base). Shared rendering infrastructure is reused; behavior diverges only where this contract requires it.
+5. **Shadow profile:** same color (`#2e170a`) and density (`1.75`) as the existing Watch and Ring & Bracelet profiles; Opacity 40% → `0.3`-style direct mapping (`0.4`); Angle 90° + Distance 20px → offset `(0, 20)`; Size 24px → blur radius `24`. **Spread mapping (resolved during 12C, recorded here per this decision's own instruction):** the engine's `spread` field has always been a raw pixel dilation radius, never a percentage — Ring & Bracelet's own Spread is 0%, where the unit ambiguity never mattered. Earring's Spread: 30% is the first nonzero case, so the approved convention is `spread_px = round(size_px × spread_percent)` — for this profile, `round(24 × 0.30) = 7`. Any future profile with a nonzero Spread follows the same formula. **The horizontal falloff is not applied to earrings.** Falloff becomes a per-profile capability (`horizontal_falloff`, default enabled so Ring & Bracelet output is bit-for-bit unchanged), disabled in the earring profile. Earrings use only the vertical casting-region restriction: full silhouette for Stud, top ~10% anchor region for Drop and Hoop.
+6. **Hoop automatic detection is an earring-owned module** (`preprocessing/Earring/hoop_mask.py`) — inspired by the bracelet topology approach but implemented and tuned independently, per the Phase 10E lesson that cross-product reuse of silhouette algorithms fails on new geometry. It keeps the established `(mask, detected)` contract so low-confidence results route to review.
+7. **Processing modes:** Stud and Drop behave identically in Automatic and Manual modes (they have no masking step; both modes converge on shadow generation, mirroring Ring & Bracelet's mode semantics). Only Hoop differs: Automatic runs `hoop_mask`; Manual collects one user-placed split boundary per hoop SKU in-app before the batch runs.
+
+⸻
+
+Phase 12 — Hoop Detection: Decision Record (Phase 12D/12E)
+
+Recorded per Phase 12F's documentation requirement — the decisions actually made during 12D/12E's architecture approvals, not restated from the phase text above.
+
+* **`hoop_mask.py` is an intentional placeholder, not a tuned detector, and remains one at the close of Phase 12.** No real hoop photography existed at 12D's start or at 12F's close (checked again during 12F; still none in the repository). Per the Phase 10E precedent this phase itself invokes (Resolved Decision 6), the algorithm was deliberately not pre-specified — 12D built the full contract and integration (runner.py's hoop branch, dimension-parity assertion, NDJSON/`detected` plumbing, UI badge/review routing) around a structural stand-in rather than block the rest of the roadmap on unavailable assets. `generate_hoop_mask` always returns `detected=False`, so every Automatic Hoop result routes to manual review honestly rather than reporting confidence it doesn't have.
+* **The split is a single vertical boundary** — one x-position (not a per-row-varying curve like `shank_mask.py`'s bracelet cut) — separating the hoop's bounding box into a left (front) and right (rear) portion. Confirmed explicitly during 12D's architecture approval; carried through unchanged into 12E's manual editor, which lets the operator drag that same single value directly.
+* **Mask edge is the same soft sigmoid transition** `shank_mask.py`/`ring_mask.py` already use (~1.5% of the subject's own bounding-box extent) — approved as a deliberate non-decision: no reason to introduce a second edge style before real photography suggests one is needed.
+* **`EDGE_SAFE_FRACTION = 0.15`** — a structural clamp (mirroring `ring_mask.py`'s `CROWN_SAFE_FRACTION`) preventing the split, automatic or manual, from landing within 15% of the bounding box's own edges. Applied identically by both modes since both converge on `hoop_mask.build_mask_from_split_x` (12E) — the shared rendering step extracted specifically so Automatic and Manual could never silently drift into two different-looking results. This convergence is now regression-locked by `tests/earringRunnerIntegration.test.ts` (12F), which asserts byte-identical `frontImage` output for the two paths given the same resolved split position.
+* **Follow-up work, deferred pending representative production photography** (see Debt Register below): replace `vertical_split_x`'s bbox-midpoint estimate with a real detector; revisit whether the vertical-boundary model itself holds up across hoop styles (thin wire, thick huggie, textured/openwork) once real images can be reviewed.
+
+⸻
+
+Phase 12 — Debt Register (for the next Architecture Strengthening run)
+
+* **Hoop CV tuning** — `hoop_mask.py`'s placeholder detector needs to be replaced with a real one once representative production hoop photography is available (blocked since 12D; still blocked at 12F's close). See the decision record above for exactly what's already fixed (contract, orientation, edge treatment, safety clamp) versus what the real algorithm still needs to determine (the actual split-finding logic).
+* **Earring shadow verification against Photoshop-produced references** — 12F's own validation checklist called for this (1000×1000, all three types); no reference images exist in the repository. Deferred until reference assets are supplied; not attempted from assumptions.
+* **UBG user documentation** (`preprocessing/UBG/docs/*.docx`) — these are Word binaries outside this codebase's normal review/editing tooling. Phase 12 (metadata sheet requirement, resize-to-1000, Stud/Drop/Hoop workflows) changed preprocessing-facing behavior these manuals describe; updating them is an external documentation task for whoever maintains that manual, not completed as part of Phase 12.
+* **Metadata system extension to other products** — `packages/processing/src/data/productMetadata.ts` (Phase 12B) was deliberately built product-agnostic; Earring is its first consumer, not the reason it exists. Extending it to other product types is unscoped future work.
+* **Horizontal falloff visual reassessment** — `horizontal_falloff` became a per-profile capability in 12C (on by default for Ring & Bracelet parity, off for Earring per Resolved Decision 5). Whether Earring should ever want a falloff-like visual treatment of its own has not been revisited since.
+* **`discoverImages` is PNG-only; Earring's runner/validation also accept `.webp`.** `packages/processing/src/data/imageDiscovery.ts` (pre-Phase-12, reused as-is for the generic metadata system per 12B) only matches `.png` files, while `Earring/runner.py` and `earring:validate-input` both accept `.webp` too. In practice nothing upstream (Universal Preprocessing's earring plugin, the resize-to-1000 step) ever produces `.webp` earring input, so this is dormant, not exercised — but a `.webp` earring image would silently never match against the metadata sheet (appearing as "missing metadata record") even if a sidecar entry existed for it. Noted rather than fixed in 12F, since the shared discovery function is Watch-matching infrastructure predating Phase 12, out of this phase's scope to change.
+* **Temp sidecar file accumulation** — `earringHandlers.ts` writes a new metadata/splits sidecar JSON to `app.getPath('temp')` on every `earring:start` (each is tiny, but nothing prunes them, unlike `pruneOldLogs`'s precedent for logs). Very low priority given file size and OS temp-directory hygiene, noted for completeness.
+* **Multithreaded Ring & Bracelet processing** — explored and abandoned mid-session (2026-07-31) after profiling showed the actual bottleneck (`composite_with_shadow`'s Gaussian blur / density dilation on a padded 2000×2000 canvas) does not release the GIL enough under the Pillow build in use to yield real wall-clock improvement from a thread pool; all code from that attempt was reverted. Noted here so a future attempt starts from that finding (a process pool, or profiling a different Pillow/OpenCV build, would be the next things to check) rather than re-discovering it.
+
+⸻
+
+Phase 12 — Approved Execution Plan (12A–12F)
+
+Each sub-phase follows the standard ritual (architecture → files → risks → approval → implement → explain/test → stop) and is independently testable. Mechanical gates for every sub-phase: `npx tsc --noEmit` (apps/desktop and repo root where applicable), `npx vitest run`, `python -m py_compile` for every touched Python file.
+
+**12A — Preprocessing reach & hand-off resize**
+
+* New `preprocessing/UBG/plugins/earring.py` — trivial plugin, `requires_masks: False` (the established one-file extension point; no changes to `electron_runner.py` or services).
+* `ProductType` union and `PRODUCT_TYPE_OPTIONS` gain `earring` (`apps/desktop/src/types/ipc.ts`, `screens/Preprocessing.tsx`).
+* `electron/services/workflowPreparation.ts` gains an optional `resizeToHeight` step applied after the existing trim (sharp, aspect-preserving, resizes in both directions to normalize the canvas basis). `EditingHandoffDialog.tsx` + hand-off payload types extended; the earring hand-off configuration is trim = on, rotate = none, resize = 1000.
+* Validation: earring hand-off output is exactly 1000px tall with aspect preserved; Watch hand-off output unchanged (regression check).
+
+**12B — Generic product metadata system**
+
+* New additive module in the existing data layer: `packages/processing/src/data/productMetadata.ts` — CSV/XLSX parsing with normalized headers (SKU / Category / Sub-Category / Dimensions), duplicate detection, and a match summary against discovered images with the same shape as Watch's (matched / missingImages / missingRecords / duplicates). **No existing data-layer or engine file is modified** — additive only, plus index re-exports.
+* Earring classification mapping (normalized Sub-Category → Stud/Drop/Hoop, with an explicit unmapped list) lives app-side, not in the generic package.
+* New thin IPC surface (`electron/ipc/metadataHandlers.ts`, one concern per file): load + match + classify, returning the summary for the setup screen. Types added to `types/ipc.ts`.
+* New `tests/metadataLayer.test.ts` with CSV and XLSX fixtures covering parser, matcher, and classifier (pure functions, following `dataLayer.test.ts`'s pattern).
+
+**12C — Stud & Drop end-to-end**
+
+* **Shadow promotion:** move `preprocessing/RingBracelet/shadow.py` to `preprocessing/shadow.py` (beside `runner_base.py`); update the Ring & Bracelet import. Gate: Ring & Bracelet golden-image regression — byte-identical output before/after the move.
+* **Shadow extensions (all parameterized with defaults preserving current Ring & Bracelet behavior exactly):** `horizontal_falloff` (default on), `casting_region` (optional top-fraction source-alpha clip, default none), `canvas_base` (default 2000), `trim_output` (default on). `EARRING_SHADOW` profile per Resolved Decision 5, including the confirmed Spread mapping recorded back into this document.
+* **New `preprocessing/Earring/runner.py`** on `runner_base`: CLI `--input-dir/--output-dir/--metadata-file/--processing-mode` (`--splits-file` reserved for 12E). Per image: resolve type from the metadata sidecar; write `SKU;compare.png` (verbatim copy of input); Stud → shadow over full silhouette; Drop → shadow with `casting_region 0.10`; Hoop → per-image error "hoop not supported until 12D" (keeps mixed batches running honestly). Idempotent rerun via per-type expected-output sets; NDJSON `complete` events carry asset paths.
+* **Electron:** new `electron/ipc/earringHandlers.ts` via the shared subprocess-runner factory (stage type `editing`): `earring:start/cancel/validate-input`; the main process writes the per-SKU resolved-type metadata sidecar to an app-owned temp location before spawn; stage config records `{ product: 'earring', metadataPath, processingMode, preset }`; registration in `main.ts`.
+* **Renderer:** `EditingProduct` gains `'earring'`; `EditingSetup.tsx` earring branch (folder fields + metadata sheet `PathField` + match summary incl. per-type counts and unmapped SKUs + existing mode selector); new `useEarringFolders` hook + prefs pair (`earring-folders.json`, one-file-per-concern); earring job context via the `createJobContext` factory; thin `EarringRunWorkspace` + `EarringBatchSync` instantiations reusing the shared components; `App.tsx` earring branches mirroring ring/bracelet; Batch Details renders the editing stage generically (verify asset naming and config rows display).
+* Validation: mixed-sheet batch end-to-end (stud + drop succeed, hoop rows produce visible per-image errors); rerun idempotency; force-quit mid-batch resume (incremental persistence); Ring & Bracelet regression gate.
+
+**12D — Hoop Automatic**
+
+* New earring-owned `preprocessing/Earring/hoop_mask.py`. Required process step, per the Phase 10E precedent: an algorithm proposal validated against real hoop photography is reviewed **before** implementation — the execution plan deliberately does not pre-specify unvalidated CV. Contract: `(mask, detected)`, bbox-relative constants, a safety clamp guarding the anchor region.
+* `runner.py` hoop branch: `frontFullImage` = duplicate of compare; `frontImage` = rear made transparent (never cropped) + shadow with top-anchor casting region, composited on the fixed compare-sized canvas with no trim; a hard runtime assertion that `frontImage`, `frontFullImage`, and compare dimensions are identical; `detected` propagated through NDJSON and persisted (surfaced as a badge; Needs Fixing remains human-set, per 11.5E).
+* Validation: real hoop set across styles (thin wire, thick huggie, textured/openwork); alignment assertion across the whole batch; visual review; `detected=False` routing sanity.
+
+**12E — Hoop Manual**
+
+* New single-boundary placement UI (purpose-built small component — deliberately not a reuse of the Watch `AnnotationCanvas`): a per-hoop-SKU loop showing the compare image with one draggable horizontal split line; the normalized split value is persisted per SKU into the batch stage record as it is placed, so annotation survives interruption and resumes (11.5D requirement). Flow: Manual mode + hoops present → boundary screen after validation → run; zero hoops → straight to run (identical to Automatic, per Resolved Decision 7).
+* Runner consumes `--splits-file` (JSON, SKU → normalized split). The front/rear polarity convention must be documented in both the UI and `runner.py`. A hoop missing its split in manual mode is a per-image error, not a batch failure.
+* Validation: annotate → quit → relaunch → resume drill; manual vs automatic output comparison on the same images.
+
+**12F — Validation & hardening**
+
+* Final Ring & Bracelet golden regression; earring shadow verification against Photoshop-produced references (1000×1000, all three types); large mixed-type batch (100+ images); Needs Fixing workflow exercised on earring outputs; crash-resume and idempotent-rerun drills repeated at scale.
+* Documentation: PROJECT_BRIEF.md (new product, metadata system, shadow-profile capability changes), UBG user docs where preprocessing-facing behavior changed, and this plan updated with any decisions resolved during implementation (Spread mapping, hoop algorithm decision record).
+* Debt register for the next Architecture Strengthening run: metadata system extension to other products, hoop CV tuning backlog, falloff visual reassessment.
+
+**Outcome:** Ring & Bracelet golden regression re-confirmed passing. Photoshop shadow-reference verification and hoop CV tuning both deferred — no reference assets exist for either, per explicit decision rather than oversight (see the Decision Record and Debt Register above). Large mixed-type batch (100+ images), crash-resume at scale, and Needs Fixing on real Earring outputs were run as one-time manual hardening drills rather than added to the permanent automated suite, to keep `npx vitest run` fast — results reported in the 12F completion summary, not as new test files. A new permanent test, `tests/earringRunnerIntegration.test.ts`, was added covering incremental persistence, idempotent reruns, mixed-type dispatch, and — the specific regression lock this phase asked for — byte-identical `frontImage` output between Hoop Automatic and Hoop Manual when resolved to the same split position, proving both paths render through `hoop_mask.build_mask_from_split_x` and not two implementations that could silently drift apart. PROJECT_BRIEF.md rewritten (Earring's phase numbering and pipeline description were stale, describing an earlier, superseded draft of the product). UBG `.docx` docs intentionally not edited — recorded as an external documentation task above.
+
+⸻
+
+Success Criteria
+
+Earring imagery can be processed end-to-end into production-ready assets using the same universal preprocessing architecture as other supported products while providing dedicated editing workflows for Stud, Drop, and Hoop earrings. Automatic and Manual processing modes should integrate seamlessly with the existing batch processing, persistence, and review infrastructure established in earlier phases.
+
+⸻
+
+Phase 13 — UX Modernization
+
+Goal
+
+Transform the application from a functional internal production tool into a polished, premium creative application with a modern AI-first user experience.
+
+This phase focuses entirely on the user interface and user experience. Existing functionality should remain intact while the application’s visual language, interaction design, and overall usability are comprehensively reimagined.
+
+The objective is to create software that feels intelligent, responsive, and enjoyable to use for extended editing sessions.
+
+⸻
+
+Deliverables
+
+Design System
+
+Develop a cohesive visual design system shared across the entire application.
+
+This includes:
+
+* Unified spacing and layout system
+* Consistent typography hierarchy
+* Standardized iconography
+* Unified color palette
+* Shared component library
+* Consistent corner radii
+* Refined elevation and depth system
+* Design tokens for colors, spacing, animation, and effects
+
+The interface should feel coherent rather than assembled from individual screens.
+
+⸻
+
+Visual Language
+
+Replace the current flat interface with a richer visual aesthetic inspired by modern creative software.
+
+Introduce:
+
+* Layered glass surfaces
+* Soft translucency
+* Subtle blur effects
+* Premium shadows
+* Depth through layered surfaces
+* Softer contrast
+* Improved visual hierarchy
+* Increased whitespace
+* More breathable layouts
+
+The application should feel refined while remaining highly functional.
+
+⸻
+
+Ambient Environment
+
+Replace the static background with a subtle animated environment that gives the application a sense of life without becoming distracting.
+
+Possible elements include:
+
+* Animated ultraviolet gradients
+* Pixelated ambient fields
+* Soft pulsing illumination
+* Slow-moving particles
+* Procedural noise
+* Dynamic lighting
+* Gentle parallax
+
+The animation should remain understated, serving as atmosphere rather than visual spectacle.
+
+⸻
+
+Motion System
+
+Introduce a consistent motion language throughout the application.
+
+This includes:
+
+* Smooth page transitions
+* Animated panel transitions
+* Refined hover interactions
+* Spring-based microinteractions
+* Animated progress indicators
+* Loading skeletons
+* Success and completion animations
+* Animated batch creation and deletion
+* Fluid expanding and collapsing sections
+
+Motion should communicate hierarchy, feedback, and application state rather than exist solely for decoration.
+
+⸻
+
+Batch Experience
+
+Modernize the batch management experience.
+
+Potential improvements include:
+
+* Richer processing cards
+* Better queue visualization
+* More expressive progress indicators
+* Live processing feedback
+* Improved status presentation
+* Clearer hierarchy between active and completed batches
+* Better organization of historical batches
+
+Processing should feel active and continuously progressing.
+
+⸻
+
+Image Review Experience
+
+Refine the editing and review workflow.
+
+Improve:
+
+* Image preview presentation
+* Thumbnail grid layout
+* Selection behavior
+* Compare/front image visualization
+* Manual editing interactions
+* Zooming and panning
+* Image transition animations
+* Batch review flow
+
+The review experience should feel responsive and effortless.
+
+⸻
+
+Navigation
+
+Modernize the application’s navigation and overall layout.
+
+Potential improvements include:
+
+* Refined sidebar
+* Better page transitions
+* Improved information architecture
+* Clearer screen hierarchy
+* Reduced visual clutter
+* Faster navigation between workflows
+
+⸻
+
+Component Modernization
+
+Redesign every major interface component.
+
+Including:
+
+* Buttons
+* Cards
+* Dialogs
+* Forms
+* Segmented controls
+* Dropdowns
+* Progress bars
+* Notifications
+* Context menus
+* Batch cards
+* Preview panels
+* Status indicators
+
+Every component should share a consistent visual identity.
+
+⸻
+
+Color System
+
+Introduce a refined color palette centered around premium dark surfaces and restrained accent colors.
+
+Examples include:
+
+* Deep charcoal backgrounds
+* Layered graphite surfaces
+* Ultraviolet accent lighting
+* Soft cyan highlights
+* Carefully balanced semantic colors
+* Reduced reliance on stark white
+
+The application should avoid harsh black-and-white contrast in favor of richer tonal variation.
+
+⸻
+
+Accessibility
+
+Improve usability without compromising the visual direction.
+
+Focus on:
+
+* Clear typography hierarchy
+* Consistent contrast ratios
+* Readable spacing
+* Predictable interactions
+* Keyboard accessibility
+* Improved focus indicators
+
+⸻
+
+Performance
+
+Maintain a fluid user experience throughout the visual overhaul.
+
+Animation and effects should remain lightweight and responsive.
+
+Visual enhancements must not noticeably impact processing performance or application responsiveness.
+
+⸻
+
+Success Criteria
+
+The application should feel like a mature creative product rather than an internal utility. Every screen should exhibit a consistent design language, thoughtful motion, and refined interaction design while preserving the speed and efficiency required for production asset generation.
+
+The finished experience should evoke the same level of polish found in contemporary AI-powered creative software, emphasizing clarity, elegance, responsiveness, and craftsmanship without sacrificing usability or introducing unnecessary visual noise.
+
 ____
 
 
-Phase 12 — AI-Assisted Watch Annotation & Boundary Detection
+Phase 14 — AI-Assisted Watch Annotation & Boundary Detection
 
 Goal
 
@@ -1532,33 +1954,3 @@ Success Criteria
 
 * Processing engine no longer depends on manual annotation.
 * Users spend significantly less time annotating.
-
-⸻
-
-Phase 13 — Earring Asset Generation
-
-Goal
-
-Introduce Earring asset generation as another product-specific asset generator built on the universal preprocessing pipeline established in Phase 10.
-
-Deliverables
-
-Processing Pipeline
-
-* Upscale
-* Background Removal
-* Trim
-* Resize to 2000px height while preserving aspect ratio
-
-Output
-
-* PNG
-* Transparent background
-
-Filename:
-
-SKU;frontImage.png
-
-Success Criteria
-
-Earring imagery can be processed end-to-end into finished, production-ready assets using the same product-agnostic preprocessing foundation introduced in Phase 10.
