@@ -25,3 +25,27 @@ export function classifyEarringType(subCategory: string): EarringType | null {
   const normalized = subCategory.trim().toLowerCase()
   return SUB_CATEGORY_MAP[normalized] ?? null
 }
+
+// Classifies every matched SKU from a product-metadata match result in one
+// pass — the shared step behind both metadataHandlers.ts's match-summary
+// response (which needs the unmapped list too, for the setup screen) and
+// earringHandlers.ts's resolveEarringTypes (which only needs bySku, for the
+// runner sidecar). Structurally typed against `rows` rather than importing
+// @wpa/processing's ProductMetadataRow, matching this file's existing
+// no-external-type-dependency design (see module docstring).
+export function classifyMatchedSkus(
+  matched: string[],
+  rows: Record<string, { subCategory: string }>,
+): { bySku: Record<string, EarringType>; unmapped: string[] } {
+  const bySku: Record<string, EarringType> = {}
+  const unmapped: string[] = []
+  for (const sku of matched) {
+    const type = classifyEarringType(rows[sku].subCategory)
+    if (type === null) {
+      unmapped.push(sku)
+    } else {
+      bySku[sku] = type
+    }
+  }
+  return { bySku, unmapped }
+}

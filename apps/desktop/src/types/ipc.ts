@@ -286,8 +286,8 @@ export interface EditingHandoffPayload {
   rotate: EditingHandoffRotate
   // Phase 12A — unconditional, aspect-preserving normalization to a fixed
   // height, applied after trim/rotate. Omitted means no resize step (every
-  // caller before Earring). Not yet surfaced in EditingHandoffDialog.tsx —
-  // wired to the UI in Phase 12C alongside the Earring destination itself.
+  // caller before Earring). Surfaced in EditingHandoffDialog.tsx's UI
+  // alongside the Earring destination itself (Phase 12C).
   resizeToHeight?: number
 }
 

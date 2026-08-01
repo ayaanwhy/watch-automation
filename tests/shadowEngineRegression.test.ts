@@ -1,7 +1,9 @@
 // Phase 12C — the blocking regression gate for the shadow engine promotion
-// (preprocessing/RingBracelet/shadow.py -> preprocessing/shadow.py, plus
-// the horizontal_falloff/casting_region/canvas_base/trim_output extensions
-// added alongside the move). Runs the real Ring & Bracelet Python pipeline
+// (preprocessing/RingBracelet/shadow.py -> preprocessing/shadow.py, plus the
+// horizontal_falloff/casting_region/canvas_base extensions added alongside
+// the move — a fourth, trim_output, was added at the same time but later
+// found unused by any real caller and removed in Phase 12's final-
+// consistency pass). Runs the real Ring & Bracelet Python pipeline
 // end-to-end against a fixed, deterministic synthetic image and asserts
 // byte-for-byte identical output against frozen golden hashes.
 //
@@ -12,9 +14,9 @@
 // comparison at both the shadow-function level (4 image sizes/aspects) and
 // this full-pipeline level, before Parts 2-4 of Phase 12C began. If this
 // test ever fails, RING_BRACELET_SHADOW's behavior has regressed — every
-// new capability (horizontal_falloff, casting_region, canvas_base,
-// trim_output) is designed to default to a no-op specifically so this
-// can't happen by construction, but this test is what actually proves it.
+// capability (horizontal_falloff, casting_region, canvas_base) is designed
+// to default to a no-op specifically so this can't happen by construction,
+// but this test is what actually proves it.
 import { describe, expect, it } from 'vitest'
 import { execFileSync } from 'node:child_process'
 import { mkdtemp, rm, mkdir } from 'node:fs/promises'

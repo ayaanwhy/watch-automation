@@ -51,9 +51,13 @@ construction, not by careful test-writing:
     happened to need.
   canvas_base (default 2000)         — Earring's working canvas basis is
     1000 (Resolved Decision 2); Ring & Bracelet's stays 2000.
-  trim_output (default True)         — False skips the final trim-to-content
-    step, returning the full padded-canvas composite untrimmed. Exists for
-    Phase 12D's Hoop alignment contract; not exercised by Stud/Drop.
+
+(A trim_output flag was added alongside these in 12C, anticipating Hoop's
+alignment contract — Hoop's actual 12D/12E implementation ended up bypassing
+this whole padded-canvas approach instead, calling create_drop_shadow()
+directly on an unpadded, already-compare-sized canvas, so the flag was never
+exercised by any real caller. Removed in the Phase 12 final-consistency pass;
+see IMPLEMENTATION_PLAN.md's Phase 12 Debt Register.)
 """
 from __future__ import annotations
 
@@ -313,12 +317,16 @@ def composite_with_shadow(image: Image.Image, settings: dict = RING_BRACELET_SHA
     """Places `image` centered on a padded transparent canvas, generates the
     shadow on that canvas (so blur/offset have room regardless of how
     tightly `image` was cropped), composites the subject back over the
-    shadow, then trims to content bounds (unless settings disables that via
-    trim_output=False — Phase 12C, see module docstring) — the exported
-    image grows just enough to include the full shadow; nothing about the
-    subject itself changes. Same output contract as before the original
-    (Phase 11.5C) canvas refinement: a single RGBA PNG, just not clipped to
-    the pre-shadow crop."""
+    shadow, then trims to content bounds — the exported image grows just
+    enough to include the full shadow; nothing about the subject itself
+    changes. Same output contract as before the original (Phase 11.5C)
+    canvas refinement: a single RGBA PNG, just not clipped to the
+    pre-shadow crop.
+
+    Always trims. Hoop's alignment contract (Phase 12 Resolved Decision 4),
+    which needs an untrimmed, unpadded, exact-size canvas, is met by calling
+    create_drop_shadow() directly instead of this wrapper — see
+    preprocessing/Earring/runner.py's _process_hoop."""
     img = image.convert("RGBA")
     canvas_base = settings.get("canvas_base", BASE_CANVAS_SIZE)
     canvas_size = max(canvas_base, img.width + CANVAS_MARGIN, img.height + CANVAS_MARGIN)
@@ -333,7 +341,4 @@ def composite_with_shadow(image: Image.Image, settings: dict = RING_BRACELET_SHA
         subject_top=paste_y, subject_height=img.height,
     )
     composited = Image.alpha_composite(shadow, canvas)
-
-    if not settings.get("trim_output", True):
-        return composited
     return _trim_to_content(composited)

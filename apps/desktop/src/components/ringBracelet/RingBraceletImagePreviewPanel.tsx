@@ -29,6 +29,17 @@ interface RingBraceletImagePreviewPanelProps {
   lowConfidenceMessage?: string
 }
 
+// The Earring/Hoop override for the three props above — one shared source
+// so EarringRunWorkspace (live) and BatchDetails (historical) can never
+// drift into showing different labels/copy for the same images. Lives here,
+// next to the defaults it overrides, rather than in either consumer.
+export const EARRING_PREVIEW_OVERRIDES = {
+  beforeLabel: 'Compare',
+  afterLabel: 'Shadow',
+  lowConfidenceMessage:
+    'No confident front/rear split found — this split used a fallback estimate. Worth a closer look.',
+}
+
 // Mirrors ImagePreviewPanel's structure and status-driven branching exactly,
 // but compares frontFullImage against frontImage (both Ring & Bracelet
 // outputs) rather than an original-vs-processed pair — there is no separate

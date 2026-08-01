@@ -1,7 +1,6 @@
 import { ipcMain } from 'electron'
 import { parseProductMetadata, discoverImages, matchProductMetadata } from '@wpa/processing/data'
-import { classifyEarringType } from '../../src/constants/earringClassification'
-import type { EarringType } from '../../src/constants/earringClassification'
+import { classifyMatchedSkus } from '../../src/constants/earringClassification'
 import { logger } from '../logger'
 import type { ProductMetadataLoadPayload, ProductMetadataLoadResult } from '../../src/types/ipc'
 
@@ -9,9 +8,9 @@ import type { ProductMetadataLoadPayload, ProductMetadataLoadResult } from '../.
 // batch:load exactly (one round trip: parse → discover → match), with one
 // addition: Earring classification is layered on top here, in the app-side
 // handler, not inside @wpa/processing's generic parse/match functions (see
-// constants/earringClassification.ts). Nothing in the renderer calls this
-// channel yet — Phase 12C's EditingSetup.tsx earring branch is the first
-// consumer; this phase only builds and validates the capability.
+// constants/earringClassification.ts). EditingSetup.tsx's EarringFields is
+// the real, active consumer (Phase 12C onward) — its match-summary UI calls
+// this on every input-folder/metadata-sheet change.
 export function registerMetadataHandlers(): void {
   ipcMain.handle('product-metadata:load', async (_event, payload: ProductMetadataLoadPayload): Promise<ProductMetadataLoadResult> => {
     let parsed
@@ -36,17 +35,7 @@ export function registerMetadataHandlers(): void {
     }
 
     const match = matchProductMetadata(parsed, images)
-
-    const bySku: Record<string, EarringType> = {}
-    const unmapped: string[] = []
-    for (const sku of match.matched) {
-      const type = classifyEarringType(match.rows[sku].subCategory)
-      if (type === null) {
-        unmapped.push(sku)
-      } else {
-        bySku[sku] = type
-      }
-    }
+    const { bySku, unmapped } = classifyMatchedSkus(match.matched, match.rows)
 
     logger.info(
       `product-metadata:load — ${match.matched.length} matched, ` +

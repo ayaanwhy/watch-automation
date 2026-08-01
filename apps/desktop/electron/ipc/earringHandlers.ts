@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto'
 import { createSubprocessRunner } from '../services/subprocessRunner'
 import { getBatch } from '../services/batchRegistry'
 import { parseProductMetadata, discoverImages, matchProductMetadata } from '@wpa/processing/data'
-import { classifyEarringType } from '../../src/constants/earringClassification'
+import { classifyMatchedSkus } from '../../src/constants/earringClassification'
 import { logger } from '../logger'
 import type { EarringType } from '../../src/constants/earringClassification'
 import type {
@@ -46,12 +46,7 @@ function resolveEarringTypes(metadataFilePath: string, inputDir: string): Record
   }
   const images = discoverImages(inputDir)
   const match = matchProductMetadata(parsed, images)
-  const sidecar: Record<string, EarringType> = {}
-  for (const sku of match.matched) {
-    const type = classifyEarringType(match.rows[sku].subCategory)
-    if (type !== null) sidecar[sku] = type
-  }
-  return sidecar
+  return classifyMatchedSkus(match.matched, match.rows).bySku
 }
 
 async function writeMetadataSidecar(sidecar: Record<string, EarringType>): Promise<string> {

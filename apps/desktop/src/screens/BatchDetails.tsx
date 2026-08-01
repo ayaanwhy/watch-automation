@@ -10,7 +10,7 @@ import { Button } from '../components/ui/Button'
 import { SegmentedControl } from '../components/ui/SegmentedControl'
 import { ThumbnailGrid, findAdjacentImage } from '../components/shared/ThumbnailGrid'
 import { ImagePreviewPanel } from '../components/preprocessing/ImagePreviewPanel'
-import { RingBraceletImagePreviewPanel } from '../components/ringBracelet/RingBraceletImagePreviewPanel'
+import { RingBraceletImagePreviewPanel, EARRING_PREVIEW_OVERRIDES } from '../components/ringBracelet/RingBraceletImagePreviewPanel'
 import { FullscreenViewer } from '../components/ui/FullscreenViewer'
 import {
   BATCH_STATUS_LABELS,
@@ -119,16 +119,6 @@ const WATCH_CONFIG_FIELDS: [string, string, string | undefined][] = [
   ['spreadsheetPath', 'Spreadsheet', undefined],
   ['processingMode', 'Mode', undefined],
 ]
-
-// Earring's RingBraceletImagePreviewPanel overrides (Phase 12C/12D) — same
-// slider labels and low-confidence copy used in EarringRunWorkspace, so a
-// Hoop image reads identically whether viewed live or reopened here.
-const EARRING_PREVIEW_OVERRIDES = {
-  beforeLabel: 'Compare',
-  afterLabel: 'Shadow',
-  lowConfidenceMessage:
-    'No confident front/rear split found — this split used a fallback estimate. Worth a closer look.',
-}
 
 // Phase 10D — "product" here is 'ring' | 'bracelet' | 'earring'; "splitY" is
 // the fallback vertical split used when no hole topology is found (see

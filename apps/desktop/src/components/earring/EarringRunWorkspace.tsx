@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useEarringJob } from '../../context/EarringJobContext'
 import { PreprocessingProgress } from '../PreprocessingProgress'
 import { ThumbnailGrid, findAdjacentImage } from '../shared/ThumbnailGrid'
-import { RingBraceletImagePreviewPanel } from '../ringBracelet/RingBraceletImagePreviewPanel'
+import { RingBraceletImagePreviewPanel, EARRING_PREVIEW_OVERRIDES } from '../ringBracelet/RingBraceletImagePreviewPanel'
 import { FullscreenViewer } from '../ui/FullscreenViewer'
 // Shares RunWorkspace's layout stylesheet with Preprocessing/RingBracelet's
 // own workspaces (Phase 11C/10D) — same shape, no parallel CSS file.
@@ -15,14 +15,12 @@ interface EarringRunWorkspaceProps {
 // Mirrors RingBraceletRunWorkspace exactly, bound to EarringJobContext.
 // Reuses RingBraceletImagePreviewPanel directly rather than a new component
 // — see EarringImageState's doc comment for why that's structurally safe —
-// only the slider labels are overridden to match Earring's own two outputs
-// (compare vs. shadow-composited), not Ring & Bracelet's Full/Front-Facing.
-// Stud/Drop have no masking step and therefore no detected signal (always
-// null), so lowConfidence naturally never badges those; Hoop (Phase 12D)
-// does report detected, driven through the same field.
-const HOOP_LOW_CONFIDENCE_MESSAGE =
-  'No confident front/rear split found — this split used a fallback estimate. Worth a closer look.'
-
+// EARRING_PREVIEW_OVERRIDES swaps in Earring's own slider labels/copy (the
+// same object BatchDetails.tsx uses for the historical view, so a Hoop image
+// reads identically live or reopened later). Stud/Drop have no masking step
+// and therefore no detected signal (always null), so lowConfidence naturally
+// never badges those; Hoop (Phase 12D) does report detected, driven through
+// the same field.
 export function EarringRunWorkspace({ inputDir }: EarringRunWorkspaceProps) {
   const job = useEarringJob()
 
@@ -42,9 +40,7 @@ export function EarringRunWorkspace({ inputDir }: EarringRunWorkspaceProps) {
           image={selectedImage}
           inputDir={inputDir}
           onExpand={() => setFullscreen(true)}
-          beforeLabel="Compare"
-          afterLabel="Shadow"
-          lowConfidenceMessage={HOOP_LOW_CONFIDENCE_MESSAGE}
+          {...EARRING_PREVIEW_OVERRIDES}
         />
       </div>
       <div className={styles.sidebar}>
@@ -76,9 +72,7 @@ export function EarringRunWorkspace({ inputDir }: EarringRunWorkspaceProps) {
           <RingBraceletImagePreviewPanel
             image={selectedImage}
             inputDir={inputDir}
-            beforeLabel="Compare"
-            afterLabel="Shadow"
-            lowConfidenceMessage={HOOP_LOW_CONFIDENCE_MESSAGE}
+            {...EARRING_PREVIEW_OVERRIDES}
           />
         </FullscreenViewer>
       )}

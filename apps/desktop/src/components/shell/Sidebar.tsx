@@ -14,11 +14,11 @@ interface SidebarProps {
 }
 
 // Category placeholders under "Editing" — roadmap destinations. Watches,
-// Rings, and Bracelets are wired to the shared Editing setup screen (Phase
-// 10D), each preselecting its own product; the rest are intentionally
-// visible but disabled, per the product vocabulary of future editing
-// categories (distinct from the Python preprocessing plugin vocabulary of
-// the same names).
+// Rings, Bracelets, and Earrings are wired to the shared Editing setup
+// screen (Phase 10D, Earrings added in Phase 12C), each preselecting its own
+// product; the rest are intentionally visible but disabled, per the product
+// vocabulary of future editing categories (distinct from the Python
+// preprocessing plugin vocabulary of the same names).
 interface EditingCategory {
   label: string
   product: EditingProduct | null // null = disabled placeholder, not yet navigable
