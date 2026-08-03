@@ -1,8 +1,13 @@
 .sidebar {
+  position: relative;
   flex-shrink: 0;
   width: var(--sidebar-width);
   height: 100%;
-  background: var(--shell-bg);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border-right: 1px solid var(--glass-border);
+  box-shadow: inset -1px 0 0 var(--glass-highlight);
   display: flex;
   flex-direction: column;
   padding: var(--space-4) var(--space-3);
@@ -11,8 +16,8 @@
 }
 
 .brand {
-  color: var(--on-dark);
-  font-size: var(--text-md);
+  color: var(--text-1);
+  font-size: var(--text-section-title);
   font-weight: var(--weight-semibold);
   letter-spacing: 0.01em;
   padding: var(--space-2) var(--space-3);
@@ -30,8 +35,8 @@
 }
 
 .sectionLabel {
-  color: var(--on-dark-subtle);
-  font-size: var(--text-xs);
+  color: var(--text-3);
+  font-size: var(--text-caption);
   font-weight: var(--weight-semibold);
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -51,20 +56,25 @@
   width: 100%;
   padding: var(--space-2) var(--space-3);
   border: none;
-  border-radius: var(--radius);
+  border-radius: var(--radius-10);
   background: transparent;
-  color: var(--on-dark-subtle);
+  color: var(--text-3);
   font-family: inherit;
-  font-size: var(--text-sm);
+  font-size: var(--text-body);
   font-weight: var(--weight-medium);
   text-align: left;
   cursor: pointer;
-  transition: background var(--transition), color var(--transition);
+  transition: background var(--duration-100) var(--ease-out), color var(--duration-100) var(--ease-out);
 }
 
 .item:hover:not(:disabled) {
-  background: var(--on-dark-hover);
-  color: var(--on-dark-muted);
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+
+.item:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .item:disabled {
@@ -73,15 +83,12 @@
 }
 
 .itemActive {
-  background: var(--on-dark-active);
-  color: var(--on-dark);
+  background: var(--surface-2);
+  color: var(--text-1);
 }
 
 .glyph {
-  width: 18px;
-  text-align: center;
-  font-size: var(--text-md);
-  line-height: 1;
+  flex-shrink: 0;
 }
 
 .label {
@@ -97,10 +104,10 @@
   font-weight: var(--weight-semibold);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--on-dark-subtle);
-  background: var(--on-dark-hover);
+  color: var(--text-3);
+  background: var(--surface-2);
   padding: 1px 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 /* ── Responsive: collapse to an icon rail on narrow windows so the sidebar

@@ -37,7 +37,7 @@ describe('setImageNeedsFixing (Phase 11.5E)', () => {
     await updateStage(batch.id, 'editing', {
       status: 'completed',
       images: COMPLETED_IMAGES,
-      counts: { total: 3, succeeded: 2, failed: 1, cancelled: 0, needsFixing: 0 },
+      counts: { total: 3, succeeded: 2, failed: 1, cancelled: 0, needsFixing: 0, lowConfidence: 0 },
     })
 
     const updated = await setImageNeedsFixing(batch.id, 'editing', 'a.png', true)
@@ -47,7 +47,7 @@ describe('setImageNeedsFixing (Phase 11.5E)', () => {
     // status is untouched — the image is still 'completed', just excluded
     // from the succeeded count.
     expect(stage?.images.find(i => i.name === 'a.png')?.status).toBe('completed')
-    expect(stage?.counts).toEqual({ total: 3, succeeded: 1, failed: 1, cancelled: 0, needsFixing: 1 })
+    expect(stage?.counts).toEqual({ total: 3, succeeded: 1, failed: 1, cancelled: 0, needsFixing: 1, lowConfidence: 0 })
 
     // Non-destructive — the other images and the total are untouched.
     expect(stage?.images).toHaveLength(3)
@@ -62,7 +62,7 @@ describe('setImageNeedsFixing (Phase 11.5E)', () => {
     await updateStage(batch.id, 'editing', {
       status: 'completed',
       images: COMPLETED_IMAGES,
-      counts: { total: 3, succeeded: 2, failed: 1, cancelled: 0, needsFixing: 0 },
+      counts: { total: 3, succeeded: 2, failed: 1, cancelled: 0, needsFixing: 0, lowConfidence: 0 },
     })
 
     await setImageNeedsFixing(batch.id, 'editing', 'a.png', true)
@@ -70,7 +70,7 @@ describe('setImageNeedsFixing (Phase 11.5E)', () => {
     const stage = restored?.stages.find(s => s.type === 'editing')
 
     expect(stage?.images.find(i => i.name === 'a.png')?.needsFixing).toBe(false)
-    expect(stage?.counts).toEqual({ total: 3, succeeded: 2, failed: 1, cancelled: 0, needsFixing: 0 })
+    expect(stage?.counts).toEqual({ total: 3, succeeded: 2, failed: 1, cancelled: 0, needsFixing: 0, lowConfidence: 0 })
   })
 
   it('refuses to flag a non-completed image (nothing to review)', async () => {
@@ -81,7 +81,7 @@ describe('setImageNeedsFixing (Phase 11.5E)', () => {
     await updateStage(batch.id, 'editing', {
       status: 'completed',
       images: COMPLETED_IMAGES,
-      counts: { total: 3, succeeded: 2, failed: 1, cancelled: 0, needsFixing: 0 },
+      counts: { total: 3, succeeded: 2, failed: 1, cancelled: 0, needsFixing: 0, lowConfidence: 0 },
     })
 
     const result = await setImageNeedsFixing(batch.id, 'editing', 'c.png', true)
@@ -96,7 +96,7 @@ describe('setImageNeedsFixing (Phase 11.5E)', () => {
     await updateStage(batch.id, 'editing', {
       status: 'completed',
       images: COMPLETED_IMAGES,
-      counts: { total: 3, succeeded: 2, failed: 1, cancelled: 0, needsFixing: 0 },
+      counts: { total: 3, succeeded: 2, failed: 1, cancelled: 0, needsFixing: 0, lowConfidence: 0 },
     })
 
     expect(await setImageNeedsFixing(batch.id, 'editing', 'does-not-exist.png', true)).toBeNull()
@@ -109,7 +109,7 @@ describe('setImageNeedsFixing (Phase 11.5E)', () => {
     await first.updateStage(batch.id, 'editing', {
       status: 'completed',
       images: COMPLETED_IMAGES,
-      counts: { total: 3, succeeded: 2, failed: 1, cancelled: 0, needsFixing: 0 },
+      counts: { total: 3, succeeded: 2, failed: 1, cancelled: 0, needsFixing: 0, lowConfidence: 0 },
     })
     await first.setImageNeedsFixing(batch.id, 'editing', 'b.png', true)
 

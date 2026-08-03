@@ -51,6 +51,7 @@ large batch should still be interruptible between images.
 """
 from __future__ import annotations
 
+import json
 import sys
 import threading
 import time
@@ -98,7 +99,33 @@ def _parse_args():
                    help="Automatic: run the shank/wrap masking workflow before continuing. "
                         "Manual: masking has already been done externally — skip straight to "
                         "shadow generation. (default: automatic)")
+    # Phase 13H — optional override for the shadow settings normally hardcoded
+    # as shadow.py's RING_BRACELET_SHADOW, sourced from the desktop app's
+    # Settings → Shadow Profiles. See _load_shadow_settings for the
+    # byte-identical-by-default guarantee.
+    p.add_argument("--shadow-profile-file", type=str, default=None,
+                   help="Optional path to a JSON sidecar (written by the desktop app) containing a "
+                        "possibly-customized 'ringBracelet' shadow settings dict. Omitted, unreadable, "
+                        "or missing the key falls back to shadow.py's RING_BRACELET_SHADOW default.")
     return p.parse_args()
+
+
+def _load_shadow_settings(profile_file: str | None, key: str, fallback: dict) -> dict:
+    """Resolves the shadow settings dict to use for this run. An absent
+    --shadow-profile-file, an unreadable file, or a missing key all fall back
+    to `fallback` (shadow.py's own hardcoded default) — this is what keeps
+    the default production path byte-identical unless a user has explicitly
+    edited and saved that profile in Settings (Phase 13H).
+    """
+    if not profile_file:
+        return fallback
+    try:
+        with open(profile_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return fallback
+    settings = data.get(key)
+    return settings if isinstance(settings, dict) else fallback
 
 
 def _expected_output_paths(input_path: Path, output_dir: Path) -> tuple[Path, Path]:
@@ -108,7 +135,14 @@ def _expected_output_paths(input_path: Path, output_dir: Path) -> tuple[Path, Pa
     )
 
 
-def _process_one_image(input_path: Path, output_dir: Path, product: str, split_y: float, processing_mode: str) -> dict:
+def _process_one_image(
+    input_path: Path,
+    output_dir: Path,
+    product: str,
+    split_y: float,
+    processing_mode: str,
+    shadow_settings: dict,
+) -> dict:
     """Returns the fields to merge into a 'complete' event. Raises on failure."""
     img = Image.open(input_path).convert("RGBA")
     arr = np.array(img)
@@ -159,7 +193,7 @@ def _process_one_image(input_path: Path, output_dir: Path, product: str, split_y
     masked_arr = arr.copy()
     masked_arr[:, :, 3] = masked_alpha
     masked_img = Image.fromarray(masked_arr, mode="RGBA")
-    shadowed_img = composite_with_shadow(masked_img, RING_BRACELET_SHADOW)
+    shadowed_img = composite_with_shadow(masked_img, shadow_settings)
     shadowed_img.save(front_path)
 
     return {
@@ -182,6 +216,12 @@ def main() -> int:
 
     output_dir.mkdir(parents=True, exist_ok=True)
     rb.emit_start(images)
+
+    # Resolved once, before the per-image loop — see _load_shadow_settings
+    # for the byte-identical-by-default guarantee (Phase 13H).
+    ring_bracelet_settings = _load_shadow_settings(
+        args.shadow_profile_file, "ringBracelet", RING_BRACELET_SHADOW
+    )
 
     def process_one(index: int, total: int, input_path: Path) -> None:
         t0 = time.perf_counter()
@@ -214,7 +254,9 @@ def main() -> int:
         stage = "shank_mask" if args.processing_mode == "automatic" else "shadow"
         rb.emit({"type": "progress", "index": index, "total": total,
                   "image": input_path.name, "stage": stage, "status": "start"})
-        result = _process_one_image(input_path, output_dir, args.product, args.split_y, args.processing_mode)
+        result = _process_one_image(
+            input_path, output_dir, args.product, args.split_y, args.processing_mode, ring_bracelet_settings
+        )
         duration_ms = int((time.perf_counter() - t0) * 1000)
         rb.emit({
             "type": "complete",

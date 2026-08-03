@@ -1,0 +1,81 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+}
+
+@media (max-width: 640px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+  text-align: left;
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-10);
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color var(--duration-100) var(--ease-out), background var(--duration-100) var(--ease-out);
+}
+
+.card:hover:not(:disabled) {
+  border-color: var(--hairline-strong);
+}
+
+.card:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.card:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cardActive {
+  background: var(--surface-2);
+  border-color: var(--hairline-strong);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: var(--space-2);
+}
+
+.cardLabel {
+  font-size: var(--text-emphasized);
+  font-weight: var(--weight-semibold);
+  color: var(--text-1);
+}
+
+.check {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+
+.cardDescription {
+  font-size: var(--text-caption);
+  color: var(--text-3);
+  line-height: 1.4;
+}
+
+.modifiedBadge {
+  font-size: 10px;
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  background: var(--accent-fill);
+  padding: 2px 6px;
+  border-radius: var(--radius-pill);
+}

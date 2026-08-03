@@ -18,7 +18,10 @@
 
 /* The rear (right-of-line) portion — shaded to preview what runner.py will
    make transparent, so the polarity (front = left, rear = right) is visible
-   while placing the split, not just documented in code. */
+   while placing the split, not just documented in code. Literal, not a
+   token — this sits over arbitrary product photography, not app chrome, so
+   it needs to read consistently regardless of theme (same rationale as
+   BeforeAfterSlider's .bgWhite). */
 .rearShade {
   position: absolute;
   top: 0;
@@ -28,6 +31,10 @@
   pointer-events: none;
 }
 
+/* Also literal — the split line must stay visible against arbitrary image
+   content (light or dark), which a graphite/accent token can't guarantee;
+   the shadow half of this pair is an exact value match for --media-scrim,
+   so that half is tokenized. */
 .line {
   position: absolute;
   top: 0;
@@ -35,29 +42,31 @@
   width: 2px;
   margin-left: -1px;
   background: #fff;
-  box-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 0 6px var(--media-scrim);
   pointer-events: none;
 }
 
+/* Same pill-over-image pattern as BeforeAfterSlider's .label — legible
+   against any photo because it sits on the scrim, not the raw image. */
 .frontLabel,
 .rearLabel {
   position: absolute;
-  top: 8px;
-  font-size: 11px;
-  font-weight: 600;
+  top: var(--space-2);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-semibold);
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #fff;
-  background: rgba(0, 0, 0, 0.55);
-  padding: 3px 8px;
-  border-radius: 4px;
+  color: var(--text-1);
+  background: var(--media-scrim);
+  padding: 3px var(--space-2);
+  border-radius: var(--radius-6);
   pointer-events: none;
 }
 
 .frontLabel {
-  margin-right: 8px;
+  margin-right: var(--space-2);
 }
 
 .rearLabel {
-  margin-left: 8px;
+  margin-left: var(--space-2);
 }

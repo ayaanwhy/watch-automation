@@ -1,0 +1,77 @@
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.tile {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-2);
+  border-radius: var(--radius-10);
+  border: 1px solid var(--glass-border);
+  /* Tinted, not its own blur pass — it already sits on top of the Sidebar's
+     one blur (Phase 13I: glass is sanctioned on exactly four surfaces, and
+     the Now Running tile is explicitly "inside" the sidebar surface, not a
+     fifth one — see Design Language / Glass doctrine). */
+  background: var(--glass-bg);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: border-color var(--duration-100) var(--ease-out);
+}
+
+.tile:hover {
+  border-color: var(--hairline-strong);
+}
+
+.tile:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.ring {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+
+.glyph {
+  flex-shrink: 0;
+  color: var(--text-2);
+}
+
+.info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 1px;
+}
+
+.title {
+  font-size: var(--text-label);
+  font-weight: var(--weight-medium);
+  color: var(--text-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detail {
+  font-size: 11px;
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 1024px) {
+  .info {
+    display: none;
+  }
+  .tile {
+    justify-content: center;
+  }
+}

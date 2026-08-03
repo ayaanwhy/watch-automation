@@ -1,76 +1,66 @@
 .header {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 4px 4px 0;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-1) 0;
 }
 
 .backButton {
   align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 13px;
+  color: var(--text-2);
+  font-size: var(--text-body);
   cursor: pointer;
   padding: 0;
-  margin-bottom: 4px;
+  margin-bottom: var(--space-1);
+  transition: color var(--duration-100) var(--ease-out);
 }
 
 .backButton:hover {
-  color: #fff;
+  color: var(--text-1);
+}
+
+.backButton:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-6);
 }
 
 .title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #fff;
+  font-size: var(--text-section-title);
+  font-weight: var(--weight-semibold);
+  color: var(--text-1);
 }
 
 .count {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.6);
+  font-size: var(--text-label);
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
 }
 
 .hint {
-  margin: 0 4px;
-  padding: 10px 12px;
-  font-size: 12px;
+  margin: 0 var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-label);
   line-height: 1.5;
-  color: #d9b45a;
-  background: rgba(217, 180, 90, 0.1);
-  border: 1px solid rgba(217, 180, 90, 0.25);
-  border-radius: 6px;
+  color: var(--warning);
+  background: var(--warning-fill);
+  border: 1px solid var(--warning-border);
+  border-radius: var(--radius-6);
 }
 
 .errorBanner {
-  margin: 0 4px;
-  padding: 10px 12px;
-  font-size: 12px;
-  color: #ff6b6b;
-  background: rgba(255, 107, 107, 0.1);
-  border: 1px solid rgba(255, 107, 107, 0.25);
-  border-radius: 6px;
-}
-
-.runButton {
-  margin: 0 4px;
-  padding: 10px;
-  font-size: 14px;
-  font-weight: 500;
-  color: #0a0a0a;
-  background: #fff;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.runButton:hover:not(:disabled) {
-  background: #ddd;
-}
-
-.runButton:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
+  margin: 0 var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-label);
+  color: var(--danger);
+  background: var(--danger-fill);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-6);
 }
 
 .loading,
@@ -79,6 +69,9 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 13px;
+}
+
+.loading {
+  color: var(--text-3);
+  font-size: var(--text-emphasized);
 }

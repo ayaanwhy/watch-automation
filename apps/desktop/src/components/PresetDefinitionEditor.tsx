@@ -95,8 +95,9 @@ export function PresetDefinitionEditor({ preset, definition, onCommit, onReset }
       </div>
 
       <div className={styles.grid}>
-        <label className={styles.label}>Refine Foreground</label>
+        <label className={styles.label} htmlFor="preset-refine-foreground">Refine Foreground</label>
         <input
+          id="preset-refine-foreground"
           className={styles.checkbox}
           type="checkbox"
           checked={draft.refineForeground}
@@ -128,9 +129,10 @@ export function PresetDefinitionEditor({ preset, definition, onCommit, onReset }
           </Fragment>
         ))}
 
-        <label className={styles.label}>Mask Threshold</label>
+        <label className={styles.label} htmlFor="preset-mask-threshold-enabled">Mask Threshold</label>
         <div className={styles.thresholdPair}>
           <input
+            id="preset-mask-threshold-enabled"
             className={styles.checkbox}
             type="checkbox"
             checked={draft.maskThreshold !== null}
@@ -153,8 +155,9 @@ export function PresetDefinitionEditor({ preset, definition, onCommit, onReset }
           />
         </div>
 
-        <label className={styles.label}>SAM Multimask Output</label>
+        <label className={styles.label} htmlFor="preset-sam-multimask">SAM Multimask Output</label>
         <input
+          id="preset-sam-multimask"
           className={styles.checkbox}
           type="checkbox"
           checked={draft.samMultimaskOutput}

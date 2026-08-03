@@ -2,13 +2,13 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
+  transition: transform var(--duration-160) var(--ease-out), box-shadow var(--duration-160) var(--ease-out), border-color var(--duration-160) var(--ease-out);
 }
 
 .card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
-  border-color: var(--border-strong);
+  transform: translateY(-1px);
+  box-shadow: var(--elevation-2-shadow);
+  border-color: var(--hairline-strong);
 }
 
 .clickArea {
@@ -16,7 +16,7 @@
   flex-direction: column;
   gap: var(--space-3);
   cursor: pointer;
-  border-radius: var(--radius);
+  border-radius: var(--radius-10);
 }
 
 .clickArea:hover .title {
@@ -32,9 +32,23 @@
 .header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-3);
   min-height: 28px;
+}
+
+.glyphSlot {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.glyph {
+  color: var(--text-3);
+}
+
+.ring {
+  color: var(--accent);
 }
 
 .titleGroup {
@@ -42,6 +56,7 @@
   align-items: center;
   gap: var(--space-2);
   min-width: 0;
+  flex: 1;
 }
 
 .chips {
@@ -52,28 +67,37 @@
 }
 
 .title {
-  font-size: var(--text-md);
+  font-size: var(--text-section-title);
   font-weight: var(--weight-semibold);
-  color: var(--text-strong);
+  color: var(--text-1);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.editButton {
+.iconButton {
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: none;
   border: none;
   cursor: pointer;
-  color: var(--text-faint);
-  font-size: var(--text-sm);
-  padding: 2px 4px;
-  border-radius: var(--radius-sm);
+  color: var(--text-3);
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-6);
+  transition: background var(--duration-100) var(--ease-out), color var(--duration-100) var(--ease-out);
 }
 
-.editButton:hover {
-  color: var(--text);
-  background: var(--surface-muted);
+.iconButton:hover {
+  color: var(--text-1);
+  background: var(--surface-2);
+}
+
+.iconButton:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .editRow {
@@ -87,76 +111,56 @@
   flex: 1;
   min-width: 0;
   padding: 4px 8px;
-  font-size: var(--text-sm);
+  font-size: var(--text-body);
   font-family: inherit;
-  color: var(--text);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
+  color: var(--text-1);
+  background: var(--surface-2);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-6);
 }
 
 .editInput:focus {
   outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .pipeline {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-3);
-}
-
-.stage {
-  display: inline-flex;
-  align-items: center;
   gap: var(--space-2);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
-  padding: 2px var(--space-2) 2px var(--space-2);
-  border-radius: 999px;
-  border: 1px solid transparent;
 }
-
-/* Module badges — which workflow a stage belongs to, distinct from (and
-   alongside) its status dot below. */
-.moduleBlue {
-  background: #eaf1fb;
-  color: #2c6cb0;
-  border-color: #c3d8ee;
-}
-
-.modulePurple {
-  background: #f3edfa;
-  color: #7c4fbe;
-  border-color: #ddc9f0;
-}
-
-.moduleNeutral {
-  background: var(--surface-muted);
-  color: var(--text-muted);
-  border-color: var(--border);
-}
-
-.dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--border);
-}
-
-.neutral { background: #c4c4c4; }
-.ok { background: var(--ok); }
-.warn { background: var(--warn); }
-.err { background: var(--err); }
-.info { background: var(--info); }
-.running { background: var(--info); }
 
 .meta {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  font-size: var(--text-sm);
-  color: var(--text-subtle);
-  font-variant-numeric: tabular-nums;
+  font-size: var(--text-body);
+  color: var(--text-3);
+}
+
+.metaLeft {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.metaCount {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.metaOk {
+  color: var(--success);
+}
+
+.metaErr {
+  color: var(--danger);
+}
+
+.metaTotal {
+  color: var(--text-3);
 }
 
 .metaRight {
@@ -166,5 +170,27 @@
 }
 
 .time {
-  color: var(--text-faint);
+  color: var(--text-4);
+}
+
+/* Completion moment (Phase 13 Motion Language) — check-draw + one soft
+   violet pulse on the finishing batch card, ~600ms, once. */
+.completionPulse {
+  animation: completionPulse 600ms var(--ease-out) 1;
+}
+
+@keyframes completionPulse {
+  0% {
+    box-shadow: 0 0 0 0 var(--accent-fill);
+  }
+  40% {
+    box-shadow: 0 0 0 6px var(--accent-fill);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+:root[data-reduced-motion='true'] .completionPulse {
+  animation: none;
 }

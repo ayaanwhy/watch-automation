@@ -150,7 +150,7 @@ describe('subprocessRunner incremental persistence + runner.py idempotent reruns
 
     const final = await getBatch(batch.id)
     const stage = final?.stages.find(s => s.type === 'editing')
-    expect(stage?.counts).toEqual({ total: 3, succeeded: 3, failed: 0, cancelled: 0, needsFixing: 0 })
+    expect(stage?.counts).toEqual({ total: 3, succeeded: 3, failed: 0, cancelled: 0, needsFixing: 0, lowConfidence: 0 })
     expect(stage?.images.map(i => i.name).sort()).toEqual(['a.png', 'b.png', 'c.png'])
   }, 20000)
 
@@ -196,6 +196,6 @@ describe('subprocessRunner incremental persistence + runner.py idempotent reruns
 
     const final = await getBatch(secondBatch.id)
     const stage = final?.stages.find(s => s.type === 'editing')
-    expect(stage?.counts).toEqual({ total: 3, succeeded: 3, failed: 0, cancelled: 0, needsFixing: 0 })
+    expect(stage?.counts).toEqual({ total: 3, succeeded: 3, failed: 0, cancelled: 0, needsFixing: 0, lowConfidence: 0 })
   }, 30000)
 })

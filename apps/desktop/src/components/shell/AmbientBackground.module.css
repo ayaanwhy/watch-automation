@@ -1,0 +1,75 @@
+.ambient {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background: var(--bg-ambient);
+  pointer-events: none;
+}
+
+.blob {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(80px);
+  /* --ambient-intensity is set by AppearanceEffects.tsx from Settings >
+     Appearance (Phase 13H) — 1 (standard) reproduces this exact pre-13H
+     opacity; the fallback keeps every non-app-rendered/test context (e.g.
+     a bare .module.css snapshot) looking identical to before this phase. */
+  opacity: calc(0.04 * var(--ambient-intensity, 1));
+  background: radial-gradient(circle, var(--accent) 0%, transparent 70%);
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+}
+
+.blobOne {
+  width: 55vw;
+  height: 55vw;
+  top: -15%;
+  left: -10%;
+  animation-name: driftOne;
+  animation-duration: 75s;
+}
+
+.blobTwo {
+  width: 45vw;
+  height: 45vw;
+  bottom: -15%;
+  right: -10%;
+  animation-name: driftTwo;
+  animation-duration: 90s;
+}
+
+.paused {
+  animation-play-state: paused;
+}
+
+@keyframes driftOne {
+  from {
+    transform: translate(0, 0);
+  }
+  to {
+    transform: translate(6vw, 5vh);
+  }
+}
+
+@keyframes driftTwo {
+  from {
+    transform: translate(0, 0);
+  }
+  to {
+    transform: translate(-5vw, -6vh);
+  }
+}
+
+.grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.035;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+:root[data-reduced-motion='true'] .blob {
+  animation: none;
+}

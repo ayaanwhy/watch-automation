@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
+import { ArrowLeft, Images } from 'lucide-react'
 import { ThumbnailGrid, type ThumbnailGridImage } from '../components/shared/ThumbnailGrid'
 import { HoopSplitEditor } from '../components/earring/HoopSplitEditor'
+import { EmptyState } from '../components/ui/EmptyState'
+import { Button } from '../components/ui/Button'
 import { usePythonInterpreter } from '../hooks/usePythonInterpreter'
 import { useEarringJob } from '../context/EarringJobContext'
 import { joinPath, toFileUrl } from '../lib/paths'
@@ -111,12 +114,16 @@ export default function HoopBoundaryEditor({ batchId, onBack }: HoopBoundaryEdit
             onChange={splitX => handleSplitChange(selectedSku, splitX)}
           />
         ) : (
-          <div className={styles.empty}>No Hoop SKUs to place.</div>
+          <div className={styles.empty}>
+            <EmptyState icon={Images} message="No Hoop SKUs to place." />
+          </div>
         )}
       </div>
       <div className={workspaceStyles.sidebar}>
         <div className={styles.header}>
-          <button className={styles.backButton} onClick={onBack}>← Back</button>
+          <button className={styles.backButton} onClick={onBack}>
+            <ArrowLeft size={14} strokeWidth={1.5} aria-hidden="true" /> Back
+          </button>
           <div className={styles.title}>Hoop Boundaries</div>
           <div className={styles.count}>{placedCount} of {hoopSkus.length} placed</div>
         </div>
@@ -126,9 +133,9 @@ export default function HoopBoundaryEditor({ batchId, onBack }: HoopBoundaryEdit
           </p>
         )}
         {job.startError && <div className={styles.errorBanner}>{job.startError}</div>}
-        <button className={styles.runButton} onClick={handleRun} disabled={starting || !python.isValid}>
-          {starting ? 'Starting…' : 'Run'}
-        </button>
+        <Button variant="primary" onClick={handleRun} loading={starting} disabled={!python.isValid}>
+          Run
+        </Button>
         <div className={workspaceStyles.gridArea}>
           <ThumbnailGrid
             images={gridImages}

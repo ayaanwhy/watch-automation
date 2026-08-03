@@ -1,3 +1,4 @@
+import { CheckCircle2, AlertTriangle } from 'lucide-react'
 import styles from './PythonInterpreterStatus.module.css'
 
 interface PythonInterpreterStatusProps {
@@ -27,9 +28,9 @@ export function PythonInterpreterStatus({
         ) : usingOverride ? (
           <span className={styles.ok}>Using manual override</span>
         ) : resolvedPath ? (
-          <span className={styles.ok}>✓ Python environment detected</span>
+          <span className={styles.ok}><CheckCircle2 size={14} strokeWidth={2.25} /> Python environment detected</span>
         ) : (
-          <span className={styles.warn}>⚠ Python not found</span>
+          <span className={styles.warn}><AlertTriangle size={14} strokeWidth={2.25} /> Python not found</span>
         )}
       </div>
 

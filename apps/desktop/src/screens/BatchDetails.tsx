@@ -1,17 +1,21 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { ArrowLeft, Pencil, Check, X, Flag, FolderX } from 'lucide-react'
 import { usePreprocessingJob } from '../context/PreprocessingJobContext'
 import { useRingBraceletJob } from '../context/RingBraceletJobContext'
 import { useEarringJob } from '../context/EarringJobContext'
 import { PreprocessingSummary } from '../components/PreprocessingSummary'
 import type { EditingHandoffOptions } from '../components/preprocessing/EditingHandoffDialog'
 import { BatchDetailsSection } from '../components/batch/BatchDetailsSection'
-import { StatusChip } from '../components/ui/StatusChip'
+import { EmptyState } from '../components/ui/EmptyState'
+import { ReviewToolbar } from '../components/batch/ReviewToolbar'
+import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { SegmentedControl } from '../components/ui/SegmentedControl'
 import { ThumbnailGrid, findAdjacentImage } from '../components/shared/ThumbnailGrid'
 import { ImagePreviewPanel } from '../components/preprocessing/ImagePreviewPanel'
 import { RingBraceletImagePreviewPanel, EARRING_PREVIEW_OVERRIDES } from '../components/ringBracelet/RingBraceletImagePreviewPanel'
 import { FullscreenViewer } from '../components/ui/FullscreenViewer'
+import type { ComparisonBackground, CompareMode } from '../components/shared/BeforeAfterSlider'
 import {
   BATCH_STATUS_LABELS,
   STAGE_LABELS,
@@ -210,6 +214,55 @@ export default function BatchDetails({
   const [titleDraft, setTitleDraft] = useState('')
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [fullscreen, setFullscreen] = useState(false)
+  // Review toolbar (Phase 13G) — lifted above the grid/preview split so the
+  // same backdrop/compare/zoom choice applies regardless of which image is
+  // selected or whether the viewer is fullscreen; passed down as controlled
+  // props to whichever preview panel is currently mounted.
+  const [reviewBackground, setReviewBackground] = useState<ComparisonBackground>('neutral')
+  const [reviewCompareMode, setReviewCompareMode] = useState<CompareMode>('slider')
+  const [reviewZoom, setReviewZoom] = useState(1)
+
+  // Keyboard QA loop (Phase 13G) — arrows traverse the grid, F toggles Needs
+  // Fixing, Enter opens fullscreen (B is already handled inside whichever
+  // preview panel is mounted, via useBackdropCycle — nothing to add here).
+  // Subscribed once (stable empty deps) and reads everything it needs from
+  // this ref, which is refreshed every render below (after the early
+  // returns, once batch/selection data actually exists) — avoids both the
+  // "hooks after an early return" violation and stale closures over `batch`.
+  const qaContextRef = useRef<{
+    editingTitle: boolean
+    fullscreen: boolean
+    activeList: { name: string }[]
+    activeName: string | null
+    canToggleNeedsFixing: boolean
+    toggleNeedsFixing: () => void
+    openFullscreen: () => void
+    selectImage: (name: string) => void
+  } | null>(null)
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      const ctx = qaContextRef.current
+      if (!ctx || ctx.editingTitle) return
+      const target = e.target
+      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLButtonElement) return
+
+      if (e.key === 'ArrowLeft' && !ctx.fullscreen) {
+        const prev = findAdjacentImage(ctx.activeList, ctx.activeName, -1)
+        if (prev) ctx.selectImage(prev)
+      } else if (e.key === 'ArrowRight' && !ctx.fullscreen) {
+        const next = findAdjacentImage(ctx.activeList, ctx.activeName, 1)
+        if (next) ctx.selectImage(next)
+      } else if (e.key === 'Enter' && !ctx.fullscreen) {
+        ctx.openFullscreen()
+      } else if (e.key.toLowerCase() === 'f' && ctx.canToggleNeedsFixing) {
+        e.preventDefault()
+        ctx.toggleNeedsFixing()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   // Watch stages have no meaningful counts/images of their own in the
   // registry (Watch's live progress is tracked in QueueContext/AnnotationContext,
@@ -331,8 +384,7 @@ export default function BatchDetails({
     return (
       <div className={styles.page}>
         <div className={styles.container}>
-          <div className={styles.loading}>Batch not found.</div>
-          <Button variant="ghost" onClick={onBack}>← Home</Button>
+          <EmptyState icon={FolderX} message="Batch not found." actionLabel="Back to Dashboard" onAction={onBack} />
         </div>
       </div>
     )
@@ -412,6 +464,27 @@ export default function BatchDetails({
   const selectedEditingImageState =
     editingImages.find(img => img.name === selectedImage) ?? editingImages[0] ?? null
 
+  // Refreshed every render — see qaContextRef's own declaration above for
+  // why the keyboard effect reads from here instead of closing over these
+  // directly.
+  qaContextRef.current = {
+    editingTitle,
+    fullscreen,
+    activeList: showingEditingImages ? editingImages : images,
+    activeName: (showingEditingImages ? selectedEditingImageState : selectedImageState)?.name ?? null,
+    // Needs Fixing only exists for the editing stage's own review flow
+    // (Phase 11.5E) — matches RingBraceletImagePreviewPanel's own
+    // onToggleNeedsFixing gating exactly.
+    canToggleNeedsFixing: showingEditingImages && selectedEditingImageState !== null,
+    toggleNeedsFixing: () => {
+      if (selectedEditingImageState) {
+        void handleToggleNeedsFixing(selectedEditingImageState.name, !selectedEditingImageState.needsFixing)
+      }
+    },
+    openFullscreen: () => setFullscreen(true),
+    selectImage: setSelectedImage,
+  }
+
   return (
     <div className={styles.page}>
       <div className={styles.container}>
@@ -419,7 +492,10 @@ export default function BatchDetails({
           {/* Generic label (Phase 10F correction) — onBack's destination now
               varies by entry point (Home, or the Preprocessing listing when
               reached from a live preprocessing run's terminal state). */}
-          <button className={styles.backLink} onClick={onBack}>← Back</button>
+          <button className={styles.backLink} onClick={onBack}>
+            <ArrowLeft size={14} strokeWidth={1.5} aria-hidden="true" />
+            Back
+          </button>
 
           <div className={styles.header}>
             {editingTitle ? (
@@ -459,18 +535,18 @@ export default function BatchDetails({
                   aria-label="Rename batch"
                   title="Rename"
                 >
-                  ✎
+                  <Pencil size={14} strokeWidth={1.5} aria-hidden="true" />
                 </button>
               </div>
             )}
             <div className={styles.headerRight}>
+              <Badge tone={batchStatusTone(batch.status)}>{BATCH_STATUS_LABELS[batch.status]}</Badge>
               <SegmentedControl
                 aria-label="Batch mode"
                 options={MODE_OPTIONS}
                 value={batch.mode ?? 'production'}
                 onChange={handleSetMode}
               />
-              <StatusChip tone={batchStatusTone(batch.status)}>{BATCH_STATUS_LABELS[batch.status]}</StatusChip>
             </div>
           </div>
         </div>
@@ -481,9 +557,9 @@ export default function BatchDetails({
               const stage = batch.stages.find(s => s.type === type)
               return (
                 <span key={type} className={styles.pipelineChip}>
-                  <StatusChip tone={stageStatusTone(stage?.status ?? 'not_started')}>
+                  <Badge tone={stageStatusTone(stage?.status ?? 'not_started')}>
                     {STAGE_LABELS[type]}
-                  </StatusChip>
+                  </Badge>
                 </span>
               )
             })}
@@ -498,9 +574,9 @@ export default function BatchDetails({
               <div className={styles.stageBlockRight}>
                 <div className={styles.stageHeader}>
                   <span className={styles.stageName}>{STAGE_LABELS.preprocessing}</span>
-                  <StatusChip tone={stageStatusTone(preprocessingStage.status)}>
+                  <Badge tone={stageStatusTone(preprocessingStage.status)}>
                     {STAGE_STATUS_LABELS[preprocessingStage.status]}
-                  </StatusChip>
+                  </Badge>
                 </div>
                 <StageTiming stage={preprocessingStage} />
                 <div className={styles.summaryWrap}>
@@ -536,9 +612,9 @@ export default function BatchDetails({
               <div className={styles.stageBlockRight}>
                 <div className={styles.stageHeader}>
                   <span className={styles.stageName}>{STAGE_LABELS.watch}</span>
-                  <StatusChip tone={stageStatusTone(watchStage.status)}>
+                  <Badge tone={stageStatusTone(watchStage.status)}>
                     {STAGE_STATUS_LABELS[watchStage.status]}
-                  </StatusChip>
+                  </Badge>
                 </div>
                 <StageTiming stage={watchStage} />
                 {watchSession ? (
@@ -572,17 +648,29 @@ export default function BatchDetails({
               <div className={styles.stageBlockRight}>
                 <div className={styles.stageHeader}>
                   <span className={styles.stageName}>{STAGE_LABELS.editing}</span>
-                  <StatusChip tone={stageStatusTone(editingStage.status)}>
+                  <Badge tone={stageStatusTone(editingStage.status)}>
                     {STAGE_STATUS_LABELS[editingStage.status]}
-                  </StatusChip>
+                  </Badge>
                 </div>
                 <StageTiming stage={editingStage} />
-                <div className={styles.metaRow}>
-                  <span>
-                    {editingStage.counts.succeeded}✓
-                    {editingStage.counts.failed > 0 ? ` · ${editingStage.counts.failed}✗` : ''}
-                    {editingStage.counts.needsFixing > 0 ? ` · ${editingStage.counts.needsFixing}🚩 needs fixing` : ''} / {editingStage.counts.total}
+                <div className={`${styles.metaRow} tabular-nums`}>
+                  <span className={styles.inlineStat}>
+                    <Check size={12} strokeWidth={2} className={styles.statOk} aria-hidden="true" />
+                    {editingStage.counts.succeeded}
                   </span>
+                  {editingStage.counts.failed > 0 && (
+                    <span className={styles.inlineStat}>
+                      <X size={12} strokeWidth={2} className={styles.statErr} aria-hidden="true" />
+                      {editingStage.counts.failed}
+                    </span>
+                  )}
+                  {editingStage.counts.needsFixing > 0 && (
+                    <span className={styles.inlineStat}>
+                      <Flag size={12} strokeWidth={2} className={styles.statReview} aria-hidden="true" />
+                      {editingStage.counts.needsFixing} needs fixing
+                    </span>
+                  )}
+                  <span className={styles.metaTotal}>/ {editingStage.counts.total}</span>
                 </div>
                 {(editingStage.status === 'completed' ||
                   editingStage.status === 'failed' ||
@@ -604,7 +692,19 @@ export default function BatchDetails({
           </div>
         </BatchDetailsSection>
 
-        <BatchDetailsSection title="Images">
+        <BatchDetailsSection
+          title="Images"
+          actions={
+            <ReviewToolbar
+              background={reviewBackground}
+              onBackgroundChange={setReviewBackground}
+              compareMode={reviewCompareMode}
+              onCompareModeChange={setReviewCompareMode}
+              zoom={reviewZoom}
+              onZoomChange={setReviewZoom}
+            />
+          }
+        >
           <div className={styles.imagesLayout}>
             <div className={styles.gridArea}>
               <ThumbnailGrid
@@ -625,6 +725,11 @@ export default function BatchDetails({
                   inputDir={imageInputDir}
                   onExpand={() => setFullscreen(true)}
                   onToggleNeedsFixing={handleToggleNeedsFixing}
+                  background={reviewBackground}
+                  onBackgroundChange={setReviewBackground}
+                  showBackgroundToggle={false}
+                  compareMode={reviewCompareMode}
+                  zoom={reviewZoom}
                   {...(editingProduct === 'earring' ? EARRING_PREVIEW_OVERRIDES : {})}
                 />
               ) : (
@@ -632,6 +737,11 @@ export default function BatchDetails({
                   image={selectedImageState}
                   inputDir={imageInputDir}
                   onExpand={() => setFullscreen(true)}
+                  background={reviewBackground}
+                  onBackgroundChange={setReviewBackground}
+                  showBackgroundToggle={false}
+                  compareMode={reviewCompareMode}
+                  zoom={reviewZoom}
                 />
               )}
             </div>
@@ -639,9 +749,16 @@ export default function BatchDetails({
         </BatchDetailsSection>
 
         {showingEditingImages && editingStage && editingStage.counts.needsFixing > 0 && (
-          <BatchDetailsSection title="Needs Fixing">
+          <BatchDetailsSection
+            title="Needs Fixing"
+            actions={
+              <Badge tone="review">
+                {editingStage.counts.needsFixing} flagged
+              </Badge>
+            }
+          >
             <p className={styles.needsFixingHint}>
-              Flagged during manual review — excluded from the completed total above. Select one to review it in the Images panel.
+              Flagged during manual review — excluded from the completed total above. Select one to review it in the Images panel, or press F to unflag.
             </p>
             <ThumbnailGrid
               images={editingImages
@@ -668,15 +785,30 @@ export default function BatchDetails({
               hasPrev={prevName !== null}
               hasNext={nextName !== null}
             >
+              {/* The outer ReviewToolbar (Images section header) is hidden
+                  behind this fullscreen dialog, so — unlike the embedded
+                  instance above — this one shows its own backdrop toggle
+                  rather than relying on keyboard 'B' alone. */}
               {showingEditingImages ? (
                 <RingBraceletImagePreviewPanel
                   image={selectedEditingImageState}
                   inputDir={imageInputDir}
                   onToggleNeedsFixing={handleToggleNeedsFixing}
+                  background={reviewBackground}
+                  onBackgroundChange={setReviewBackground}
+                  compareMode={reviewCompareMode}
+                  zoom={reviewZoom}
                   {...(editingProduct === 'earring' ? EARRING_PREVIEW_OVERRIDES : {})}
                 />
               ) : (
-                <ImagePreviewPanel image={selectedImageState} inputDir={imageInputDir} />
+                <ImagePreviewPanel
+                  image={selectedImageState}
+                  inputDir={imageInputDir}
+                  background={reviewBackground}
+                  onBackgroundChange={setReviewBackground}
+                  compareMode={reviewCompareMode}
+                  zoom={reviewZoom}
+                />
               )}
             </FullscreenViewer>
           )

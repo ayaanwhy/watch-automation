@@ -1,50 +1,103 @@
 /*
- * Design tokens — Phase 9A foundation.
- * Single source of truth for color, spacing, typography, and layout, captured
- * from the values previously hardcoded across the per-component CSS modules.
- * New screens reference these vars; legacy modules are migrated opportunistically.
+ * Design tokens — "Atelier" (Phase 13A foundation).
+ * Single dark theme, single source of truth for color, typography, spacing,
+ * radii, elevation, motion, and z-layers (Phase 13 Resolved Decision 1: no
+ * theme toggle, no light variant, no theme plumbing). "Atelier" is the
+ * internal design-language name only — it must never appear in user-facing
+ * copy (Decision 4).
+ *
+ * One color, radius, shadow, duration, or easing per concept, defined once
+ * here. A hex value in a component CSS module is a defect (Design Principle
+ * 5). Starting values per IMPLEMENTATION_PLAN.md's Visual Direction,
+ * contrast-verified via scripts/contrastCheck.ts (see that file for the
+ * verified ratios and any values it caused to be tuned).
  */
 :root {
-  /* ── Surfaces & text (light content) ─────────────────────────────── */
-  --bg: #f5f5f5;
-  --surface: #ffffff;
-  --surface-muted: #fafafa;
-  --text: #1a1a1a;
-  --text-strong: #111111;
-  --text-muted: #555555;
-  --text-subtle: #666666;
-  --text-faint: #888888;
-  --border: #dddddd;
-  --border-subtle: #ececec;
-  --border-strong: #1a1a1a;
+  /* ── Graphite scale (cool, violet-biased neutrals — never pure black) ── */
+  --bg-ambient: #0a0b0e; /* ambient canvas, behind everything */
+  --bg-app: #0e1014; /* base app background */
+  --surface-1: #14161b; /* panels, cards */
+  --surface-2: #191c22; /* raised surfaces, hover */
+  --surface-3: #1f232b; /* popovers, overlays; basis for the four glass surfaces */
+  --hairline: rgba(255, 255, 255, 0.08); /* dark UIs separate with hairlines more than shadows */
+  --hairline-strong: rgba(255, 255, 255, 0.14);
+  --text-1: #edeef3;
+  --text-2: #a6abb8;
+  --text-3: #848b9a; /* tuned up from the plan's #6e7480 starting value — see contrastCheck.ts */
+  --text-4: #4a4f5a; /* disabled — exempt from contrast requirements (WCAG 1.4.3) */
 
-  /* ── Brand / primary ─────────────────────────────────────────────── */
-  --primary: #1a1a1a;
-  --primary-hover: #333333;
-  --on-primary: #ffffff;
+  /* The Stage archetype's own backdrop (Phase 13F) — "image review areas sit
+     on a near-black stage (#101114)" per Visual Direction. Close to but
+     deliberately distinct from --bg-ambient/--bg-app (which back the rest of
+     the shell), since Stage surfaces (run workspaces, fullscreen viewer,
+     preview panels) are their own darkest layer. */
+  --stage-bg: #101114;
+  /* Checkerboard transparency indicator (Phase 13F backdrop toggle) —
+     intentionally outside the graphite scale: a neutral mid-gray convention
+     borrowed from photo-editing tools, not app chrome, so it reads clearly
+     regardless of theme. */
+  --checker-a: #4a4a4a;
+  --checker-b: #6b6b6b;
+  /* Text/divider legibility scrim over arbitrary image content (Phase 13F —
+     compare-slider labels, handle outline) — media, not UI chrome, so it's
+     a plain black alpha rather than a graphite-scale token. */
+  --media-scrim: rgba(0, 0, 0, 0.6);
 
-  /* ── Status accents ──────────────────────────────────────────────── */
-  --ok: #2d8a2d;
-  --ok-bg: #f0faf0;
-  --ok-border: #b3ddb3;
-  --warn: #b07a00;
-  --warn-bg: #fffbf0;
-  --warn-border: #e0c97a;
-  --err: #c0392b;
-  --err-bg: #fdf0ee;
-  --err-border: #e3b4ac;
-  --info: #2c6cb0;
+  /* ── Ultraviolet accent — semantic, not decorative: "the machine is
+     working" (running states, progress, active elements, focus). Used with
+     restraint — see Design Language's violet restraint rules; enforcement
+     lives in component CSS (13B+), not in this token layer. ────────────── */
+  --accent: #8b7cff;
+  --accent-hover: #9d90ff;
+  --accent-pressed: #7a6bf2;
+  --accent-fill: rgba(139, 124, 255, 0.12);
+  --accent-border: rgba(139, 124, 255, 0.35);
+  /* Text/icon color for content painted directly on a solid --accent fill
+     (the primary Button, in 13B). Not text-1 — #EDEEF3 on #8B7CFF is only
+     2.82:1 (fails 4.5:1); --bg-app on --accent is 5.83:1. Verified via
+     scripts/contrastCheck.ts's tuning session (13B). */
+  --on-accent: var(--bg-app);
 
-  /* ── Dark app frame (sidebar / workspace chrome) ─────────────────── */
-  --shell-bg: #1a1a1a;
-  --shell-bg-raised: #242424;
-  --on-dark: #ffffff;
-  --on-dark-muted: rgba(255, 255, 255, 0.8);
-  --on-dark-subtle: rgba(255, 255, 255, 0.45);
-  --on-dark-hover: rgba(255, 255, 255, 0.1);
-  --on-dark-active: rgba(255, 255, 255, 0.14);
+  /* ── Semantic colors (recalibrated for dark) ─────────────────────────── */
+  --success: #3ecf6e;
+  --success-fill: rgba(62, 207, 110, 0.12);
+  --success-border: rgba(62, 207, 110, 0.35);
+  --warning: #ffc53d; /* also carries machine doubt — low-confidence / detected:false */
+  --warning-fill: rgba(255, 197, 61, 0.12);
+  --warning-border: rgba(255, 197, 61, 0.35);
+  --danger: #ff6b6b;
+  --danger-fill: rgba(255, 107, 107, 0.12);
+  --danger-border: rgba(255, 107, 107, 0.35);
+  --review-flag: #f87683; /* Needs Fixing — human judgment, distinct from machine failure/doubt */
+  --review-flag-fill: rgba(248, 118, 131, 0.12);
+  --review-flag-border: rgba(248, 118, 131, 0.35);
 
-  /* ── Spacing scale ───────────────────────────────────────────────── */
+  /* Reserved (Design Language): the only Phase 13 consumer is the
+     compare-slider handle (13F), so Phase 14's AI-predicted boundaries can
+     own cyan as "the machine suggests." Not used anywhere in Phase 13
+     otherwise. */
+  --cyan: #6be0f7;
+
+  /* ── Typography ───────────────────────────────────────────────────────
+     Inter (variable) and JetBrains Mono are bundled locally via
+     @fontsource-variable/inter / @fontsource/jetbrains-mono (imported in
+     main.tsx) — Electron never fetches fonts at runtime. System stack
+     stays as fallback. */
+  --font-sans: 'Inter Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --text-caption: 11px;
+  --text-label: 12px;
+  --text-body: 13px;
+  --text-emphasized: 14px;
+  --text-section-title: 16px;
+  --text-page-title: 20px;
+  --text-display: 28px;
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+
+  /* ── Spacing (4px base scale, extended with 64/80 for page-level
+     breathing room) ────────────────────────────────────────────────────── */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -54,36 +107,159 @@
   --space-8: 32px;
   --space-10: 40px;
   --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
 
-  /* ── Radii ───────────────────────────────────────────────────────── */
-  --radius-sm: 4px;
-  --radius: 6px;
-  --radius-lg: 8px;
+  /* ── Radii ────────────────────────────────────────────────────────────── */
+  --radius-6: 6px; /* inputs, chips */
+  --radius-10: 10px; /* buttons, cards */
+  --radius-14: 14px; /* panels, modals */
+  --radius-20: 20px; /* hero surfaces */
+  --radius-pill: 999px;
 
-  /* ── Typography ──────────────────────────────────────────────────── */
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --text-xs: 12px;
-  --text-sm: 13px;
-  --text-base: 14px;
-  --text-md: 16px;
-  --text-lg: 22px;
-  --weight-normal: 400;
-  --weight-medium: 500;
-  --weight-semibold: 600;
+  /* ── Elevation — five levels, each a recipe (surface tint + hairline +
+     shadow + optional blur), not just a shadow. Consuming components choose
+     the matching surface/hairline tokens above alongside the shadow token
+     here; 0 and 1 are deliberately shadow-less (dark UIs read depth from
+     hairlines at low elevation, not shadows). ─────────────────────────── */
+  --elevation-0-shadow: none; /* ambient */
+  --elevation-1-shadow: none; /* panel — hairline only */
+  --elevation-2-shadow: 0 4px 16px rgba(0, 0, 0, 0.35); /* raised card */
+  --elevation-3-shadow: 0 8px 32px rgba(0, 0, 0, 0.42); /* popover */
+  --elevation-4-shadow: 0 24px 64px rgba(0, 0, 0, 0.5); /* modal */
+  --elevation-4-scrim: rgba(6, 7, 9, 0.6);
 
-  /* ── Elevation ───────────────────────────────────────────────────── */
-  --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.12);
+  /* ── Glass — basis for the exactly-four sanctioned surfaces (Decision 5):
+     sidebar, dialogs/modals, command palette, toasts. Defined here so 13C/
+     13B build against one recipe; not applied to anything by this phase. ── */
+  --glass-blur: 22px;
+  --glass-bg: rgba(31, 35, 43, 0.75); /* surface-3 @ ~75% */
+  --glass-border: var(--hairline);
+  --glass-highlight: rgba(255, 255, 255, 0.06); /* subtle top-edge highlight */
 
-  /* ── Motion ──────────────────────────────────────────────────────── */
-  --transition: 0.15s ease;
+  /* ── Motion — CSS only, no animation library. --ease-spring is a
+     cubic-bezier approximation of a spring curve (slight overshoot) for the
+     "one shared spring for interactive elements" the plan calls for. ───── */
+  --duration-100: 100ms;
+  --duration-160: 160ms;
+  --duration-220: 220ms;
+  --duration-320: 320ms;
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
-  /* ── Layout ──────────────────────────────────────────────────────── */
+  /* ── Focus ring — one token, every interactive element (Accessibility). ── */
+  --focus-ring: 0 0 0 2px var(--bg-app), 0 0 0 4px var(--accent);
+
+  /* ── Layout ───────────────────────────────────────────────────────────── */
   --sidebar-width: 216px;
 
-  /* ── Z-index layers ──────────────────────────────────────────────── */
+  /* ── Z-layers ─────────────────────────────────────────────────────────── */
   --z-sidebar: 10;
+  --z-popover: 20;
   --z-modal: 100;
+  --z-toast: 110;
+  --z-command-palette: 120;
+}
+
+/*
+ * ── Legacy token aliases (Phase 9A names → Atelier tokens) ───────────────
+ * Deprecated. These exist only so the ~15 already-tokenized CSS modules
+ * (Button, Select, SegmentedControl, Card, StatusChip, PageHeader,
+ * SettingsSection, Sidebar, AppShell, BatchCard, CreateBatchModal,
+ * EditingHandoffDialog, and the Settings/Preprocessing/Home screens) render
+ * on the new dark palette immediately instead of resolving to nothing.
+ * Every consuming file removes its slice of these as it is rebuilt on the
+ * real tokens in Phase 13B onward — do not add new consumers of the names
+ * below, and delete this block once the last one is gone.
+ *
+ * Some mappings are approximate by nature of collapsing a light-theme
+ * vocabulary onto a dark one (e.g. --text-lg's 22px becomes the 20px
+ * --text-page-title; --info had no dark-theme semantic equivalent and maps
+ * to --accent). That approximation is acceptable exactly because every use
+ * is transitional.
+ */
+:root {
+  --bg: var(--bg-app);
+  --surface: var(--surface-1);
+  --surface-muted: var(--surface-2);
+  --text: var(--text-1);
+  --text-strong: var(--text-1);
+  --text-muted: var(--text-2);
+  --text-subtle: var(--text-3);
+  --text-faint: var(--text-4);
+  --border: var(--hairline);
+  --border-subtle: var(--hairline);
+  --border-strong: var(--hairline-strong);
+
+  --primary: var(--accent);
+  --primary-hover: var(--accent-hover);
+  --on-primary: var(--text-1);
+
+  --ok: var(--success);
+  --ok-bg: var(--success-fill);
+  --ok-border: var(--success-border);
+  --warn: var(--warning);
+  --warn-bg: var(--warning-fill);
+  --warn-border: var(--warning-border);
+  --err: var(--danger);
+  --err-bg: var(--danger-fill);
+  --err-border: var(--danger-border);
+  --info: var(--accent);
+
+  --shell-bg: var(--surface-1);
+  --shell-bg-raised: var(--surface-2);
+  --on-dark: var(--text-1);
+  --on-dark-muted: var(--text-2);
+  --on-dark-subtle: var(--text-3);
+  --on-dark-hover: rgba(255, 255, 255, 0.1);
+  --on-dark-active: rgba(255, 255, 255, 0.14);
+
+  --radius-sm: var(--radius-6);
+  --radius: var(--radius-10);
+  --radius-lg: var(--radius-14);
+
+  --text-xs: var(--text-label);
+  --text-sm: var(--text-body);
+  --text-base: var(--text-emphasized);
+  --text-md: var(--text-section-title);
+  --text-lg: var(--text-page-title);
+
+  --shadow-sm: var(--elevation-2-shadow);
+  --shadow-md: var(--elevation-3-shadow);
+
+  --transition: var(--duration-160) var(--ease-out);
+}
+
+/*
+ * ── Reduced-motion / reduced-transparency scaffolding ─────────────────────
+ * `main.tsx` sets these data attributes once at startup from the OS media
+ * queries; 13H's Settings > Appearance section will let the user override
+ * them explicitly (Accessibility: "prefers-reduced-motion and
+ * prefers-reduced-transparency honored globally via the token layer plus
+ * explicit Settings toggles"). No component reads --glass-blur or any
+ * motion duration conditionally yet — this phase only makes the collapse
+ * rule exist so 13B+ components inherit it automatically the moment they're
+ * built on these tokens, rather than each needing its own media query.
+ */
+:root[data-reduced-motion='true'] {
+  --duration-100: 0ms;
+  --duration-160: 0ms;
+  --duration-220: 0ms;
+  --duration-320: 0ms;
+}
+
+:root[data-reduced-transparency='true'] {
+  --glass-blur: 0px;
+  --glass-bg: var(--surface-3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-reduced-motion='false']) {
+    --duration-100: 0ms;
+    --duration-160: 0ms;
+    --duration-220: 0ms;
+    --duration-320: 0ms;
+  }
 }
 
 *, *::before, *::after {
@@ -98,8 +274,15 @@ html, body, #root {
 
 body {
   font-family: var(--font-sans);
-  font-size: var(--text-base);
-  color: var(--text);
-  background: var(--bg);
+  font-size: var(--text-body);
+  color: var(--text-1);
+  background: var(--bg-app);
   -webkit-font-smoothing: antialiased;
+}
+
+/* Applied per-element by 13B+ components (counts, durations, percentages,
+   table columns) per the plan's typography direction — not a global rule,
+   since it's meant to target specific numeric contexts, not all text. */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
 }

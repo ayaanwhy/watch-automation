@@ -1,0 +1,108 @@
+.tracker {
+  display: flex;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.segment {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.node {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--hairline-strong);
+  color: var(--text-1);
+  flex-shrink: 0;
+}
+
+.connector {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  width: 100%;
+  height: 1px;
+  background: var(--hairline);
+  z-index: 0;
+}
+
+.label {
+  font-size: var(--text-caption);
+  color: var(--text-3);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.activeDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--accent);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.7);
+  }
+}
+
+:root[data-reduced-motion='true'] .activeDot {
+  animation: none;
+}
+
+.segment[data-status='active'] .node {
+  border-color: var(--accent);
+  background: var(--accent-fill);
+}
+
+.segment[data-status='active'] .label {
+  color: var(--text-1);
+  font-weight: var(--weight-medium);
+}
+
+.segment[data-status='done'] .node {
+  background: var(--success-fill);
+  border-color: var(--success);
+  color: var(--success);
+}
+
+.segment[data-status='done'] .connector {
+  background: var(--success-border);
+}
+
+.segment[data-status='done'] .label {
+  color: var(--text-2);
+}
+
+.segment[data-status='error'] .node {
+  background: var(--danger-fill);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.segment[data-status='error'] .label {
+  color: var(--danger);
+}

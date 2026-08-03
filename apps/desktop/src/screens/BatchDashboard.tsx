@@ -1,6 +1,10 @@
 import { useMemo, useState } from 'react'
+import { ArrowLeft, ArrowRight, ArrowUp, ArrowDown, ArrowUpDown, Search } from 'lucide-react'
 import { useAnnotation } from '../context/AnnotationContext'
 import { useQueue } from '../context/QueueContext'
+import { Badge, type BadgeTone } from '../components/ui/Badge'
+import { EmptyState } from '../components/ui/EmptyState'
+import { SegmentedControl } from '../components/ui/SegmentedControl'
 import type { QueueStatus } from '../types/ipc'
 import styles from './BatchDashboard.module.css'
 
@@ -8,14 +12,14 @@ type FilterKey = 'all' | 'unannotated' | 'annotated' | 'queued' | 'complete' | '
 type SortKey = 'sku' | 'annotation' | 'processing'
 type SortDir = 'asc' | 'desc'
 
-const FILTER_LABELS: Record<FilterKey, string> = {
-  all: 'All',
-  unannotated: 'Unannotated',
-  annotated: 'Annotated',
-  queued: 'Queued',
-  complete: 'Complete',
-  failed: 'Failed',
-}
+const FILTER_OPTIONS: { value: FilterKey; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'unannotated', label: 'Unannotated' },
+  { value: 'annotated', label: 'Annotated' },
+  { value: 'queued', label: 'Queued' },
+  { value: 'complete', label: 'Complete' },
+  { value: 'failed', label: 'Failed' },
+]
 
 const ANNOTATION_ORDER: Record<string, number> = {
   unannotated: 0,
@@ -36,12 +40,25 @@ const ANNOTATION_LABELS: Record<string, string> = {
   annotated: 'Annotated',
 }
 
+const ANNOTATION_TONE: Record<string, BadgeTone> = {
+  unannotated: 'neutral',
+  annotated: 'success',
+}
+
 const PROCESSING_LABELS: Record<QueueStatus, string> = {
   pending: 'Queuing…',
   queued: 'Queued',
   processing: 'Processing…',
   complete: 'Complete',
   failed: 'Failed',
+}
+
+const PROCESSING_TONE: Record<QueueStatus, BadgeTone> = {
+  pending: 'neutral',
+  queued: 'neutral',
+  processing: 'running',
+  complete: 'success',
+  failed: 'danger',
 }
 
 interface DashboardRow {
@@ -55,6 +72,12 @@ interface Props {
   onBack(): void
 }
 
+// Watch's own per-batch SKU table (Phase 13G — Component System's "Table
+// (Batch Overview dashboard)": hairline rows, sticky header, mono SKUs,
+// badge cells, sortable headers). Reskin-only, matching the same precedent
+// as the annotation canvas itself: filter/sort/search/jump logic below is
+// completely unchanged from before this phase — only the presentation is
+// rebuilt on tokens and shared components (Badge, SegmentedControl).
 export function BatchDashboard({ onBack }: Props) {
   const { annotations, jumpTo } = useAnnotation()
   const { items: queueItems } = useQueue()
@@ -149,15 +172,20 @@ export function BatchDashboard({ onBack }: Props) {
   }
 
   function SortIndicator({ col }: { col: SortKey }) {
-    if (sortKey !== col) return <span className={styles.sortInactive}>↕</span>
-    return <span className={styles.sortActive}>{sortDir === 'asc' ? '▲' : '▼'}</span>
+    if (sortKey !== col) return <ArrowUpDown size={11} strokeWidth={1.5} className={styles.sortInactive} aria-hidden="true" />
+    return sortDir === 'asc' ? (
+      <ArrowUp size={11} strokeWidth={2} className={styles.sortActive} aria-hidden="true" />
+    ) : (
+      <ArrowDown size={11} strokeWidth={2} className={styles.sortActive} aria-hidden="true" />
+    )
   }
 
   return (
     <div className={styles.container}>
       <div className={styles.header}>
         <button className={styles.backButton} onClick={onBack}>
-          ← Annotation
+          <ArrowLeft size={14} strokeWidth={1.5} aria-hidden="true" />
+          Annotation
         </button>
         <h2 className={styles.title}>Batch Overview</h2>
       </div>
@@ -172,25 +200,23 @@ export function BatchDashboard({ onBack }: Props) {
       </div>
 
       <div className={styles.controls}>
-        <div className={styles.filterChips}>
-          {(Object.keys(FILTER_LABELS) as FilterKey[]).map(f => (
-            <button
-              key={f}
-              className={styles.chip}
-              data-active={filter === f}
-              onClick={() => setFilter(f)}
-            >
-              {FILTER_LABELS[f]}
-            </button>
-          ))}
-        </div>
-        <input
-          className={styles.searchInput}
-          type="text"
-          placeholder="Search SKU…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
+        <SegmentedControl
+          variant="pill"
+          options={FILTER_OPTIONS}
+          value={filter}
+          onChange={setFilter}
+          aria-label="Filter"
         />
+        <div className={styles.searchField}>
+          <Search size={13} strokeWidth={1.5} className={styles.searchIcon} aria-hidden="true" />
+          <input
+            className={styles.searchInput}
+            type="text"
+            placeholder="Search SKU…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
       </div>
 
       <div className={styles.tableWrapper}>
@@ -198,13 +224,13 @@ export function BatchDashboard({ onBack }: Props) {
           <thead>
             <tr>
               <th className={styles.th} onClick={() => handleSort('sku')}>
-                SKU <SortIndicator col="sku" />
+                <span className={styles.thLabel}>SKU <SortIndicator col="sku" /></span>
               </th>
               <th className={styles.th} onClick={() => handleSort('annotation')}>
-                Annotation <SortIndicator col="annotation" />
+                <span className={styles.thLabel}>Annotation <SortIndicator col="annotation" /></span>
               </th>
               <th className={styles.th} onClick={() => handleSort('processing')}>
-                Processing <SortIndicator col="processing" />
+                <span className={styles.thLabel}>Processing <SortIndicator col="processing" /></span>
               </th>
               <th className={`${styles.th} ${styles.thAction}`} />
             </tr>
@@ -213,7 +239,7 @@ export function BatchDashboard({ onBack }: Props) {
             {sortedRows.length === 0 && (
               <tr>
                 <td className={styles.empty} colSpan={4}>
-                  No items match this filter.
+                  <EmptyState icon={Search} message="No items match this filter." />
                 </td>
               </tr>
             )}
@@ -223,15 +249,15 @@ export function BatchDashboard({ onBack }: Props) {
                   <span className={styles.skuText}>{row.sku}</span>
                 </td>
                 <td className={styles.td}>
-                  <span className={styles.badge} data-status={row.annotationStatus}>
+                  <Badge tone={ANNOTATION_TONE[row.annotationStatus] ?? 'neutral'}>
                     {ANNOTATION_LABELS[row.annotationStatus] ?? row.annotationStatus}
-                  </span>
+                  </Badge>
                 </td>
                 <td className={styles.td}>
                   {row.processingStatus != null ? (
-                    <span className={styles.badge} data-pstatus={row.processingStatus}>
+                    <Badge tone={PROCESSING_TONE[row.processingStatus]}>
                       {PROCESSING_LABELS[row.processingStatus]}
-                    </span>
+                    </Badge>
                   ) : (
                     <span className={styles.dash}>—</span>
                   )}
@@ -243,9 +269,10 @@ export function BatchDashboard({ onBack }: Props) {
                       e.stopPropagation()
                       handleJump(row.index)
                     }}
+                    aria-label={`Jump to ${row.sku}`}
                     tabIndex={-1}
                   >
-                    →
+                    <ArrowRight size={13} strokeWidth={1.5} aria-hidden="true" />
                   </button>
                 </td>
               </tr>
@@ -268,7 +295,7 @@ function StatCard({
 }) {
   return (
     <div className={styles.statCard} data-highlight={highlight || undefined}>
-      <span className={styles.statValue}>{value}</span>
+      <span className={`${styles.statValue} tabular-nums`}>{value}</span>
       <span className={styles.statLabel}>{label}</span>
     </div>
   )

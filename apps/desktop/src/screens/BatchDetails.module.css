@@ -1,8 +1,8 @@
 .page {
   min-height: 100vh;
-  background: #0a0a0a;
-  color: #e5e5e5;
-  padding: 0 24px 24px;
+  background: var(--bg-app);
+  color: var(--text-1);
+  padding: 0 var(--space-6) var(--space-6);
   box-sizing: border-box;
 }
 
@@ -11,73 +11,79 @@
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: var(--space-5);
 }
 
 .loading {
-  color: rgba(255, 255, 255, 0.4);
-  font-size: 14px;
-  padding: 40px 0;
+  color: var(--text-3);
+  font-size: var(--text-emphasized);
+  padding: var(--space-10) 0;
   text-align: center;
 }
 
 /* Sticky page heading (Phase 9E.2) — back link + title/rename + status stay
-   pinned; only the sections below scroll. Carries its own top padding so
-   spacing is identical stuck or not (mirrors PageHeader's sticky variant). */
+   pinned; only the sections below scroll. Opaque per the Library archetype
+   (sticky headers are one of the explicitly-opaque surfaces — glass is
+   reserved for the four sanctioned surfaces elsewhere). Carries its own top
+   padding so spacing is identical stuck or not (mirrors PageHeader's sticky
+   variant). */
 .stickyTop {
   position: sticky;
   top: 0;
   z-index: 5;
-  background: #0a0a0a;
-  padding-top: 24px;
+  background: var(--bg-app);
+  padding-top: var(--space-6);
   padding-bottom: 4px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  gap: var(--space-2);
+  border-bottom: 1px solid var(--hairline);
 }
 
 .backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   align-self: flex-start;
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 12px;
+  color: var(--text-3);
+  font-size: var(--text-label);
   cursor: pointer;
   padding: 4px 0;
-  transition: color 0.15s;
+  transition: color var(--duration-100) var(--ease-out);
 }
 
 .backLink:hover {
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--text-1);
 }
 
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding-bottom: 14px;
+  gap: var(--space-3);
+  padding-bottom: var(--space-4);
 }
 
 .headerRight {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-3);
   flex-shrink: 0;
 }
 
 .titleGroup {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   min-width: 0;
 }
 
 .title {
-  font-size: 20px;
-  font-weight: 600;
-  color: #fff;
+  font-size: var(--text-page-title);
+  font-weight: var(--weight-semibold);
+  color: var(--text-1);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -85,24 +91,28 @@
 
 .editButton {
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: none;
   border: none;
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.4);
-  font-size: 13px;
-  padding: 2px 4px;
-  border-radius: 4px;
+  color: var(--text-3);
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-6);
+  transition: background var(--duration-100) var(--ease-out), color var(--duration-100) var(--ease-out);
 }
 
 .editButton:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-1);
+  background: var(--surface-2);
 }
 
 .editRow {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   flex: 1;
 }
 
@@ -110,37 +120,60 @@
   flex: 1;
   min-width: 0;
   padding: 5px 10px;
-  font-size: 15px;
+  font-size: var(--text-emphasized);
   font-family: inherit;
-  color: #fff;
-  background: #1c1c1e;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
+  color: var(--text-1);
+  background: var(--surface-1);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-6);
 }
 
 .editInput:focus {
   outline: none;
-  border-color: rgba(255, 255, 255, 0.4);
+  box-shadow: var(--focus-ring);
 }
 
 .metaRow {
   display: flex;
   flex-wrap: wrap;
-  gap: 20px;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.4);
+  align-items: center;
+  gap: var(--space-5);
+  font-size: var(--text-label);
+  color: var(--text-3);
+}
+
+.inlineStat {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.statOk {
+  color: var(--success);
+}
+
+.statErr {
+  color: var(--danger);
+}
+
+.statReview {
+  color: var(--review-flag);
+}
+
+.metaTotal {
+  color: var(--text-3);
 }
 
 .needsFixingHint {
-  margin: 0 0 12px;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.4);
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-label);
+  color: var(--text-3);
 }
 
 .pipelineRow {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: var(--space-2);
 }
 
 /* Overview per-stage block (Phase 9E.2): configuration on the left,
@@ -149,60 +182,62 @@
 .stageBlock {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 32px;
-  padding-top: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  gap: var(--space-8);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--hairline);
 }
 
 .stageBlockLeft,
 .stageBlockRight {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
   min-width: 0;
 }
 
 .columnHeading {
-  font-size: 11px;
-  font-weight: 600;
+  font-size: var(--text-caption);
+  font-weight: var(--weight-semibold);
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--text-3);
 }
 
 .stageHeader {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-3);
 }
 
 .stageName {
-  font-size: 13px;
-  font-weight: 600;
-  color: #e5e5e5;
+  font-size: var(--text-body);
+  font-weight: var(--weight-semibold);
+  color: var(--text-1);
 }
 
 .configGrid {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .configRow {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 10px;
-  font-size: 13px;
+  gap: var(--space-3);
+  font-size: var(--text-body);
 }
 
 .configLabel {
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text-3);
 }
 
+/* Config grid in mono (Screen-by-Screen Direction: "config grid in mono") —
+   the SKU/path-adjacent identifier styling used everywhere else. */
 .configValue {
-  color: #e5e5e5;
-  font-weight: 500;
+  font-family: var(--font-mono);
+  color: var(--text-1);
   font-variant-numeric: tabular-nums;
   word-break: break-all;
   text-align: right;
@@ -210,13 +245,14 @@
 
 .timingRow {
   display: flex;
-  gap: 20px;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.35);
+  gap: var(--space-5);
+  font-size: var(--text-label);
+  color: var(--text-3);
 }
 
-/* PreprocessingSummary is a light card by design (reused unchanged); this
-   simply gives it a sensible resting place within the dark Overview section. */
+/* PreprocessingSummary is a light card by design (reused unchanged, not part
+   of this phase's scope); this simply gives it a sensible resting place
+   within the dark Overview section. */
 .summaryWrap {
   max-width: 460px;
 }
@@ -230,7 +266,7 @@
 @media (max-width: 760px) {
   .stageBlock {
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: var(--space-4);
   }
 }
 
@@ -239,25 +275,25 @@
    preview. */
 .imagesLayout {
   display: flex;
-  gap: 16px;
+  gap: var(--space-4);
   height: 640px;
 }
 
 .gridArea {
   flex: 0 1 32%;
   min-width: 240px;
-  background: #111;
-  border-radius: 8px;
-  padding: 10px;
+  background: var(--bg-ambient);
+  border-radius: var(--radius-10);
+  padding: var(--space-2);
 }
 
 .previewArea {
   flex: 1;
   min-width: 0;
-  background: #111;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
-  padding: 16px;
+  background: var(--bg-ambient);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-10);
+  padding: var(--space-4);
 }
 
 @media (max-width: 900px) {

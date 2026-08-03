@@ -49,6 +49,10 @@ import type {
   EarringDonePayload,
   EarringFolderPrefs,
   EarringValidatePayload,
+  AppearancePrefs,
+  ShadowProfileDefinitionSavePayload,
+  ShadowPreviewRenderPayload,
+  ShadowPreviewRenderResult,
 } from './ipc'
 import type { BatchDetailRecord, BatchSummaryRecord } from './batch'
 import type {
@@ -56,6 +60,10 @@ import type {
   PreprocessingPresetDefinition,
   PreprocessingPresetDefinitions,
 } from '../constants/preprocessingPresets'
+import type {
+  ShadowProfileDefinition,
+  ShadowProfileDefinitions,
+} from '../constants/shadowProfiles'
 
 declare global {
   interface Window {
@@ -129,6 +137,15 @@ declare global {
       invoke(channel: 'prefs:load-earring-folders'): Promise<EarringFolderPrefs>
       invoke(channel: 'prefs:save-earring-folders', payload: EarringFolderPrefs): Promise<void>
       invoke(channel: 'earring:validate-input', payload: EarringValidatePayload): Promise<BatchValidationResult>
+
+      // Shadow profiles (Phase 13H)
+      invoke(channel: 'prefs:load-shadow-profile-definitions'): Promise<ShadowProfileDefinitions>
+      invoke(channel: 'prefs:save-shadow-profile-definition', payload: ShadowProfileDefinitionSavePayload): Promise<ShadowProfileDefinition>
+      invoke(channel: 'shadow-preview:render', payload: ShadowPreviewRenderPayload): Promise<ShadowPreviewRenderResult>
+
+      // Appearance (Phase 13H)
+      invoke(channel: 'prefs:load-appearance'): Promise<AppearancePrefs>
+      invoke(channel: 'prefs:save-appearance', payload: AppearancePrefs): Promise<void>
     }
   }
 }

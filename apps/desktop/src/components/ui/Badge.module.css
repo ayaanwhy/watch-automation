@@ -1,0 +1,75 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-label);
+  font-weight: var(--weight-medium);
+  line-height: 1.5;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  background: currentColor;
+}
+
+.neutral {
+  background: var(--surface-2);
+  color: var(--text-2);
+  border-color: var(--hairline);
+}
+
+.success {
+  background: var(--success-fill);
+  color: var(--success);
+  border-color: var(--success-border);
+}
+
+.warning {
+  background: var(--warning-fill);
+  color: var(--warning);
+  border-color: var(--warning-border);
+}
+
+.danger {
+  background: var(--danger-fill);
+  color: var(--danger);
+  border-color: var(--danger-border);
+}
+
+/* Needs Fixing — rose, distinct from danger's red (machine failure) and
+   warning's amber (machine doubt); this hue means human judgment. */
+.review {
+  background: var(--review-flag-fill);
+  color: var(--review-flag);
+  border-color: var(--review-flag-border);
+}
+
+.running {
+  background: var(--accent-fill);
+  color: var(--accent);
+  border-color: var(--accent-border);
+}
+
+.running .dot {
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+:root[data-reduced-motion='true'] .running .dot {
+  animation: none;
+}

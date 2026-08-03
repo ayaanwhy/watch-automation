@@ -128,7 +128,7 @@ describe('reconcileImages', () => {
     ])
     const { images, counts } = reconcileImages(['a.png'], results, false)
     expect(images).toEqual([{ name: 'a.png', status: 'completed', outputPath: '/out/a.png', error: null, durationMs: 100 }])
-    expect(counts).toEqual({ total: 1, succeeded: 1, failed: 0, cancelled: 0, needsFixing: 0 })
+    expect(counts).toEqual({ total: 1, succeeded: 1, failed: 0, cancelled: 0, needsFixing: 0, lowConfidence: 0 })
   })
 
   // Phase 10G regression coverage: an image announced by 'start' but never
@@ -140,13 +140,13 @@ describe('reconcileImages', () => {
       { name: 'a.png', status: 'cancelled', outputPath: null, error: null, durationMs: null },
       { name: 'b.png', status: 'cancelled', outputPath: null, error: null, durationMs: null },
     ])
-    expect(counts).toEqual({ total: 2, succeeded: 0, failed: 0, cancelled: 2, needsFixing: 0 })
+    expect(counts).toEqual({ total: 2, succeeded: 0, failed: 0, cancelled: 2, needsFixing: 0, lowConfidence: 0 })
   })
 
   it('fills in a never-completed image as failed when the batch was not cancelled', () => {
     const { images, counts } = reconcileImages(['a.png'], new Map(), false)
     expect(images).toEqual([{ name: 'a.png', status: 'failed', outputPath: null, error: 'Not completed', durationMs: null }])
-    expect(counts).toEqual({ total: 1, succeeded: 0, failed: 1, cancelled: 0, needsFixing: 0 })
+    expect(counts).toEqual({ total: 1, succeeded: 0, failed: 1, cancelled: 0, needsFixing: 0, lowConfidence: 0 })
   })
 
   it('derives counts from the reconciled array, not just succeeded/failed images', () => {
@@ -155,7 +155,20 @@ describe('reconcileImages', () => {
       ['b.png', { status: 'failed', outputPath: null, error: 'boom', durationMs: null }],
     ])
     const { counts } = reconcileImages(['a.png', 'b.png', 'c.png'], results, true)
-    expect(counts).toEqual({ total: 3, succeeded: 1, failed: 1, cancelled: 1, needsFixing: 0 })
+    expect(counts).toEqual({ total: 3, succeeded: 1, failed: 1, cancelled: 1, needsFixing: 0, lowConfidence: 0 })
+  })
+
+  // Phase 13D — lowConfidence counts assets.detected === false, independent
+  // of needsFixing: a low-confidence image an operator hasn't reviewed yet
+  // is exactly what the Dashboard's Attention row needs to surface.
+  it('counts assets.detected === false as lowConfidence, distinct from needsFixing', () => {
+    const results = new Map<string, Omit<StageImageRecord, 'name'>>([
+      ['a.png', { status: 'completed', outputPath: '/out/a.png', assets: { detected: false }, error: null, durationMs: 100 }],
+      ['b.png', { status: 'completed', outputPath: '/out/b.png', assets: { detected: true }, error: null, durationMs: 100 }],
+      ['c.png', { status: 'completed', outputPath: '/out/c.png', needsFixing: true, error: null, durationMs: 100 }],
+    ])
+    const { counts } = reconcileImages(['a.png', 'b.png', 'c.png'], results, false)
+    expect(counts).toEqual({ total: 3, succeeded: 2, failed: 0, cancelled: 0, needsFixing: 1, lowConfidence: 1 })
   })
 })
 
@@ -165,7 +178,7 @@ describe('snapshotProgress', () => {
   it('reports an empty snapshot before any image has completed', () => {
     const { images, counts } = snapshotProgress(['a.png', 'b.png'], new Map())
     expect(images).toEqual([])
-    expect(counts).toEqual({ total: 2, succeeded: 0, failed: 0, cancelled: 0, needsFixing: 0 })
+    expect(counts).toEqual({ total: 2, succeeded: 0, failed: 0, cancelled: 0, needsFixing: 0, lowConfidence: 0 })
   })
 
   it('includes only images that have actually reached a terminal event, unlike reconcileImages', () => {
@@ -175,7 +188,7 @@ describe('snapshotProgress', () => {
     const { images, counts } = snapshotProgress(['a.png', 'b.png', 'c.png'], results)
     expect(images).toEqual([{ name: 'a.png', status: 'completed', outputPath: '/out/a.png', error: null, durationMs: 100 }])
     // total still reflects the full announced batch, even though b/c haven't finished.
-    expect(counts).toEqual({ total: 3, succeeded: 1, failed: 0, cancelled: 0, needsFixing: 0 })
+    expect(counts).toEqual({ total: 3, succeeded: 1, failed: 0, cancelled: 0, needsFixing: 0, lowConfidence: 0 })
   })
 
   it('never reports a cancelled count — nothing is cancelled until the job actually ends', () => {

@@ -1,12 +1,11 @@
 .panel {
-  margin-top: 24px;
-  padding: 16px;
-  border-radius: 6px;
-  background: #fafafa;
-  border: 1px solid #ddd;
+  padding: var(--space-4);
+  border-radius: var(--radius-14);
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .headerRow {
@@ -16,108 +15,67 @@
 }
 
 .title {
-  font-size: 13px;
-  font-weight: 600;
-  color: #1a1a1a;
+  font-size: var(--text-body);
+  font-weight: var(--weight-semibold);
+  color: var(--text-1);
 }
 
 .elapsed {
-  font-size: 13px;
-  color: #555;
-  font-variant-numeric: tabular-nums;
-}
-
-.progressBarTrack {
-  height: 8px;
-  border-radius: 4px;
-  background: #e6e6e6;
-  overflow: hidden;
-}
-
-.progressBarFill {
-  height: 100%;
-  background: #1a1a1a;
-  transition: width 0.2s ease;
+  font-size: var(--text-body);
+  color: var(--text-3);
 }
 
 .counts {
-  font-size: 12px;
-  color: #555;
-  font-variant-numeric: tabular-nums;
+  font-size: var(--text-label);
+  color: var(--text-3);
 }
 
 .statusRow {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: #333;
+  gap: var(--space-2);
+  font-size: var(--text-body);
+  color: var(--text-2);
 }
 
-.activityDot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #ccc;
+.idleDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--text-4);
   flex-shrink: 0;
 }
 
-.activityDotLive {
-  background: #2d8a2d;
-}
-
 .currentImage {
-  font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  font-family: var(--font-mono);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.stageBadge {
-  flex-shrink: 0;
-  padding: 2px 8px;
-  font-size: 11px;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: #555;
-  background: #eee;
-  border-radius: 4px;
+.tracker {
+  padding: var(--space-2) 0;
+}
+
+.metrics {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: var(--text-label);
+  color: var(--text-3);
 }
 
 .initBanner {
   align-self: flex-start;
-  font-size: 12px;
-  font-weight: 500;
-  color: #555;
-  background: #eef3fb;
-  border: 1px solid #c9dcf2;
-  border-radius: 4px;
-  padding: 4px 8px;
-}
-
-.cancelPending {
-  font-size: 13px;
-  color: #888;
-}
-
-.cancelling {
-  font-size: 13px;
-  color: #b07a00;
+  font-size: var(--text-label);
+  font-weight: var(--weight-medium);
+  color: var(--accent);
+  background: var(--accent-fill);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-6);
+  padding: 4px var(--space-2);
 }
 
 .cancelButton {
   align-self: flex-start;
-  padding: 6px 16px;
-  font-size: 13px;
-  font-weight: 500;
-  color: #c0392b;
-  background: #fff;
-  border: 1px solid #f0b8b8;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.cancelButton:hover {
-  background: #fff5f5;
 }

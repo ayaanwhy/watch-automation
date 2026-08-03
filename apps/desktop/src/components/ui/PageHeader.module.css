@@ -10,11 +10,11 @@
   position: sticky;
   top: 0;
   z-index: 5;
-  background: var(--bg);
+  background: var(--bg-app);
   padding-top: var(--space-12);
   padding-bottom: var(--space-5);
   margin-bottom: var(--space-3);
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--hairline);
 }
 
 .text {
@@ -24,14 +24,14 @@
 }
 
 .title {
-  font-size: var(--text-lg);
+  font-size: var(--text-page-title);
   font-weight: var(--weight-semibold);
-  color: var(--text-strong);
+  color: var(--text-1);
 }
 
 .subtitle {
-  font-size: var(--text-base);
-  color: var(--text-muted);
+  font-size: var(--text-emphasized);
+  color: var(--text-2);
 }
 
 .actions {

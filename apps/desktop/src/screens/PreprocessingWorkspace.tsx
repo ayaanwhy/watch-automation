@@ -1,3 +1,4 @@
+import { ArrowLeft } from 'lucide-react'
 import { PreprocessingRunWorkspace } from '../components/preprocessing/PreprocessingRunWorkspace'
 import styles from './PreprocessingWorkspace.module.css'
 
@@ -16,7 +17,8 @@ export default function PreprocessingWorkspace({ inputDir, onBack }: Preprocessi
     <div className={styles.screen}>
       <div className={styles.header}>
         <button className={styles.backButton} onClick={onBack}>
-          ← Preprocessing
+          <ArrowLeft size={14} strokeWidth={1.5} aria-hidden="true" />
+          Preprocessing
         </button>
       </div>
       <div className={styles.body}>

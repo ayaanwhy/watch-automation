@@ -4,19 +4,51 @@
   flex-direction: column;
   padding: 0;
   border: 2px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-6);
   overflow: hidden;
-  background: #111;
+  background: var(--stage-bg);
   cursor: pointer;
-  transition: border-color 0.15s;
+  transition: border-color var(--duration-100) var(--ease-out);
 }
 
 .cell:hover {
-  border-color: rgba(255, 255, 255, 0.25);
+  border-color: var(--hairline-strong);
 }
 
-.selected {
-  border-color: #fff;
+.cell:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* Status ring — a thin border, never a color wash over the image (Component
+   System). */
+.cell[data-status='pending'] {
+  border-color: var(--hairline);
+}
+
+.cell[data-status='processing'] {
+  border-color: var(--accent-border);
+}
+
+.cell[data-status='completed'] {
+  border-color: var(--success-border);
+}
+
+.cell[data-status='failed'] {
+  border-color: var(--danger-border);
+}
+
+.cell[data-status='cancelled'] {
+  border-color: var(--hairline-strong);
+}
+
+/* Selection always wins the ring — "where am I in this grid" outranks
+   status at a glance. Written as .cell.selected (specificity 0,2,0) to
+   match the [data-status] rules above (.cell + attribute = 0,2,0 too),
+   then wins on cascade order since it's textually later — no !important
+   needed. */
+.cell.selected {
+  border-color: var(--accent);
 }
 
 .image {
@@ -26,7 +58,7 @@
   width: 100%;
   height: calc(100% - 16px);
   object-fit: cover;
-  transition: opacity 0.2s ease, filter 0.2s ease;
+  transition: opacity var(--duration-160) var(--ease-out), filter var(--duration-160) var(--ease-out);
 }
 
 .cell[data-status='pending'] .image {
@@ -43,31 +75,17 @@
   opacity: 0.5;
 }
 
-.overlay {
-  position: absolute;
-  inset: 0;
-  bottom: 16px;
-  pointer-events: none;
-}
-
-.cell[data-status='failed'] .overlay {
-  background: rgba(255, 59, 48, 0.18);
-}
-
-.cell[data-status='cancelled'] .overlay {
-  background: rgba(255, 255, 255, 0.08);
-}
-
 /* Indeterminate left-to-right sweep — there is no per-image completion
    percentage in the wire protocol, so this communicates "in progress"
-   honestly rather than fabricating a number. */
+   honestly rather than fabricating a number. Accent — "the machine is
+   working" (running/progress indicator). */
 .sweepTrack {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 16px;
   height: 3px;
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--surface-2);
   overflow: hidden;
 }
 
@@ -76,7 +94,7 @@
   top: 0;
   bottom: 0;
   width: 40%;
-  background: #ffcc00;
+  background: var(--accent);
   animation: sweep 1.1s ease-in-out infinite;
 }
 
@@ -85,44 +103,64 @@
   100% { left: 100%; }
 }
 
-.badge {
+:root[data-reduced-motion='true'] .sweepBar {
+  animation: none;
+  left: 0;
+  width: 100%;
+  opacity: 0.4;
+}
+
+/* Corner dot — status at a glance, color-only (no icon; the ring already
+   carries the same signal, this is the redundant "even at thumbnail scale"
+   cue). */
+.statusDot {
   position: absolute;
   top: 4px;
   right: 4px;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 1;
-  color: #fff;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  box-shadow: 0 0 0 1.5px var(--media-scrim);
 }
 
-.badgeOk { background: #34c759; }
-.badgeErr { background: #ff3b30; }
-.badgeWarn { background: rgba(255, 255, 255, 0.35); }
+.cell[data-status='pending'] .statusDot {
+  background: var(--text-4);
+}
 
-/* Opposite corner from the status badge — a low-confidence completed image
-   still shows its ✓, this is an additional review flag, not a replacement. */
-.badgeLowConfidence {
-  top: 4px;
+.cell[data-status='processing'] .statusDot {
+  background: var(--accent);
+}
+
+.cell[data-status='completed'] .statusDot {
+  background: var(--success);
+}
+
+.cell[data-status='failed'] .statusDot {
+  background: var(--danger);
+}
+
+.cell[data-status='cancelled'] .statusDot {
+  background: var(--text-3);
+}
+
+.flagIcon {
+  position: absolute;
+  bottom: 20px;
+  padding: 2px;
+  border-radius: var(--radius-6);
+  background: var(--stage-bg);
+}
+
+/* Opposite corner from Needs Fixing — a low-confidence completed image can
+   carry both flags at once without collision. */
+.flagLowConfidence {
   left: 4px;
-  right: auto;
-  background: #e0a640;
-  color: #1a1a1a;
+  color: var(--warning);
 }
 
-/* A third, human-set flag (Phase 11.5E) — bottom corner, just above the
-   name bar, so it never collides with the status (top-right) or
-   lowConfidence (top-left) badges even when all three apply at once. */
-.badgeNeedsFixing {
-  top: auto;
-  bottom: 18px;
+.flagNeedsFixing {
   right: 4px;
-  background: #ff6961;
+  color: var(--review-flag);
 }
 
 .name {
@@ -134,8 +172,8 @@
   padding: 0 4px;
   font-size: 9px;
   line-height: 16px;
-  color: rgba(255, 255, 255, 0.55);
-  background: #000;
+  color: var(--text-2);
+  background: var(--stage-bg);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

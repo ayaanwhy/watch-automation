@@ -5,88 +5,100 @@
 }
 
 .label {
-  font-size: var(--text-xs);
+  font-size: var(--text-label);
   font-weight: var(--weight-medium);
-  color: var(--text-muted);
+  color: var(--text-2);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
 .group {
+  position: relative;
   display: inline-flex;
 }
 
+.thumb {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 0;
+  background: var(--surface-3);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-6);
+  box-shadow: var(--elevation-2-shadow);
+  transition: transform var(--duration-220) var(--ease-spring), width var(--duration-220) var(--ease-spring);
+  pointer-events: none;
+}
+
 .option {
+  position: relative;
+  z-index: 1;
   cursor: pointer;
   font-family: inherit;
+  background: transparent;
+  border: none;
+  color: var(--text-3);
+  transition: color var(--duration-160) var(--ease-out);
+}
+
+.option:hover:not(:disabled) {
+  color: var(--text-2);
+}
+
+.option:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-6);
 }
 
 .option:disabled {
   cursor: not-allowed;
+  color: var(--text-4);
 }
 
-/* tile — light form-control language, matches Select.tsx's trigger/option. */
+.optionActive {
+  color: var(--text-1);
+}
+
+.optionActive:hover:not(:disabled) {
+  color: var(--text-1);
+}
+
+/* tile — full-width form-control sizing, matches Select.tsx's trigger. */
 .tile {
   gap: var(--space-2);
   width: 100%;
+  padding: 3px;
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-10);
 }
 
 .tile .option {
   flex: 1;
-  height: 40px;
+  height: 34px;
   padding: 0 var(--space-3);
-  font-size: var(--text-sm);
-  color: var(--text);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-}
-
-.tile .option:hover:not(:disabled) {
-  border-color: var(--text-faint);
-}
-
-.tile .option:focus-visible {
-  outline: none;
-  border-color: var(--border-strong);
-}
-
-.tile .optionActive {
-  background: #eef4fb;
-  color: var(--info);
-  border-color: var(--info);
+  font-size: var(--text-body);
   font-weight: var(--weight-medium);
 }
 
-.tile .option:disabled {
-  opacity: 0.5;
-}
-
-/* pill — dark preview-toolbar language, ported from BeforeAfterSlider's
-   former inline background toggle (byte-identical values). */
+/* pill — compact preview-toolbar sizing (backdrop toggle, compare mode). */
 .pill {
   gap: 2px;
   padding: 2px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 999px;
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+}
+
+.pill .thumb {
+  border-radius: var(--radius-pill);
 }
 
 .pill .option {
+  min-height: 28px;
   padding: 4px 12px;
-  font-size: 11px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.5);
-  background: transparent;
-  border: none;
-  border-radius: 999px;
-}
-
-.pill .option:hover:not(:disabled) {
-  color: rgba(255, 255, 255, 0.85);
-}
-
-.pill .optionActive {
-  background: rgba(255, 255, 255, 0.16);
-  color: #fff;
+  font-size: var(--text-caption);
+  font-weight: var(--weight-medium);
+  border-radius: var(--radius-pill);
 }

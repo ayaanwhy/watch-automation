@@ -7,6 +7,7 @@ import { getBatch } from '../services/batchRegistry'
 import { parseProductMetadata, discoverImages, matchProductMetadata } from '@wpa/processing/data'
 import { classifyMatchedSkus } from '../../src/constants/earringClassification'
 import { logger } from '../logger'
+import { getShadowProfileDefinitions, writeShadowProfileSidecar } from '../services/shadowProfileDefinitions'
 import type { EarringType } from '../../src/constants/earringClassification'
 import type {
   EarringStartPayload,
@@ -90,6 +91,7 @@ async function writeSplitsSidecar(splits: Record<string, number>): Promise<strin
 interface ResolvedEarringStartPayload extends EarringStartPayload {
   metadataSidecarPath: string
   splitsSidecarPath: string
+  shadowProfileSidecarPath: string
 }
 
 function buildArgs(runnerPath: string, payload: ResolvedEarringStartPayload): string[] {
@@ -99,6 +101,7 @@ function buildArgs(runnerPath: string, payload: ResolvedEarringStartPayload): st
     '--output-dir', payload.outputDir,
     '--metadata-file', payload.metadataSidecarPath,
     '--splits-file', payload.splitsSidecarPath,
+    '--shadow-profile-file', payload.shadowProfileSidecarPath,
   ]
   // Omitted means 'automatic', matching every other pipeline's convention.
   args.push('--processing-mode', payload.processingMode ?? 'automatic')
@@ -121,6 +124,14 @@ const runner = createSubprocessRunner<ResolvedEarringStartPayload>({
     product: 'earring',
     metadataPath: payload.metadataFilePath,
     processingMode: payload.processingMode ?? 'automatic',
+    // Lightweight provenance for both Earring profiles at once — Earring
+    // needs both simultaneously (a single batch can contain Stud, Drop, and
+    // Hoop rows together), unlike Ring & Bracelet's single profile (Phase
+    // 13H).
+    shadowProfileVersion: {
+      earringStudDrop: getShadowProfileDefinitions().earringStudDrop.version,
+      earringHoop: getShadowProfileDefinitions().earringHoop.version,
+    },
   }),
   mapCompleteEvent: (event): Omit<StageImageRecord, 'name'> => {
     const compare = (event['compare'] as string) ?? null
@@ -177,7 +188,15 @@ export function registerEarringHandlers(): void {
       return { ok: false, error: 'Failed to prepare Hoop split data for the runner.' }
     }
 
-    return runner.start({ ...payload, metadataSidecarPath: sidecarPath, splitsSidecarPath })
+    let shadowProfileSidecarPath: string
+    try {
+      shadowProfileSidecarPath = await writeShadowProfileSidecar()
+    } catch (err) {
+      logger.error('earring:start — failed to write shadow profile sidecar', err)
+      return { ok: false, error: 'Failed to prepare shadow profile data for the runner.' }
+    }
+
+    return runner.start({ ...payload, metadataSidecarPath: sidecarPath, splitsSidecarPath, shadowProfileSidecarPath })
   })
 
   ipcMain.handle('earring:cancel', async (_event, payload: { jobId: string }): Promise<{ ok: boolean }> => {

@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { BeforeAfterSlider, type ComparisonBackground } from '../shared/BeforeAfterSlider'
+import { Maximize2, AlertTriangle, Flag } from 'lucide-react'
+import { BeforeAfterSlider, type ComparisonBackground, type CompareMode } from '../shared/BeforeAfterSlider'
+import { useBackdropCycle } from '../../hooks/useBackdropCycle'
 import { joinPath, toFileUrl } from '../../lib/paths'
 import type { RingBraceletImageState } from '../../context/RingBraceletJobContext'
 // Shares PreviewPanel's stylesheet with ImagePreviewPanel.tsx (Phase 11C) —
@@ -27,6 +29,13 @@ interface RingBraceletImagePreviewPanelProps {
   // shank-specific wording; Hoop's callers override it since "shank
   // boundary" doesn't describe what Hoop's detected flag actually measures.
   lowConfidenceMessage?: string
+  // Phase 13G — see ImagePreviewPanel.tsx's identical props for the full
+  // controlled/uncontrolled rationale.
+  background?: ComparisonBackground
+  onBackgroundChange?: (background: ComparisonBackground) => void
+  showBackgroundToggle?: boolean
+  compareMode?: CompareMode
+  zoom?: number
 }
 
 // The Earring/Hoop override for the three props above — one shared source
@@ -55,8 +64,19 @@ export function RingBraceletImagePreviewPanel({
   beforeLabel = 'Full',
   afterLabel = 'Front-Facing',
   lowConfidenceMessage = 'No clear shank boundary found — this mask used a fallback estimate. Worth a closer look.',
+  background: controlledBackground,
+  onBackgroundChange: controlledOnBackgroundChange,
+  showBackgroundToggle,
+  compareMode,
+  zoom,
 }: RingBraceletImagePreviewPanelProps) {
-  const [background, setBackground] = useState<ComparisonBackground>('transparent')
+  const [localBackground, setLocalBackground] = useState<ComparisonBackground>('neutral')
+  const background = controlledBackground ?? localBackground
+  const setBackground = controlledOnBackgroundChange ?? setLocalBackground
+  // Stage backdrop toggle, keyboard 'B' (Phase 13F) — works identically
+  // whether background is controlled (Batch Details, 13G) or not (Stage
+  // workspaces, 13F).
+  useBackdropCycle(background, setBackground)
 
   if (!image) {
     return (
@@ -78,12 +98,13 @@ export function RingBraceletImagePreviewPanel({
               className={`${styles.needsFixingToggle} ${image.needsFixing ? styles.needsFixingToggleActive : ''}`}
               onClick={() => onToggleNeedsFixing(image.name, !image.needsFixing)}
             >
-              {image.needsFixing ? '✓ Needs Fixing' : 'Mark as Needs Fixing'}
+              {image.needsFixing && <Flag size={11} strokeWidth={2} aria-hidden="true" />}
+              {image.needsFixing ? 'Needs Fixing' : 'Mark as Needs Fixing'}
             </button>
           )}
           {onExpand && (
             <button className={styles.expandButton} onClick={onExpand} aria-label="View fullscreen" title="View fullscreen">
-              ⤢
+              <Maximize2 size={14} strokeWidth={1.5} aria-hidden="true" />
             </button>
           )}
         </div>
@@ -95,16 +116,19 @@ export function RingBraceletImagePreviewPanel({
           afterLabel={afterLabel}
           background={background}
           onBackgroundChange={setBackground}
+          showBackgroundToggle={showBackgroundToggle}
+          compareMode={compareMode}
+          zoom={zoom}
         />
         {image.detected === false && (
           <div className={styles.lowConfidence}>
-            <span className={styles.lowConfidenceIcon} aria-hidden="true">⚠</span>
+            <AlertTriangle size={14} strokeWidth={1.5} className={styles.lowConfidenceIcon} aria-hidden="true" />
             <span>{lowConfidenceMessage}</span>
           </div>
         )}
         {image.needsFixing === true && (
           <div className={styles.needsFixing}>
-            <span className={styles.needsFixingIcon} aria-hidden="true">🚩</span>
+            <Flag size={14} strokeWidth={1.5} className={styles.needsFixingIcon} aria-hidden="true" />
             <span>Flagged during manual review — excluded from the batch's completed total until fixed.</span>
           </div>
         )}

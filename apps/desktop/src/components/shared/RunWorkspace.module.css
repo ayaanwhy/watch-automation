@@ -1,8 +1,8 @@
 .workspace {
   display: flex;
   flex-direction: row;
-  gap: 16px;
-  padding: 20px;
+  gap: var(--space-4);
+  padding: var(--space-5);
   /* 100% rather than 100vh (Phase 10F) so this can sit inside a screen that
      adds its own header above it (PreprocessingWorkspace.tsx) — AppShell's
      content area is already exactly viewport height, so this renders
@@ -10,7 +10,7 @@
      Bracelet's workspace, unchanged). */
   height: 100%;
   box-sizing: border-box;
-  background: #0a0a0a;
+  background: var(--stage-bg);
 }
 
 /* Primary focus while processing (Phase 9E.2): takes the majority of the
@@ -20,10 +20,10 @@
   flex: 1;
   min-width: 0;
   height: 100%;
-  background: #111;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
-  padding: 16px;
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-14);
+  padding: var(--space-4);
 }
 
 /* Secondary navigation column: a fixed-progress card on top, a virtualized
@@ -37,15 +37,15 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 .gridArea {
   flex: 1;
   min-height: 0;
-  background: #111;
-  border-radius: 8px;
-  padding: 8px;
+  background: var(--surface-1);
+  border-radius: var(--radius-14);
+  padding: var(--space-2);
 }
 
 /* Mirrors AnnotationWorkspace's column-stack breakpoint: below this width the

@@ -117,7 +117,7 @@ describe('applyStagePatch', () => {
     let b = applyStagePatch(fullBatch(), 'preprocessing', { status: 'running' }, '2026-07-04T12:00:00.000Z')
     const started = b.stages[0].startedAt
     expect(started).toBe('2026-07-04T12:00:00.000Z')
-    b = applyStagePatch(b, 'preprocessing', { status: 'completed', counts: { total: 5, succeeded: 5, failed: 0, cancelled: 0, needsFixing: 0 } }, '2026-07-04T12:05:00.000Z')
+    b = applyStagePatch(b, 'preprocessing', { status: 'completed', counts: { total: 5, succeeded: 5, failed: 0, cancelled: 0, needsFixing: 0, lowConfidence: 0 } }, '2026-07-04T12:05:00.000Z')
     expect(b.stages[0].startedAt).toBe('2026-07-04T12:00:00.000Z') // unchanged
     expect(b.stages[0].completedAt).toBe('2026-07-04T12:05:00.000Z')
     expect(b.durationMs).toBe(5 * 60 * 1000)
@@ -131,8 +131,8 @@ describe('applyStagePatch', () => {
   })
 
   it('rolls the batch counts up from the current stage', () => {
-    const b = applyStagePatch(fullBatch(), 'preprocessing', { status: 'running', counts: { total: 10, succeeded: 3, failed: 1, cancelled: 0, needsFixing: 0 } }, NOW)
-    expect(b.counts).toEqual({ total: 10, succeeded: 3, failed: 1, cancelled: 0, needsFixing: 0 })
+    const b = applyStagePatch(fullBatch(), 'preprocessing', { status: 'running', counts: { total: 10, succeeded: 3, failed: 1, cancelled: 0, needsFixing: 0, lowConfidence: 0 } }, NOW)
+    expect(b.counts).toEqual({ total: 10, succeeded: 3, failed: 1, cancelled: 0, needsFixing: 0, lowConfidence: 0 })
   })
 })
 

@@ -116,7 +116,33 @@ def _parse_args():
                    help="Phase 12E (Hoop Manual) — JSON sidecar {sku: normalized_x (0-1)} written by the "
                         "Electron main process from the batch's persisted config.hoopSplits. Omitted or "
                         "absent means no manual splits are available (fine for Automatic-only batches).")
+    # Phase 13H — optional override for the shadow settings normally
+    # hardcoded as shadow.py's EARRING_SHADOW, sourced from the desktop
+    # app's Settings → Shadow Profiles. See _load_shadow_settings for the
+    # byte-identical-by-default guarantee.
+    p.add_argument("--shadow-profile-file", type=str, default=None,
+                   help="Optional path to a JSON sidecar (written by the desktop app) containing "
+                        "possibly-customized 'earringStudDrop'/'earringHoop' shadow settings dicts. "
+                        "Omitted, unreadable, or a missing key falls back to shadow.py's EARRING_SHADOW "
+                        "default for that profile.")
     return p.parse_args()
+
+
+def _load_shadow_settings(profile_file: str | None, key: str, fallback: dict) -> dict:
+    """Resolves the shadow settings dict to use for one profile. An absent
+    --shadow-profile-file, an unreadable file, or a missing key all fall back
+    to `fallback` (shadow.py's own hardcoded EARRING_SHADOW) — this is what
+    keeps the default production path byte-identical unless a user has
+    explicitly edited and saved that profile in Settings (Phase 13H)."""
+    if not profile_file:
+        return fallback
+    try:
+        with open(profile_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return fallback
+    settings = data.get(key)
+    return settings if isinstance(settings, dict) else fallback
 
 
 def _load_metadata_sidecar(path: str) -> dict[str, str]:
@@ -151,9 +177,9 @@ def _expected_output_paths(input_path: Path, output_dir: Path) -> tuple[Path, Pa
     )
 
 
-def _process_stud_or_drop(img: Image.Image, earring_type: str, front_path: Path) -> dict:
+def _process_stud_or_drop(img: Image.Image, earring_type: str, front_path: Path, stud_drop_settings: dict) -> dict:
     casting_region = CASTING_REGION_BY_TYPE[earring_type]
-    settings = {**EARRING_SHADOW, "casting_region": casting_region} if casting_region is not None else EARRING_SHADOW
+    settings = {**stud_drop_settings, "casting_region": casting_region} if casting_region is not None else stud_drop_settings
     shadowed = composite_with_shadow(img, settings)
     shadowed.save(front_path)
     return {"frontImage": str(front_path), "earringType": earring_type}
@@ -166,6 +192,7 @@ def _process_hoop(
     processing_mode: str,
     splits: dict[str, float],
     sku: str,
+    hoop_settings: dict,
 ) -> dict:
     """Hoop's compositing deliberately does not go through
     composite_with_shadow() — that helper pads to a square working canvas
@@ -213,7 +240,7 @@ def _process_hoop(
     # downstream Virtual Try-On usage.
     img.save(front_full_path)
 
-    settings = {**EARRING_SHADOW, "casting_region": HOOP_CASTING_REGION}
+    settings = {**hoop_settings, "casting_region": HOOP_CASTING_REGION}
     shadow = create_drop_shadow(
         masked_img, settings,
         subject_left=0, subject_width=masked_img.width,
@@ -247,6 +274,8 @@ def _process_one_image(
     earring_type: str,
     processing_mode: str,
     splits: dict[str, float],
+    stud_drop_settings: dict,
+    hoop_settings: dict,
 ) -> dict:
     """Returns the fields to merge into a 'complete' event. Raises on
     failure (including an unresolved type, or a Hoop SKU with no manual
@@ -265,9 +294,9 @@ def _process_one_image(
     img.save(compare_path)
 
     if earring_type == "hoop":
-        result = _process_hoop(img, front_full_path, front_path, processing_mode, splits, input_path.stem)
+        result = _process_hoop(img, front_full_path, front_path, processing_mode, splits, input_path.stem, hoop_settings)
     elif earring_type in CASTING_REGION_BY_TYPE:
-        result = _process_stud_or_drop(img, earring_type, front_path)
+        result = _process_stud_or_drop(img, earring_type, front_path, stud_drop_settings)
     else:
         raise ValueError(f"Unrecognized earring type: {earring_type!r}")
 
@@ -299,6 +328,11 @@ def main() -> int:
 
     output_dir.mkdir(parents=True, exist_ok=True)
     rb.emit_start(images)
+
+    # Resolved once, before the per-image loop — see _load_shadow_settings
+    # for the byte-identical-by-default guarantee (Phase 13H).
+    stud_drop_settings = _load_shadow_settings(args.shadow_profile_file, "earringStudDrop", EARRING_SHADOW)
+    hoop_settings = _load_shadow_settings(args.shadow_profile_file, "earringHoop", EARRING_SHADOW)
 
     def process_one(index: int, total: int, input_path: Path) -> None:
         sku = input_path.stem
@@ -342,7 +376,9 @@ def main() -> int:
         rb.emit({"type": "progress", "index": index, "total": total,
                   "image": input_path.name, "stage": stage, "status": "start"})
         t0 = time.perf_counter()
-        result = _process_one_image(input_path, output_dir, earring_type, args.processing_mode, splits)
+        result = _process_one_image(
+            input_path, output_dir, earring_type, args.processing_mode, splits, stud_drop_settings, hoop_settings
+        )
         duration_ms = int((time.perf_counter() - t0) * 1000)
         rb.emit({
             "type": "complete",

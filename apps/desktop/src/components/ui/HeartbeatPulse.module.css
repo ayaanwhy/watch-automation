@@ -1,0 +1,35 @@
+.pulse {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-caption);
+  color: var(--text-2);
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 0 0 var(--accent-fill);
+  animation: heartbeat 1.4s ease-in-out infinite;
+}
+
+@keyframes heartbeat {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 var(--accent-fill);
+  }
+  50% {
+    opacity: 0.6;
+    box-shadow: 0 0 0 4px var(--accent-fill);
+  }
+}
+
+.label {
+  white-space: nowrap;
+}
+
+:root[data-reduced-motion='true'] .dot {
+  animation: none;
+}

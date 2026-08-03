@@ -1,7 +1,7 @@
 .frame {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-3);
   width: 100%;
   height: 100%;
   min-height: 0;
@@ -19,27 +19,50 @@
   flex: 1;
   min-height: 0;
   width: 100%;
-  border-radius: 8px;
+  border-radius: var(--radius-10);
   overflow: hidden;
 }
 
-.bgTransparent {
-  background-color: #4a4a4a;
-  background-image:
-    linear-gradient(45deg, #6b6b6b 25%, transparent 25%),
-    linear-gradient(-45deg, #6b6b6b 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #6b6b6b 75%),
-    linear-gradient(-45deg, transparent 75%, #6b6b6b 75%);
-  background-size: 20px 20px;
-  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+/* Compare mode: side by side (Phase 13G) — two independent .box elements
+   instead of one overlaid/clipped pair; each keeps its own background,
+   image, and label. */
+.sideBySide {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  gap: var(--space-2);
 }
 
+.sideBySide .box {
+  flex: 1;
+}
+
+/* Stage backdrop (Phase 13F) — the same near-black surface every review
+   area sits on. */
+.bgNeutral {
+  background-color: var(--stage-bg);
+}
+
+/* Literal white, not a token — this option exists specifically to simulate
+   a white storefront backdrop (the shadows these pipelines produce are
+   designed against one), so it must render as pure white regardless of
+   theme, the same way --checker-a/--checker-b below are deliberately
+   outside the graphite scale. */
 .bgWhite {
   background-color: #fff;
 }
 
-.bgBlack {
-  background-color: #000;
+/* Classic transparency-indicator checkerboard — deliberately outside the
+   graphite scale (see global.css's --checker-a/--checker-b comment). */
+.bgCheckerboard {
+  background-color: var(--checker-a);
+  background-image:
+    linear-gradient(45deg, var(--checker-b) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--checker-b) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--checker-b) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--checker-b) 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
 }
 
 .image {
@@ -53,13 +76,16 @@
   user-select: none;
 }
 
+/* The compare-slider handle — the one sanctioned use of cyan (Design
+   Language: reserved so Phase 14's AI-predicted boundaries can own it as
+   "the machine suggests"; here it just means "you are dragging this"). */
 .handle {
   position: absolute;
   top: 0;
   bottom: 0;
   width: 2px;
-  background: #fff;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
+  background: var(--cyan);
+  box-shadow: 0 0 0 1px var(--media-scrim);
   transform: translateX(-1px);
   pointer-events: none;
 }
@@ -71,32 +97,31 @@
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--cyan);
+  /* A subtle dark rim, not a UI-chrome hairline — keeps the grip readable
+     against any of the three backdrops (including white) it can sit over. */
   border: 2px solid rgba(0, 0, 0, 0.15);
   transform: translate(-50%, -50%);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--elevation-2-shadow);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .handleArrows {
-  font-size: 12px;
-  letter-spacing: 2px;
-  color: #1a1a1a;
-  line-height: 1;
+  color: var(--bg-app);
 }
 
 .label {
   position: absolute;
   bottom: 10px;
   padding: 3px 9px;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: var(--text-label);
+  font-weight: var(--weight-semibold);
   letter-spacing: 0.03em;
-  color: #fff;
-  background: rgba(0, 0, 0, 0.6);
-  border-radius: 4px;
+  color: var(--text-1);
+  background: var(--media-scrim);
+  border-radius: var(--radius-6);
   pointer-events: none;
 }
 
@@ -106,11 +131,12 @@
   left: 50%;
   transform: translateX(-50%);
   padding: 4px 10px;
-  font-size: 11px;
-  font-weight: 600;
-  color: #fff;
-  background: rgba(180, 40, 40, 0.85);
-  border-radius: 4px;
+  font-size: var(--text-label);
+  font-weight: var(--weight-semibold);
+  color: var(--danger);
+  background: var(--surface-1);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-6);
   pointer-events: none;
 }
 

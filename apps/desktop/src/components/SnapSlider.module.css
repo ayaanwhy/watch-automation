@@ -10,9 +10,9 @@
 }
 
 .label {
-  font-size: 12px;
-  font-weight: 500;
-  color: #555;
+  font-size: var(--text-label);
+  font-weight: var(--weight-medium);
+  color: var(--text-2);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -25,14 +25,14 @@
 }
 
 .sliderWrap:focus-visible .thumb {
-  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--focus-ring);
 }
 
 /* Vertical space above/below the track accounts for the overflowing thumb */
 .track {
   position: relative;
   height: 4px;
-  background: #e0e0e0;
+  background: var(--surface-2);
   border-radius: 2px;
   margin: 10px 0 10px;
 }
@@ -43,9 +43,9 @@
   left: 0;
   top: 0;
   height: 100%;
-  background: #1a1a1a;
+  background: var(--accent);
   border-radius: 2px;
-  transition: width 0.12s ease;
+  transition: width var(--duration-100) var(--ease-out);
   pointer-events: none;
 }
 
@@ -55,10 +55,10 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #1a1a1a;
+  background: var(--accent);
   top: 50%;
   transform: translate(-50%, -50%);
-  transition: left 0.12s ease;
+  transition: left var(--duration-100) var(--ease-out);
   pointer-events: none;
 }
 
@@ -69,8 +69,8 @@
 }
 
 .optionLabel {
-  font-size: 12px;
-  color: #999;
+  font-size: var(--text-label);
+  color: var(--text-3);
   cursor: pointer;
   line-height: 1;
   min-width: 0;
@@ -83,8 +83,8 @@
 }
 
 .activeLabel {
-  color: #1a1a1a;
-  font-weight: 600;
+  color: var(--text-1);
+  font-weight: var(--weight-semibold);
 }
 
 /* Disabled state — dim everything and block interaction */

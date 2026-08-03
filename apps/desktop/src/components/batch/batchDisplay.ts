@@ -1,5 +1,5 @@
 import type { BatchDetailRecord, BatchStatus, StageStatus, StageType } from '../../types/batch'
-import type { ChipTone } from '../ui/StatusChip'
+import type { BadgeTone } from '../ui/Badge'
 
 // Shared display mappings for the Batch-first UI (Home cards, contextual
 // sidebar, batch workspace). Kept pure so it can be reused anywhere.
@@ -20,11 +20,14 @@ export const BATCH_STATUS_LABELS: Record<BatchStatus, string> = {
   cancelled: 'Cancelled',
 }
 
-export function batchStatusTone(status: BatchStatus): ChipTone {
+// Phase 13D — returns Badge's tone vocabulary (StatusChip retired; both of
+// this function's only two consumers, BatchCard and BatchDetails, migrated
+// to Badge in this same phase).
+export function batchStatusTone(status: BatchStatus): BadgeTone {
   switch (status) {
-    case 'completed': return 'ok'
-    case 'failed': return 'err'
-    case 'cancelled': return 'warn'
+    case 'completed': return 'success'
+    case 'failed': return 'danger'
+    case 'cancelled': return 'warning'
     case 'in_progress': return 'running'
     default: return 'neutral'
   }
@@ -39,11 +42,11 @@ export const STAGE_STATUS_LABELS: Record<StageStatus, string> = {
   cancelled: 'Cancelled',
 }
 
-export function stageStatusTone(status: StageStatus): ChipTone {
+export function stageStatusTone(status: StageStatus): BadgeTone {
   switch (status) {
-    case 'completed': return 'ok'
-    case 'failed': return 'err'
-    case 'cancelled': return 'warn'
+    case 'completed': return 'success'
+    case 'failed': return 'danger'
+    case 'cancelled': return 'warning'
     case 'running': return 'running'
     default: return 'neutral'
   }
@@ -74,18 +77,6 @@ export function readConfigValue(config: Record<string, unknown>, key: string): s
   if (value === undefined || value === null) return null
   if (typeof value === 'boolean') return value ? 'On' : 'Off'
   return String(value)
-}
-
-export type ModuleTone = 'blue' | 'purple' | 'neutral'
-
-// Which color a stage's "module" badge should use on a Batch card — Blue for
-// Preprocessing, Purple for Editing (Watch), neutral for stages that don't
-// have a defined module color yet (QA/Export). Independent of stageStatusTone,
-// which colors the status dot inside the same badge.
-export function stageModuleTone(type: StageType): ModuleTone {
-  if (type === 'preprocessing') return 'blue'
-  if (type === 'watch') return 'purple'
-  return 'neutral'
 }
 
 export function formatRelativeTime(iso: string): string {

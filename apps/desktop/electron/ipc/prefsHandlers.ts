@@ -4,12 +4,17 @@ import { join } from 'node:path'
 import { logger } from '../logger'
 import { atomicWriteJson } from '../services/atomicFile'
 import { getPresetDefinitions, savePresetDefinition } from '../services/preprocessingPresetDefinitions'
+import { getShadowProfileDefinitions, saveShadowProfileDefinition } from '../services/shadowProfileDefinitions'
 import type {
   PreprocessingPreset,
   PreprocessingPresetValues,
   PreprocessingPresetDefinition,
   PreprocessingPresetDefinitions,
 } from '../../src/constants/preprocessingPresets'
+import type {
+  ShadowProfileDefinition,
+  ShadowProfileDefinitions,
+} from '../../src/constants/shadowProfiles'
 import type {
   LastBatchPrefs,
   UpscaleFactor,
@@ -20,7 +25,16 @@ import type {
   RingBraceletFolderPrefsSavePayload,
   EditingHandoffOptionsPrefs,
   EarringFolderPrefs,
+  AppearancePrefs,
+  ShadowProfileDefinitionSavePayload,
 } from '../../src/types/ipc'
+
+const APPEARANCE_FILENAME = 'appearance.json'
+const DEFAULT_APPEARANCE_PREFS: AppearancePrefs = {
+  reducedMotion: 'system',
+  reducedTransparency: 'system',
+  ambientIntensity: 'standard',
+}
 
 const PREFS_FILENAME = 'last-batch.json'
 const EDITING_HANDOFF_OPTIONS_FILENAME = 'editing-handoff-options.json'
@@ -120,6 +134,43 @@ export function registerPrefsHandlers(): void {
     payload: { preset: PreprocessingPreset; values: PreprocessingPresetValues },
   ): Promise<PreprocessingPresetDefinition> => {
     return savePresetDefinition(payload.preset, payload.values)
+  })
+
+  // ── Shadow profile definitions (Phase 13H) ──────────────────────────────────
+  // What each of the three shadow profiles actually means — editable only
+  // from Settings. Mirrors the preprocessing preset definitions pair above
+  // exactly; see services/shadowProfileDefinitions.ts.
+  ipcMain.handle('prefs:load-shadow-profile-definitions', async (): Promise<ShadowProfileDefinitions> => {
+    return getShadowProfileDefinitions()
+  })
+
+  ipcMain.handle('prefs:save-shadow-profile-definition', async (
+    _event,
+    payload: ShadowProfileDefinitionSavePayload,
+  ): Promise<ShadowProfileDefinition> => {
+    return saveShadowProfileDefinition(payload.name, payload.values)
+  })
+
+  // ── Appearance (Phase 13H) ──────────────────────────────────────────────────
+  // A single JSON blob, same one-value-per-concern pattern as the
+  // preprocessing preset slot above — no versioning needed, this is a plain
+  // user preference, not something batches record provenance against.
+  ipcMain.handle('prefs:load-appearance', async (): Promise<AppearancePrefs> => {
+    try {
+      const raw = await readFile(join(app.getPath('userData'), APPEARANCE_FILENAME), 'utf-8')
+      return { ...DEFAULT_APPEARANCE_PREFS, ...JSON.parse(raw) }
+    } catch (err) {
+      logReadError(APPEARANCE_FILENAME, err)
+      return DEFAULT_APPEARANCE_PREFS
+    }
+  })
+
+  ipcMain.handle('prefs:save-appearance', async (_event, payload: AppearancePrefs): Promise<void> => {
+    try {
+      await atomicWriteJson(join(app.getPath('userData'), APPEARANCE_FILENAME), payload)
+    } catch (err) {
+      logWriteError(APPEARANCE_FILENAME, err)
+    }
   })
 
   // Remembers the EditingHandoffDialog's last-used Trim/Rotate/Destination

@@ -55,6 +55,14 @@ export interface StageCounts {
   failed: number
   cancelled: number
   needsFixing: number
+  // Images whose assets.detected === false (Phase 13D, additive) — the
+  // machine's own low-confidence signal (Ring/Bracelet's shank mask,
+  // Earring Hoop's split detection), independent of needsFixing (human
+  // judgment). Feeds the Dashboard's Attention row "Waiting review" tile
+  // without a per-batch detail fetch. Not a subset of needsFixing or vice
+  // versa — an image can be low-confidence and still un-reviewed, or
+  // reviewed (needsFixing) despite high confidence.
+  lowConfidence: number
 }
 
 export interface StageRef {

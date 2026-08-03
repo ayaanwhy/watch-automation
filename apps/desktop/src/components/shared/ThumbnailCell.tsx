@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import { Flag, AlertTriangle } from 'lucide-react'
 import styles from './ThumbnailCell.module.css'
 
 // Defined locally (not imported from PreprocessingJobContext) so this
@@ -30,9 +31,13 @@ const STATUS_LABEL: Record<ThumbnailStatus, string> = {
 // A single grid cell. Every status is communicated without ever removing the
 // image — pending is dimmed, processing shows an indeterminate left-to-right
 // sweep (no per-image percentage exists in the wire protocol, so this is
-// honestly indeterminate rather than a fabricated number), completed clears
-// to full visibility with a check badge, failed/cancelled keep the thumbnail
-// visible under a tinted overlay with a status badge.
+// honestly indeterminate rather than a fabricated number). Phase 13F:
+// status reads as a thin ring + corner dot rather than a color wash over
+// the thumbnail (Component System: "status as a thin ring + corner dot
+// (never color washes over the image), accent outline for selection, rose
+// corner flag for Needs Fixing") — selection always wins the ring's color
+// when both apply, since "where am I in this grid" is the more important
+// signal at a glance.
 export function ThumbnailCell({ name, status, lowConfidence, needsFixing, src, selected, onClick, style }: ThumbnailCellProps) {
   const title = needsFixing
     ? `${name} — ${STATUS_LABEL[status]} — flagged: needs fixing`
@@ -48,20 +53,17 @@ export function ThumbnailCell({ name, status, lowConfidence, needsFixing, src, s
       data-status={status}
     >
       <img className={styles.image} src={src} alt="" loading="lazy" decoding="async" draggable={false} />
-      <div className={styles.overlay} aria-hidden="true" />
       {status === 'processing' && (
         <div className={styles.sweepTrack}>
           <div className={styles.sweepBar} />
         </div>
       )}
-      {status === 'completed' && <span className={`${styles.badge} ${styles.badgeOk}`}>✓</span>}
-      {status === 'failed' && <span className={`${styles.badge} ${styles.badgeErr}`}>!</span>}
-      {status === 'cancelled' && <span className={`${styles.badge} ${styles.badgeWarn}`}>·</span>}
+      <span className={styles.statusDot} aria-hidden="true" />
       {status === 'completed' && lowConfidence && (
-        <span className={`${styles.badge} ${styles.badgeLowConfidence}`} aria-hidden="true">⚠</span>
+        <AlertTriangle size={11} strokeWidth={2} className={`${styles.flagIcon} ${styles.flagLowConfidence}`} aria-hidden="true" />
       )}
       {status === 'completed' && needsFixing && (
-        <span className={`${styles.badge} ${styles.badgeNeedsFixing}`} aria-hidden="true">🚩</span>
+        <Flag size={11} strokeWidth={2} className={`${styles.flagIcon} ${styles.flagNeedsFixing}`} aria-hidden="true" />
       )}
       <span className={styles.name}>{name}</span>
     </button>

@@ -1,112 +1,22 @@
-.page {
-  min-height: 100vh;
+.nameRow {
   display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  /* Top padding lives on the sticky title row instead, so spacing stays
-     identical whether it's stuck or not. */
-  padding: 0 24px 48px;
-}
-
-.container {
-  width: 100%;
-  max-width: 680px;
-}
-
-.titleRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  background: var(--bg);
-  padding-top: 48px;
-  padding-bottom: 20px;
-  margin-bottom: 12px;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.title {
-  font-size: 22px;
-  font-weight: 600;
-  color: #111;
-}
-
-.settingsButton {
-  font-size: 17px;
-  line-height: 1;
-  color: #888;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 6px 8px;
-  border-radius: 6px;
-}
-
-.settingsButton:hover {
-  background: #f0f0f0;
-  color: #1a1a1a;
-}
-
-.fields {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.helperText {
-  margin: -8px 0 0;
-  font-size: 12px;
-  color: #888;
-}
-
-.errorBanner {
-  margin-top: 20px;
-  padding: 12px 16px;
-  font-size: 13px;
-  color: #c0392b;
-  background: #fff5f5;
-  border: 1px solid #f5c0c0;
-  border-radius: 6px;
-}
-
-.actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 28px;
-}
-
-.startButton {
-  padding: 8px 24px;
-  font-size: 14px;
-  font-weight: 500;
-  color: #fff;
-  background: #1a1a1a;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.startButton:hover:not(:disabled) {
-  background: #333;
-}
-
-.startButton:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
+  align-items: flex-end;
+  gap: var(--space-4);
+  flex-wrap: wrap;
 }
 
 .selectField {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  flex: 1;
+  min-width: 220px;
 }
 
 .selectLabel {
-  font-size: 12px;
-  font-weight: 500;
-  color: #555;
+  font-size: var(--text-label);
+  font-weight: var(--weight-medium);
+  color: var(--text-2);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -114,17 +24,17 @@
 .textInput {
   height: 40px;
   padding: 0 10px;
-  font-size: 13px;
+  font-size: var(--text-body);
   font-family: inherit;
-  color: #1a1a1a;
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 6px;
+  color: var(--text-1);
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-6);
 }
 
 .textInput:focus {
   outline: none;
-  border-color: #1a1a1a;
+  box-shadow: var(--focus-ring);
 }
 
 .textInput:disabled {
@@ -132,23 +42,14 @@
   cursor: not-allowed;
 }
 
-/* "Recent Preprocessing Batches" listing panel (Phase 10F) */
-.recentPanel {
-  margin-top: 40px;
-}
-
-.recentHeading {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-subtle, #666);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-bottom: 12px;
-}
-
-.recentList {
+.presetField {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 6px;
 }
 
+.helperText {
+  margin: calc(var(--space-3) * -1) 0 0;
+  font-size: var(--text-label);
+  color: var(--text-3);
+}

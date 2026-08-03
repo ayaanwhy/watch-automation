@@ -9,9 +9,11 @@ import type {
   PreprocessingPresetValues,
 } from '../constants/preprocessingPresets'
 
-// Settings-only — Preprocessing.tsx never uses this; it only sends a preset
-// name (see usePreprocessingPreset.ts). This hook owns editing what each
-// name actually means.
+// Editing what each preset name actually means is still Settings-only
+// (saveValues/resetToDefault). Preprocessing.tsx (Phase 13E) also reads
+// `definitions` now, but read-only — to compute each preset card's
+// "Customized" marker via isPresetModified — it still only ever sends a
+// preset name at start time (see usePreprocessingPreset.ts).
 export function usePreprocessingPresetDefinitions() {
   const [definitions, setDefinitions] = useState<PreprocessingPresetDefinitions>(factoryPresetDefinitions())
   const [loaded, setLoaded] = useState(false)

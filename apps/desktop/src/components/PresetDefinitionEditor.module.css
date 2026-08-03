@@ -1,62 +1,62 @@
 .editor {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .statusRow {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-3);
 }
 
 .version {
-  font-size: 12px;
-  font-weight: 600;
-  color: #888;
+  font-size: var(--text-caption);
+  font-weight: var(--weight-semibold);
+  color: var(--text-3);
   font-variant-numeric: tabular-nums;
 }
 
 .statusDefault {
-  font-size: 12px;
-  color: #888;
+  font-size: var(--text-caption);
+  color: var(--text-3);
   flex: 1;
 }
 
 .statusModified {
-  font-size: 12px;
-  color: #a86a1a;
+  font-size: var(--text-caption);
+  color: var(--warning);
   flex: 1;
 }
 
 .grid {
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 8px 12px;
+  gap: var(--space-2) var(--space-3);
   align-items: center;
 }
 
 .label {
-  font-size: 12px;
-  color: #555;
+  font-size: var(--text-caption);
+  color: var(--text-2);
 }
 
 .input {
   width: 90px;
   height: 30px;
-  padding: 0 8px;
-  font-size: 12px;
+  padding: 0 var(--space-2);
+  font-size: var(--text-caption);
   text-align: right;
-  color: #1a1a1a;
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  color: var(--text-1);
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-6);
   font-variant-numeric: tabular-nums;
 }
 
 .input:focus {
   outline: none;
-  border-color: #1a1a1a;
+  border-color: var(--accent);
 }
 
 .input:disabled {
@@ -73,7 +73,7 @@
 .thresholdPair {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   justify-self: end;
 }
 

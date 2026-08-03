@@ -1,0 +1,74 @@
+.disclosure {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-10);
+  overflow: hidden;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-1);
+  border: none;
+  font-family: inherit;
+  font-size: var(--text-body);
+  font-weight: var(--weight-medium);
+  color: var(--text-1);
+  text-align: left;
+  cursor: pointer;
+}
+
+.toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.chevron {
+  flex-shrink: 0;
+  color: var(--text-3);
+  transition: transform var(--duration-160) var(--ease-out);
+}
+
+.chevronOpen {
+  transform: rotate(90deg);
+}
+
+.toggleHint {
+  color: var(--text-3);
+  font-weight: var(--weight-normal);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-top: 1px solid var(--hairline);
+  background: var(--surface-1);
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-body);
+  color: var(--text-1);
+  cursor: pointer;
+}
+
+.note {
+  margin: 0;
+  font-size: var(--text-caption);
+  color: var(--text-3);
+}
+
+.errorBanner {
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-label);
+  color: var(--danger);
+  background: var(--danger-fill);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-6);
+}

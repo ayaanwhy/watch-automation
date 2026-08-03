@@ -3,6 +3,7 @@ import { join, extname } from 'node:path'
 import { stat, readdir } from 'node:fs/promises'
 import { createSubprocessRunner } from '../services/subprocessRunner'
 import { logger } from '../logger'
+import { getShadowProfileDefinition, writeShadowProfileSidecar } from '../services/shadowProfileDefinitions'
 import type {
   RingBraceletStartPayload,
   RingBraceletStartResult,
@@ -21,12 +22,22 @@ function getRunnerPath(): string {
   return join(app.getAppPath(), '..', '..', 'preprocessing', 'RingBracelet', 'runner.py')
 }
 
-function buildArgs(runnerPath: string, payload: RingBraceletStartPayload): string[] {
+// Internal-only field, never sent by the renderer — computed by the
+// ring-bracelet:start handler below (async: it writes the current shadow
+// profile definitions to a temp sidecar) before calling runner.start(),
+// then read synchronously by buildArgs, mirroring earringHandlers.ts's
+// ResolvedEarringStartPayload convention exactly (Phase 13H).
+interface ResolvedRingBraceletStartPayload extends RingBraceletStartPayload {
+  shadowProfileSidecarPath: string
+}
+
+function buildArgs(runnerPath: string, payload: ResolvedRingBraceletStartPayload): string[] {
   const args: string[] = [
     runnerPath,
     '--input-dir', payload.inputDir,
     '--output-dir', payload.outputDir,
     '--product', payload.product,
+    '--shadow-profile-file', payload.shadowProfileSidecarPath,
   ]
   if (payload.splitY !== undefined) args.push('--split-y', String(payload.splitY))
   // Phase 11.5C — omitted means 'automatic', matching pre-11.5C behavior
@@ -35,7 +46,7 @@ function buildArgs(runnerPath: string, payload: RingBraceletStartPayload): strin
   return args
 }
 
-const runner = createSubprocessRunner<RingBraceletStartPayload>({
+const runner = createSubprocessRunner<ResolvedRingBraceletStartPayload>({
   label: 'ring-bracelet',
   stageType: 'editing',
   eventChannel: 'ring-bracelet:event',
@@ -53,6 +64,10 @@ const runner = createSubprocessRunner<RingBraceletStartPayload>({
     product: payload.product,
     splitY: payload.splitY ?? 0.5,
     processingMode: payload.processingMode ?? 'automatic',
+    // Lightweight provenance, not a full snapshot — mirrors presetVersion's
+    // exact convention (preprocessHandlers.ts). Read at start time, so a
+    // profile edited mid-run doesn't retroactively relabel an in-flight job.
+    shadowProfileVersion: getShadowProfileDefinition('ringBracelet').version,
   }),
   mapCompleteEvent: (event): Omit<StageImageRecord, 'name'> => {
     const frontFullImage = (event['frontFullImage'] as string) ?? null
@@ -76,7 +91,15 @@ const runner = createSubprocessRunner<RingBraceletStartPayload>({
 
 export function registerRingBraceletHandlers(): void {
   ipcMain.handle('ring-bracelet:start', async (_event, payload: RingBraceletStartPayload): Promise<RingBraceletStartResult> => {
-    return runner.start(payload)
+    let shadowProfileSidecarPath: string
+    try {
+      shadowProfileSidecarPath = await writeShadowProfileSidecar()
+    } catch (err) {
+      logger.error('ring-bracelet:start — failed to write shadow profile sidecar', err)
+      return { ok: false, error: 'Failed to prepare shadow profile data for the runner.' }
+    }
+
+    return runner.start({ ...payload, shadowProfileSidecarPath })
   })
 
   // Cooperative only, same rationale as preprocess:cancel even though

@@ -10,8 +10,10 @@ import { registerBatchRegistryHandlers } from './ipc/batchRegistryHandlers'
 import { registerRingBraceletHandlers } from './ipc/ringBraceletHandlers'
 import { registerMetadataHandlers } from './ipc/metadataHandlers'
 import { registerEarringHandlers } from './ipc/earringHandlers'
+import { registerShadowPreviewHandlers } from './ipc/shadowPreviewHandlers'
 import { reconcileBatchesOnStartup } from './services/batchRegistry'
 import { hydratePresetDefinitions } from './services/preprocessingPresetDefinitions'
+import { hydrateShadowProfileDefinitions } from './services/shadowProfileDefinitions'
 import { logger, pruneOldLogs } from './logger'
 
 process.on('uncaughtException', (err) => {
@@ -61,6 +63,9 @@ app.whenReady().then(async () => {
   // preset definitions synchronously when a job starts, so the in-memory
   // cache needs to already be populated before the renderer can trigger one.
   await hydratePresetDefinitions()
+  // Same rationale — writeShadowProfileSidecar/buildStageConfig read shadow
+  // profile definitions synchronously (Phase 13H).
+  await hydrateShadowProfileDefinitions()
   // Non-blocking — a slow prune shouldn't delay window startup, and a
   // failed one is already swallowed internally (see pruneOldLogs).
   void pruneOldLogs()
@@ -74,6 +79,7 @@ app.whenReady().then(async () => {
   registerRingBraceletHandlers()
   registerMetadataHandlers()
   registerEarringHandlers()
+  registerShadowPreviewHandlers()
   createWindow()
 
   app.on('activate', () => {

@@ -1,0 +1,96 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 320px;
+  flex-shrink: 0;
+  text-align: left;
+  font-family: inherit;
+  padding: var(--space-4);
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-14);
+  cursor: pointer;
+  transition: transform var(--duration-160) var(--ease-out), box-shadow var(--duration-160) var(--ease-out), border-color var(--duration-160) var(--ease-out);
+}
+
+.card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--elevation-2-shadow);
+  border-color: var(--hairline-strong);
+}
+
+.card:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.glyphSlot {
+  position: relative;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ring {
+  position: absolute;
+  inset: 0;
+  color: var(--accent);
+}
+
+.glyph {
+  position: relative;
+  color: var(--text-2);
+}
+
+.titleBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.title {
+  font-size: var(--text-emphasized);
+  font-weight: var(--weight-semibold);
+  color: var(--text-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.currentImage {
+  font-size: var(--text-caption);
+  font-family: var(--font-mono);
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.heartbeat {
+  flex-shrink: 0;
+}
+
+.tracker {
+  padding: 0 var(--space-1);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--text-caption);
+  color: var(--text-3);
+}

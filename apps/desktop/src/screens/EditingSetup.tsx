@@ -1,7 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { PageHeader } from '../components/ui/PageHeader'
 import { SegmentedControl } from '../components/ui/SegmentedControl'
 import { PathField } from '../components/PathField'
+import { ConsoleLayout } from '../components/console/ConsoleLayout'
+import { ConsoleSummaryPanel, type ConsoleSummaryItem } from '../components/console/ConsoleSummaryPanel'
+import { PrepareInputDisclosure } from '../components/editing/PrepareInputDisclosure'
 import BatchSetup from './BatchSetup'
 import { useRingBraceletFolders } from '../hooks/useRingBraceletFolders'
 import { useEarringFolders } from '../hooks/useEarringFolders'
@@ -14,7 +17,7 @@ import type { BatchState } from '../types/annotation'
 import type { SessionFile } from '../types/session'
 import type { EditingProduct } from '../types/navigation'
 import type { BatchValidationResult, ProductMetadataLoadResult } from '../types/ipc'
-import type { BatchDetailRecord } from '../types/batch'
+import type { BatchDetailRecord, BatchMode } from '../types/batch'
 import type { EarringType } from '../constants/earringClassification'
 import styles from './EditingSetup.module.css'
 
@@ -23,6 +26,11 @@ const PRODUCT_OPTIONS: { value: EditingProduct; label: string }[] = [
   { value: 'ring', label: 'Ring' },
   { value: 'bracelet', label: 'Bracelet' },
   { value: 'earring', label: 'Earring' },
+]
+
+const MODE_OPTIONS: { value: BatchMode; label: string }[] = [
+  { value: 'production', label: 'Production' },
+  { value: 'testing', label: 'Testing' },
 ]
 
 interface EditingSetupProps {
@@ -48,14 +56,34 @@ interface EditingSetupProps {
   // than issuing a second fetch; App.tsx's existing status-driven rendering
   // does the rest (no separate navigation call needed — see App.tsx).
   onEnterHoopBoundaryEditor: (detail: BatchDetailRecord) => void
+  // Production/Testing (Phase 13E, Decision — "batch name and mode become
+  // fields on the consoles themselves"). Controlled from App.tsx's own
+  // pendingMode state, exactly like Preprocessing.tsx — see that screen's
+  // identical prop for the full rationale. Watch/BatchSetup doesn't consume
+  // this (its own batch-creation path never reads pendingMode, unchanged
+  // pre-13E behavior) — it's still passed uniformly for prop-shape
+  // consistency, matching how onCreateRingBraceletBatch etc. are already
+  // passed to the Watch branch despite not being used there.
+  mode: BatchMode
+  onModeChange: (mode: BatchMode) => void
 }
 
-// The shared Editing setup screen (Phase 10D, extended in 12C): one product
-// selector, with Watch's existing BatchSetup, the Ring & Bracelet fields, or
-// the Earring fields rendered beneath it depending on the current selection.
-// This is the single entry point for all four — Home's generic "Editing"
-// launch and each sidebar shortcut all render this same component, differing
-// only in which product is preselected (see App.tsx).
+// The shared Editing setup screen (Phase 10D, extended in 12C, rebuilt as a
+// Console in 13E): one product selector, with Watch's existing BatchSetup,
+// the Ring & Bracelet fields, or the Earring fields rendered beneath it
+// depending on the current selection. This is the single entry point for
+// all four — Home's generic "Editing" launch and each sidebar shortcut all
+// render this same component, differing only in which product is
+// preselected (see App.tsx).
+//
+// Watch/BatchSetup is a reskin-only exception here, deliberately: it's a
+// large, validated, pre-existing component with its own internal Begin
+// Annotation action and no Production/Testing concept in its batch-creation
+// path (see the `mode` prop's doc comment) — lifting it into the two-pane
+// Console/shared-Start-button shape would be a real functional change to a
+// component this phase's scope doesn't touch, not a pure reskin. Ring &
+// Bracelet and Earring get the full Console treatment; Watch keeps its
+// existing plain layout, unchanged (see the Phase 13E report).
 export default function EditingSetup({
   product,
   onProductChange,
@@ -65,49 +93,56 @@ export default function EditingSetup({
   onCreateRingBraceletBatch,
   onCreateEarringBatch,
   onEnterHoopBoundaryEditor,
+  mode,
+  onModeChange,
 }: EditingSetupProps) {
-  return (
-    <div className={styles.page}>
-      <div className={styles.container}>
-        <PageHeader title="Editing" subtitle="Choose a product, then configure a new batch." />
+  const productSelector = (
+    <div className={styles.productField}>
+      <SegmentedControl label="Product" options={PRODUCT_OPTIONS} value={product} onChange={onProductChange} />
+    </div>
+  )
 
-        <div className={styles.productField}>
-          <SegmentedControl
-            label="Product"
-            options={PRODUCT_OPTIONS}
-            value={product}
-            onChange={onProductChange}
-          />
-        </div>
-
-        {product === 'watch' && (
+  if (product === 'watch') {
+    return (
+      <div className={styles.page}>
+        <div className={styles.container}>
+          <PageHeader title="Editing" subtitle="Choose a product, then configure a new batch." />
+          {productSelector}
           <BatchSetup
             onBeginAnnotation={onBeginAnnotation}
             initialBatchName={initialBatchName}
             handoffFolder={handoffFolder}
           />
-        )}
-
-        {(product === 'ring' || product === 'bracelet') && (
-          <RingBraceletFields
-            key={product}
-            product={product}
-            initialBatchName={initialBatchName}
-            handoffFolder={handoffFolder}
-            onCreateBatch={onCreateRingBraceletBatch}
-          />
-        )}
-
-        {product === 'earring' && (
-          <EarringFields
-            initialBatchName={initialBatchName}
-            handoffFolder={handoffFolder}
-            onCreateBatch={onCreateEarringBatch}
-            onEnterHoopBoundaryEditor={onEnterHoopBoundaryEditor}
-          />
-        )}
+        </div>
       </div>
-    </div>
+    )
+  }
+
+  if (product === 'ring' || product === 'bracelet') {
+    return (
+      <RingBraceletFields
+        key={product}
+        product={product}
+        initialBatchName={initialBatchName}
+        handoffFolder={handoffFolder}
+        onCreateBatch={onCreateRingBraceletBatch}
+        mode={mode}
+        onModeChange={onModeChange}
+        productSelector={productSelector}
+      />
+    )
+  }
+
+  return (
+    <EarringFields
+      initialBatchName={initialBatchName}
+      handoffFolder={handoffFolder}
+      onCreateBatch={onCreateEarringBatch}
+      onEnterHoopBoundaryEditor={onEnterHoopBoundaryEditor}
+      mode={mode}
+      onModeChange={onModeChange}
+      productSelector={productSelector}
+    />
   )
 }
 
@@ -115,6 +150,11 @@ export default function EditingSetup({
 // Deliberately its own small block rather than a separate screen file — it's
 // a handful of fields (no validation/matching/session concepts like Watch
 // has), so a parallel file would be more ceremony than the content warrants.
+// Phase 13E: renders its own ConsoleLayout/ConsoleSummaryPanel directly
+// (rather than EditingSetup lifting this component's state up to render
+// them itself) since this component already owns all the state a summary
+// panel needs to restate — the established "self-contained block" pattern
+// this file already uses extends naturally to owning its own Console shell.
 
 interface RingBraceletFieldsProps {
   product: 'ring' | 'bracelet'
@@ -126,9 +166,20 @@ interface RingBraceletFieldsProps {
   // prop only drives the "Prepared ✓" badge once that value has loaded.
   handoffFolder: string | null
   onCreateBatch: (sourceDir: string, title: string, product: 'ring' | 'bracelet') => Promise<string>
+  mode: BatchMode
+  onModeChange: (mode: BatchMode) => void
+  productSelector: ReactNode
 }
 
-function RingBraceletFields({ product, initialBatchName, handoffFolder, onCreateBatch }: RingBraceletFieldsProps) {
+function RingBraceletFields({
+  product,
+  initialBatchName,
+  handoffFolder,
+  onCreateBatch,
+  mode,
+  onModeChange,
+  productSelector,
+}: RingBraceletFieldsProps) {
   const [batchName, setBatchName] = useState(initialBatchName)
   const [starting, setStarting] = useState(false)
   // Defaults to 'automatic' — matches the pre-11.5C behavior of always
@@ -137,6 +188,11 @@ function RingBraceletFields({ product, initialBatchName, handoffFolder, onCreate
   const [processingMode, setProcessingMode] = useState<ProcessingMode>('automatic')
   const [validation, setValidation] = useState<BatchValidationResult | null>(null)
   const [validating, setValidating] = useState(false)
+  // Prepare Input (Phase 13E, Decision 16) — mirrors handoffFolder's own
+  // "matches the current input dir" pattern exactly, just for a prep run
+  // triggered from inside this console instead of arriving via the
+  // Preprocessing → Editing hand-off dialog.
+  const [preparedInputDir, setPreparedInputDir] = useState<string | null>(null)
   const folders = useRingBraceletFolders(product)
   const python = usePythonInterpreter()
   const job = useRingBraceletJob()
@@ -195,25 +251,50 @@ function RingBraceletFields({ product, initialBatchName, handoffFolder, onCreate
   }
 
   const isHandoff = handoffFolder !== null && folders.inputDir === handoffFolder
+  const isPrepared = preparedInputDir !== null && folders.inputDir === preparedInputDir
+  const showPreparedBadge = isHandoff || isPrepared
+
+  const summaryItems: ConsoleSummaryItem[] = [
+    { label: 'Images', value: validation?.ok ? String(validation.imageCount) : '—' },
+    { label: 'Product', value: product === 'bracelet' ? 'Bracelet' : 'Ring' },
+    { label: 'Masking', value: processingMode === 'manual' ? 'Manual' : 'Automatic' },
+    { label: 'Mode', value: mode === 'testing' ? 'Testing' : 'Production' },
+  ]
 
   return (
-    <div className={styles.fields}>
+    <ConsoleLayout
+      title="Editing"
+      subtitle="Choose a product, then configure a new batch."
+      headerExtra={productSelector}
+      summary={
+        <ConsoleSummaryPanel
+          items={summaryItems}
+          onStart={handleStart}
+          canStart={canStart}
+          starting={starting}
+          error={job.startError}
+        />
+      }
+    >
       {isHandoff && (
         <p className={styles.handoffMessage}>
           ✓ Input folder prepared from Preprocessing. Choose an output folder to continue.
         </p>
       )}
-      <div className={styles.nameField}>
-        <label className={styles.nameLabel}>Batch Name (optional)</label>
-        <input
-          className={styles.nameInput}
-          type="text"
-          value={batchName}
-          onChange={e => setBatchName(e.target.value)}
-          placeholder="A name is generated if left blank"
-          spellCheck={false}
-          disabled={starting}
-        />
+      <div className={styles.nameRow}>
+        <div className={styles.nameField}>
+          <label className={styles.nameLabel}>Batch Name (optional)</label>
+          <input
+            className={styles.nameInput}
+            type="text"
+            value={batchName}
+            onChange={e => setBatchName(e.target.value)}
+            placeholder="A name is generated if left blank"
+            spellCheck={false}
+            disabled={starting}
+          />
+        </div>
+        <SegmentedControl label="Mode" options={MODE_OPTIONS} value={mode} onChange={onModeChange} disabled={starting} />
       </div>
       <PathField
         label="Input Folder"
@@ -222,7 +303,7 @@ function RingBraceletFields({ product, initialBatchName, handoffFolder, onCreate
         onPick={() => pickInputDir()}
         onDropPath={pickInputDir}
         disabled={starting}
-        badge={isHandoff ? 'Prepared ✓' : undefined}
+        badge={showPreparedBadge ? 'Prepared ✓' : undefined}
       />
       {validating && (
         <p className={styles.helperText}>Checking input folder…</p>
@@ -235,6 +316,17 @@ function RingBraceletFields({ product, initialBatchName, handoffFolder, onCreate
           {validation.imageCount} {validation.imageCount === 1 ? 'image' : 'images'} found.
         </p>
       )}
+      {!showPreparedBadge && folders.inputDir !== '' && (
+        <PrepareInputDisclosure
+          sourceDir={folders.inputDir}
+          isEarring={false}
+          disabled={starting}
+          onPrepared={preparedDir => {
+            setPreparedInputDir(preparedDir)
+            folders.setInputDir(preparedDir)
+          }}
+        />
+      )}
       <PathField
         label="Output Folder"
         value={folders.outputDir}
@@ -244,20 +336,12 @@ function RingBraceletFields({ product, initialBatchName, handoffFolder, onCreate
         disabled={starting}
       />
       <SegmentedControl
-        label="Mode"
+        label="Masking"
         options={PROCESSING_MODE_OPTIONS}
         value={processingMode}
         onChange={setProcessingMode}
       />
-
-      {job.startError && <div className={styles.errorBanner}>{job.startError}</div>}
-
-      <div className={styles.actions}>
-        <button className={styles.startButton} onClick={handleStart} disabled={!canStart}>
-          {starting ? 'Starting…' : 'Start'}
-        </button>
-      </div>
-    </div>
+    </ConsoleLayout>
   )
 }
 
@@ -279,9 +363,20 @@ interface EarringFieldsProps {
   handoffFolder: string | null
   onCreateBatch: (sourceDir: string, title: string) => Promise<string>
   onEnterHoopBoundaryEditor: (detail: BatchDetailRecord) => void
+  mode: BatchMode
+  onModeChange: (mode: BatchMode) => void
+  productSelector: ReactNode
 }
 
-function EarringFields({ initialBatchName, handoffFolder, onCreateBatch, onEnterHoopBoundaryEditor }: EarringFieldsProps) {
+function EarringFields({
+  initialBatchName,
+  handoffFolder,
+  onCreateBatch,
+  onEnterHoopBoundaryEditor,
+  mode,
+  onModeChange,
+  productSelector,
+}: EarringFieldsProps) {
   const [batchName, setBatchName] = useState(initialBatchName)
   const [starting, setStarting] = useState(false)
   const [processingMode, setProcessingMode] = useState<ProcessingMode>('automatic')
@@ -289,6 +384,8 @@ function EarringFields({ initialBatchName, handoffFolder, onCreateBatch, onEnter
   const [validating, setValidating] = useState(false)
   const [match, setMatch] = useState<ProductMetadataLoadResult | null>(null)
   const [matching, setMatching] = useState(false)
+  // See RingBraceletFields' identical field for the exact same rationale.
+  const [preparedInputDir, setPreparedInputDir] = useState<string | null>(null)
   const folders = useEarringFolders()
   const python = usePythonInterpreter()
   const job = useEarringJob()
@@ -413,25 +510,63 @@ function EarringFields({ initialBatchName, handoffFolder, onCreateBatch, onEnter
   }
 
   const isHandoff = handoffFolder !== null && folders.inputDir === handoffFolder
+  const isPrepared = preparedInputDir !== null && folders.inputDir === preparedInputDir
+  const showPreparedBadge = isHandoff || isPrepared
+
+  const typeCounts: Record<EarringType, number> = { stud: 0, drop: 0, hoop: 0 }
+  if (match?.ok && match.classification) {
+    for (const sku of Object.keys(match.classification.bySku)) {
+      typeCounts[match.classification.bySku[sku]] += 1
+    }
+  }
+  const typeCountsLabel = (Object.keys(typeCounts) as EarringType[])
+    .filter(type => typeCounts[type] > 0)
+    .map(type => `${typeCounts[type]} ${EARRING_TYPE_LABELS[type]}`)
+    .join(', ')
+
+  const summaryItems: ConsoleSummaryItem[] = [
+    { label: 'Images', value: validation?.ok ? String(validation.imageCount) : '—' },
+    ...(typeCountsLabel !== '' ? [{ label: 'Types', value: typeCountsLabel }] : []),
+    { label: 'Masking', value: processingMode === 'manual' ? 'Manual' : 'Automatic' },
+    { label: 'Mode', value: mode === 'testing' ? 'Testing' : 'Production' },
+  ]
 
   return (
-    <div className={styles.fields}>
+    <ConsoleLayout
+      title="Editing"
+      subtitle="Choose a product, then configure a new batch."
+      headerExtra={productSelector}
+      summary={
+        <ConsoleSummaryPanel
+          items={summaryItems}
+          onStart={handleStart}
+          canStart={canStart}
+          starting={starting}
+          error={job.startError}
+        >
+          {match && <EarringMatchSummary result={match} />}
+        </ConsoleSummaryPanel>
+      }
+    >
       {isHandoff && (
         <p className={styles.handoffMessage}>
           ✓ Input folder prepared from Preprocessing. Choose a metadata sheet and output folder to continue.
         </p>
       )}
-      <div className={styles.nameField}>
-        <label className={styles.nameLabel}>Batch Name (optional)</label>
-        <input
-          className={styles.nameInput}
-          type="text"
-          value={batchName}
-          onChange={e => setBatchName(e.target.value)}
-          placeholder="A name is generated if left blank"
-          spellCheck={false}
-          disabled={starting}
-        />
+      <div className={styles.nameRow}>
+        <div className={styles.nameField}>
+          <label className={styles.nameLabel}>Batch Name (optional)</label>
+          <input
+            className={styles.nameInput}
+            type="text"
+            value={batchName}
+            onChange={e => setBatchName(e.target.value)}
+            placeholder="A name is generated if left blank"
+            spellCheck={false}
+            disabled={starting}
+          />
+        </div>
+        <SegmentedControl label="Mode" options={MODE_OPTIONS} value={mode} onChange={onModeChange} disabled={starting} />
       </div>
       <PathField
         label="Input Folder"
@@ -440,7 +575,7 @@ function EarringFields({ initialBatchName, handoffFolder, onCreateBatch, onEnter
         onPick={() => pickInputDir()}
         onDropPath={pickInputDir}
         disabled={starting}
-        badge={isHandoff ? 'Prepared ✓' : undefined}
+        badge={showPreparedBadge ? 'Prepared ✓' : undefined}
       />
       {validating && (
         <p className={styles.helperText}>Checking input folder…</p>
@@ -453,6 +588,17 @@ function EarringFields({ initialBatchName, handoffFolder, onCreateBatch, onEnter
           {validation.imageCount} {validation.imageCount === 1 ? 'image' : 'images'} found.
         </p>
       )}
+      {!showPreparedBadge && folders.inputDir !== '' && (
+        <PrepareInputDisclosure
+          sourceDir={folders.inputDir}
+          isEarring
+          disabled={starting}
+          onPrepared={preparedDir => {
+            setPreparedInputDir(preparedDir)
+            folders.setInputDir(preparedDir)
+          }}
+        />
+      )}
       <PathField
         label="Product Metadata Sheet"
         value={folders.metadataFilePath}
@@ -462,7 +608,7 @@ function EarringFields({ initialBatchName, handoffFolder, onCreateBatch, onEnter
         disabled={starting}
       />
       {matching && <p className={styles.helperText}>Matching metadata…</p>}
-      {!matching && match && <EarringMatchSummary result={match} />}
+      {!matching && match && !match.ok && <div className={styles.errorBanner}>{match.errors.join(' ')}</div>}
       <PathField
         label="Output Folder"
         value={folders.outputDir}
@@ -472,36 +618,21 @@ function EarringFields({ initialBatchName, handoffFolder, onCreateBatch, onEnter
         disabled={starting}
       />
       <SegmentedControl
-        label="Mode"
+        label="Masking"
         options={PROCESSING_MODE_OPTIONS}
         value={processingMode}
         onChange={setProcessingMode}
       />
-
-      {job.startError && <div className={styles.errorBanner}>{job.startError}</div>}
-
-      <div className={styles.actions}>
-        <button className={styles.startButton} onClick={handleStart} disabled={!canStart}>
-          {starting ? 'Starting…' : 'Start'}
-        </button>
-      </div>
-    </div>
+    </ConsoleLayout>
   )
 }
 
 function EarringMatchSummary({ result }: { result: ProductMetadataLoadResult }) {
-  if (!result.ok) {
-    return <div className={styles.errorBanner}>{result.errors.join(' ')}</div>
-  }
+  if (!result.ok) return null
 
   const m = result.match
   const classification = result.classification
   if (!m || !classification) return null
-
-  const counts: Record<EarringType, number> = { stud: 0, drop: 0, hoop: 0 }
-  for (const sku of Object.keys(classification.bySku)) {
-    counts[classification.bySku[sku]] += 1
-  }
 
   const hasWarnings =
     m.missingImages.length > 0 ||
@@ -510,16 +641,10 @@ function EarringMatchSummary({ result }: { result: ProductMetadataLoadResult }) 
     m.duplicateImageSkus.length > 0 ||
     classification.unmapped.length > 0
 
+  if (!hasWarnings) return null
+
   return (
-    <div className={`${styles.matchSummary} ${hasWarnings ? styles.matchSummaryWarn : styles.matchSummaryOk}`}>
-      <div className={styles.matchSummaryRow}>
-        <span>{m.matched.length} matched</span>
-        {(Object.keys(counts) as EarringType[])
-          .filter(type => counts[type] > 0)
-          .map(type => (
-            <span key={type}>{counts[type]} {EARRING_TYPE_LABELS[type]}</span>
-          ))}
-      </div>
+    <div className={styles.matchSummary}>
       {m.missingImages.length > 0 && (
         <p className={styles.helperText}>{m.missingImages.length} metadata records with no matching image.</p>
       )}

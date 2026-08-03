@@ -1,0 +1,39 @@
+.track {
+  position: relative;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  transition: width var(--duration-220) var(--ease-out);
+}
+
+.shimmer {
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(350%);
+  }
+}
+
+:root[data-reduced-motion='true'] .shimmer {
+  animation: none;
+  transform: translateX(0%);
+  width: 100%;
+  opacity: 0.4;
+}

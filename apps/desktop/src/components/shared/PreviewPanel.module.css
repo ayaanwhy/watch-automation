@@ -1,7 +1,7 @@
 .panel {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-3);
   height: 100%;
   min-height: 0;
 }
@@ -11,30 +11,31 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .expandButton {
   flex-shrink: 0;
-  font-size: 13px;
-  line-height: 1;
-  color: rgba(255, 255, 255, 0.5);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-3);
   background: none;
   border: none;
   cursor: pointer;
-  padding: 4px 6px;
-  border-radius: 4px;
+  padding: 6px;
+  border-radius: var(--radius-6);
 }
 
 .expandButton:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-1);
+  background: var(--surface-2);
 }
 
 .name {
-  font-size: 12px;
-  font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
-  color: rgba(255, 255, 255, 0.6);
+  font-size: var(--text-label);
+  font-family: var(--font-mono);
+  color: var(--text-2);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -46,15 +47,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255, 255, 255, 0.25);
-  font-size: 13px;
+  color: var(--text-4);
+  font-size: var(--text-body);
 }
 
 .singleBox {
   flex: 1;
   min-height: 0;
-  background: #000;
-  border-radius: 8px;
+  background: var(--stage-bg);
+  border-radius: var(--radius-10);
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -69,92 +70,92 @@
 
 .statusFailed {
   flex-shrink: 0;
-  font-size: 12px;
-  color: #ff6961;
+  font-size: var(--text-label);
+  color: var(--danger);
   line-height: 1.4;
 }
 
 .statusCancelled {
   flex-shrink: 0;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.4);
+  font-size: var(--text-label);
+  color: var(--text-3);
   line-height: 1.4;
 }
 
 /* Ring & Bracelet (Phase 10D) — flags a shank mask generated via the
    low-confidence fallback (no clear rim topology found), so a reviewer
    knows to look closer rather than trusting it silently. */
-/* Upgraded (Phase 10F) from plain text to a proper banner — same existing
-   detected===false signal, made harder to miss during review. */
 .lowConfidence {
   flex-shrink: 0;
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  padding: 10px 12px;
-  font-size: 12px;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-label);
   line-height: 1.4;
-  color: #e0a640;
-  background: rgba(224, 166, 64, 0.12);
-  border: 1px solid rgba(224, 166, 64, 0.35);
-  border-radius: 6px;
+  color: var(--warning);
+  background: var(--warning-fill);
+  border: 1px solid var(--warning-border);
+  border-radius: var(--radius-6);
 }
 
 .lowConfidenceIcon {
   flex-shrink: 0;
-  font-size: 14px;
-  line-height: 1.4;
+  margin-top: 1px;
 }
 
 /* Manual QA review (Phase 11.5E) — a human-set flag, distinct from
-   lowConfidence (which is algorithm-derived and read-only): different color
-   so the two are never mistaken for one another when both apply. */
+   lowConfidence (which is algorithm-derived and read-only): a different hue
+   (rose, not amber) so the two are never mistaken for one another when both
+   apply. */
 .needsFixing {
   flex-shrink: 0;
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  padding: 10px 12px;
-  font-size: 12px;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-label);
   line-height: 1.4;
-  color: #ff6961;
-  background: rgba(255, 105, 97, 0.12);
-  border: 1px solid rgba(255, 105, 97, 0.35);
-  border-radius: 6px;
+  color: var(--review-flag);
+  background: var(--review-flag-fill);
+  border: 1px solid var(--review-flag-border);
+  border-radius: var(--radius-6);
 }
 
 .needsFixingIcon {
   flex-shrink: 0;
-  font-size: 14px;
-  line-height: 1.4;
+  margin-top: 1px;
 }
 
 .needsFixingToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   flex-shrink: 0;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: var(--text-caption);
+  font-weight: var(--weight-semibold);
   line-height: 1;
-  color: rgba(255, 255, 255, 0.6);
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--text-2);
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
   cursor: pointer;
-  padding: 5px 10px;
-  border-radius: 5px;
+  padding: 5px var(--space-2);
+  border-radius: var(--radius-6);
   white-space: nowrap;
 }
 
 .needsFixingToggle:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.14);
+  color: var(--text-1);
+  background: var(--surface-3);
 }
 
 .needsFixingToggleActive {
-  color: #ff6961;
-  background: rgba(255, 105, 97, 0.14);
-  border-color: rgba(255, 105, 97, 0.4);
+  color: var(--review-flag);
+  background: var(--review-flag-fill);
+  border-color: var(--review-flag-border);
 }
 
 .needsFixingToggleActive:hover {
-  color: #ff6961;
-  background: rgba(255, 105, 97, 0.22);
+  color: var(--review-flag);
+  background: var(--review-flag-fill);
 }

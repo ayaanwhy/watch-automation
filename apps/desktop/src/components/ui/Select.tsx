@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Check, ChevronDown } from 'lucide-react'
 import styles from './Select.module.css'
 
 export interface SelectOption<T extends string> {
@@ -6,6 +7,10 @@ export interface SelectOption<T extends string> {
   label: string
   // Visible but not selectable — e.g. a roadmap product not implemented yet.
   disabled?: boolean
+  // Optional second line rendered under the label in the popover (Phase
+  // 13B) — e.g. a preset's one-line tradeoff. Absent for options that don't
+  // need one; the trigger only ever shows the label.
+  description?: string
 }
 
 interface SelectProps<T extends string> {
@@ -17,9 +22,11 @@ interface SelectProps<T extends string> {
 }
 
 // Generic custom dropdown matching the app's own form-control language,
-// rather than the browser's stock <select> chrome. No new dependency —
-// a trigger button + an absolutely-positioned listbox, closing on outside
-// click or Escape, with standard ARIA listbox semantics.
+// rather than the browser's stock <select> chrome — an opaque surface-3
+// popover per the glass doctrine (popovers/menus stay opaque for text
+// legibility; glass is reserved for the four sanctioned surfaces). No new
+// dependency — a trigger button + an absolutely-positioned listbox, closing
+// on outside click or Escape, with standard ARIA listbox semantics.
 export function Select<T extends string>({ label, options, value, onChange, disabled = false }: SelectProps<T>) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -54,7 +61,12 @@ export function Select<T extends string>({ label, options, value, onChange, disa
           aria-expanded={open}
         >
           <span className={styles.triggerLabel}>{current?.label ?? ''}</span>
-          <span className={`${styles.chevron} ${open ? styles.chevronOpen : ''}`} aria-hidden="true">⌄</span>
+          <ChevronDown
+            size={16}
+            strokeWidth={1.5}
+            className={`${styles.chevron} ${open ? styles.chevronOpen : ''}`}
+            aria-hidden="true"
+          />
         </button>
         {open && (
           <ul className={styles.menu} role="listbox">
@@ -78,7 +90,11 @@ export function Select<T extends string>({ label, options, value, onChange, disa
                       }
                 }
               >
-                {opt.label}
+                <span className={styles.optionText}>
+                  <span className={styles.optionLabel}>{opt.label}</span>
+                  {opt.description && <span className={styles.optionDescription}>{opt.description}</span>}
+                </span>
+                {opt.value === value && <Check size={14} strokeWidth={1.5} className={styles.optionCheck} aria-hidden="true" />}
               </li>
             ))}
           </ul>

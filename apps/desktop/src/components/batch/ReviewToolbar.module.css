@@ -1,0 +1,52 @@
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.zoomControl {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+}
+
+.zoomButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: none;
+  border: none;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: background var(--duration-100) var(--ease-out), color var(--duration-100) var(--ease-out);
+}
+
+.zoomButton:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--text-1);
+}
+
+.zoomButton:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.zoomButton:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.zoomLabel {
+  min-width: 38px;
+  text-align: center;
+  font-size: var(--text-caption);
+  color: var(--text-2);
+}

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type UIEvent } from 'react'
+import { Images } from 'lucide-react'
 import { ThumbnailCell, type ThumbnailStatus } from './ThumbnailCell'
+import { EmptyState } from '../ui/EmptyState'
 import { joinPath, toFileUrl } from '../../lib/paths'
 import styles from './ThumbnailGrid.module.css'
 
@@ -105,7 +107,7 @@ export function ThumbnailGrid({ images, inputDir, selectedImage, onSelect }: Thu
   if (images.length === 0) {
     return (
       <div className={styles.empty}>
-        <span>No images in this batch yet.</span>
+        <EmptyState icon={Images} message="No images here yet." />
       </div>
     )
   }

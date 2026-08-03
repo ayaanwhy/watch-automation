@@ -3,11 +3,11 @@
   flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 16px;
-  padding: 20px;
+  gap: var(--space-4);
+  padding: var(--space-5);
   height: 100vh;
   box-sizing: border-box;
-  background: #0a0a0a;
+  background: var(--stage-bg);
 }
 
 /* Below this width, the canvas + two 280/260px panels no longer fit on one

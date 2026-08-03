@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import type { ReactNode } from 'react'
+import { X, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useNativeDialog } from './useNativeDialog'
 import styles from './FullscreenViewer.module.css'
 
@@ -39,7 +40,7 @@ export function FullscreenViewer({ onClose, onPrev, onNext, hasPrev, hasNext, ti
       <div className={styles.chrome}>
         <span className={styles.title}>{title}</span>
         <button className={styles.closeButton} onClick={handleClose} aria-label="Close fullscreen view">
-          ✕
+          <X size={16} strokeWidth={1.5} aria-hidden="true" />
         </button>
       </div>
 
@@ -49,7 +50,7 @@ export function FullscreenViewer({ onClose, onPrev, onNext, hasPrev, hasNext, ti
         disabled={!hasPrev}
         aria-label="Previous image"
       >
-        ‹
+        <ChevronLeft size={22} strokeWidth={1.5} aria-hidden="true" />
       </button>
 
       <div className={styles.content}>{children}</div>
@@ -60,7 +61,7 @@ export function FullscreenViewer({ onClose, onPrev, onNext, hasPrev, hasNext, ti
         disabled={!hasNext}
         aria-label="Next image"
       >
-        ›
+        <ChevronRight size={22} strokeWidth={1.5} aria-hidden="true" />
       </button>
     </dialog>
   )

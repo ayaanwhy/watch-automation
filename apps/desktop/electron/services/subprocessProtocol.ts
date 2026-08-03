@@ -79,7 +79,10 @@ export function classifyExit(
  * Derives StageCounts from an images array — the one place `succeeded` is
  * defined as "completed and not flagged needsFixing" (Phase 11.5E), so
  * reconcileImages, snapshotProgress, and batchRegistry's needs-fixing
- * toggle all agree on what counts as a completed total.
+ * toggle all agree on what counts as a completed total. lowConfidence
+ * (Phase 13D) is the one additive field: derived fresh here like everything
+ * else, so it's always in sync wherever counts are recomputed, with no
+ * separate migration step for records persisted before this field existed.
  */
 export function countsFromImages(images: StageImageRecord[], total: number): StageCounts {
   return {
@@ -88,6 +91,7 @@ export function countsFromImages(images: StageImageRecord[], total: number): Sta
     failed: images.filter(i => i.status === 'failed').length,
     cancelled: images.filter(i => i.status === 'cancelled').length,
     needsFixing: images.filter(i => i.needsFixing === true).length,
+    lowConfidence: images.filter(i => i.assets?.detected === false).length,
   }
 }
 

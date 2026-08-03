@@ -1,16 +1,20 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { PathField } from '../components/PathField'
 import { SnapSlider } from '../components/SnapSlider'
 import { Select } from '../components/ui/Select'
-import { BatchCard } from '../components/batch/BatchCard'
+import { SegmentedControl } from '../components/ui/SegmentedControl'
+import { ConsoleLayout } from '../components/console/ConsoleLayout'
+import { ConsoleSummaryPanel, type ConsoleSummaryItem } from '../components/console/ConsoleSummaryPanel'
+import { PresetCards } from '../components/console/PresetCards'
 import { usePythonInterpreter } from '../hooks/usePythonInterpreter'
 import { usePreprocessingPreset } from '../hooks/usePreprocessingPreset'
+import { usePreprocessingPresetDefinitions } from '../hooks/usePreprocessingPresetDefinitions'
 import { useUpscaleFactor } from '../hooks/useUpscaleFactor'
 import { usePreprocessingFolders } from '../hooks/usePreprocessingFolders'
 import { useProductType } from '../hooks/useProductType'
 import { usePreprocessingJob } from '../context/PreprocessingJobContext'
-import { PREPROCESSING_PRESET_OPTIONS } from '../constants/preprocessingPresets'
-import type { BatchSummaryRecord } from '../types/batch'
+import { PREPROCESSING_PRESET_OPTIONS, isPresetModified } from '../constants/preprocessingPresets'
+import type { BatchMode } from '../types/batch'
 import type { PreprocessOperation, ProductType, UpscaleFactor } from '../types/ipc'
 import styles from './Preprocessing.module.css'
 
@@ -54,6 +58,11 @@ const OPERATIONS_BY_CHOICE: Record<OperationsChoice, PreprocessOperation[]> = {
   upscale:              ['upscale'],
 }
 
+const MODE_OPTIONS: { value: BatchMode; label: string }[] = [
+  { value: 'production', label: 'Production' },
+  { value: 'testing', label: 'Testing' },
+]
+
 interface PreprocessingProps {
   // Seeds the optional batch-name field — set when this screen was entered
   // via Home's "Create & Open" with a custom title; empty for sidebar entry.
@@ -63,11 +72,6 @@ interface PreprocessingProps {
   // writes that batch's preprocessing-stage status directly as the run
   // progresses.
   onCreateBatch: (sourceDir: string, title: string) => Promise<string>
-  // Reopens a batch from the "Recent Preprocessing Batches" panel — the same
-  // handler Home's own batch list uses, so a running batch opens the
-  // dedicated workspace and a terminal one opens Batch Details, identically
-  // regardless of which screen it was opened from.
-  onOpenBatch: (id: string) => void
   // Navigates to the dedicated PreprocessingWorkspace screen once job.start()
   // has actually succeeded (Phase 10F correction — this listing screen never
   // renders the live run inline anymore). Not called on a failed start, so a
@@ -75,15 +79,28 @@ interface PreprocessingProps {
   // Configure form with startError visible, rather than stranded on an empty
   // workspace.
   onStarted: () => void
+  // Production/Testing (Phase 13E, Decision — "batch name and mode become
+  // fields on the consoles themselves"). Controlled from App.tsx's own
+  // pendingMode state — createBatch() already reads that same state at
+  // creation time, so exposing it here as an editable field required no
+  // change to how batch creation actually resolves mode, only where it's
+  // set from.
+  mode: BatchMode
+  onModeChange: (mode: BatchMode) => void
 }
 
-// Preprocessing's listing/launcher screen (Phase 10F correction): Configure
-// form + recent-batch history, always. It never renders the live run
-// inline — that's PreprocessingWorkspace.tsx's job. This keeps "start a
-// batch" and "watch a batch run" as two distinct, separately-navigable
-// screens rather than one component silently switching modes underneath
-// the user, which was the previous (undesired) behavior.
-export default function Preprocessing({ initialBatchName = '', onCreateBatch, onOpenBatch, onStarted }: PreprocessingProps) {
+// Preprocessing's listing/launcher screen (Phase 10F correction; rebuilt as
+// a Console in Phase 13E — two-pane, form left, live summary + Start right).
+// It never renders the live run inline — that's PreprocessingWorkspace.tsx's
+// job. This keeps "start a batch" and "watch a batch run" as two distinct,
+// separately-navigable screens rather than one component silently switching
+// modes underneath the user. Its own "Recent Preprocessing Batches" panel
+// was absorbed into the Dashboard (Phase 13D) — Home already lists every
+// batch, preprocessing ones included, so this screen no longer needs a
+// redundant copy of that listing; a compact recent-runs strip was considered
+// for this phase too but didn't naturally fit an already-dense two-pane
+// layout on top of that (see the Phase 13E report).
+export default function Preprocessing({ initialBatchName = '', onCreateBatch, onStarted, mode, onModeChange }: PreprocessingProps) {
   const [batchName, setBatchName] = useState(initialBatchName)
   // Phase 10A — unpersisted by design; always starts back at the default.
   const [opsChoice, setOpsChoice] = useState<OperationsChoice>('both')
@@ -100,29 +117,12 @@ export default function Preprocessing({ initialBatchName = '', onCreateBatch, on
   const product = useProductType()
   const preset  = usePreprocessingPreset()
   const job     = usePreprocessingJob()
+  // Read-only here — only used to compute each preset card's "Customized"
+  // marker (definitions.value !== factory default). Editing definitions
+  // remains Settings-only (usePreprocessingPresetDefinitions.saveValues).
+  const presetDefinitions = usePreprocessingPresetDefinitions()
 
   const disabled = starting
-
-  // "Recent Preprocessing Batches" — running and completed batches stay
-  // visible/reopenable from this listing. Fetched once on mount; this
-  // component remounts fresh every time navigation returns to 'preprocessing'
-  // (App.tsx only renders it for that view), so a plain mount-time fetch is
-  // enough to always reflect current state — no live subscription needed.
-  const [recentBatches, setRecentBatches] = useState<BatchSummaryRecord[]>([])
-
-  useEffect(() => {
-    void window.api.invoke('batch-registry:list').then(list =>
-      setRecentBatches(list.filter(b => b.pipeline.includes('preprocessing')))
-    )
-  }, [])
-
-  function handleRecentRenamed(updated: BatchSummaryRecord) {
-    setRecentBatches(prev => prev.map(b => (b.id === updated.id ? updated : b)))
-  }
-
-  function handleRecentDeleted(id: string) {
-    setRecentBatches(prev => prev.filter(b => b.id !== id))
-  }
 
   async function pickInputDir(explicitPath?: string) {
     if (disabled) return
@@ -166,108 +166,103 @@ export default function Preprocessing({ initialBatchName = '', onCreateBatch, on
     if (started) onStarted()
   }
 
+  const presetCardOptions = PREPROCESSING_PRESET_OPTIONS.map(opt => {
+    const definition = presetDefinitions.definitions[opt.value]
+    return {
+      value: opt.value,
+      label: opt.label,
+      description: opt.description,
+      modified: presetDefinitions.loaded && isPresetModified(opt.value, definition),
+      version: definition.version,
+    }
+  })
+
+  const summaryItems: ConsoleSummaryItem[] = [
+    { label: 'Operations', value: OPERATIONS_OPTIONS.find(o => o.value === opsChoice)?.label ?? '' },
+    ...(opsChoice !== 'background_removal'
+      ? [{ label: 'Upscale Factor', value: UPSCALE_OPTIONS.find(o => o.value === upscale.scaleFactor)?.label ?? '' }]
+      : []),
+    { label: 'Target', value: TARGET_OPTIONS.find(o => o.value === product.productType)?.label ?? '' },
+    { label: 'Preset', value: `${PREPROCESSING_PRESET_OPTIONS.find(o => o.value === preset.preset)?.label ?? ''} v${presetDefinitions.definitions[preset.preset].version}` },
+    { label: 'Mode', value: MODE_OPTIONS.find(o => o.value === mode)?.label ?? '' },
+  ]
+
   return (
-    <div className={styles.page}>
-      <div className={styles.container}>
-        <div className={styles.titleRow}>
-          <h1 className={styles.title}>Preprocessing</h1>
+    <ConsoleLayout
+      title="Preprocessing"
+      subtitle="Background removal, segmentation, and upscaling for raw imagery."
+      summary={
+        <ConsoleSummaryPanel
+          items={summaryItems}
+          onStart={handleStart}
+          canStart={canStart}
+          starting={starting}
+          error={job.startError}
+        />
+      }
+    >
+      <div className={styles.nameRow}>
+        <div className={styles.selectField}>
+          <label className={styles.selectLabel}>Batch Name (optional)</label>
+          <input
+            className={styles.textInput}
+            type="text"
+            value={batchName}
+            onChange={e => setBatchName(e.target.value)}
+            placeholder="A name is generated if left blank"
+            spellCheck={false}
+            disabled={disabled}
+          />
         </div>
-
-        {/* Configuration — always visible; controls disabled while a run is starting */}
-        <div className={styles.fields}>
-          <div className={styles.selectField}>
-            <label className={styles.selectLabel}>Batch Name (optional)</label>
-            <input
-              className={styles.textInput}
-              type="text"
-              value={batchName}
-              onChange={e => setBatchName(e.target.value)}
-              placeholder="A name is generated if left blank"
-              spellCheck={false}
-              disabled={disabled}
-            />
-          </div>
-          <PathField
-            label="Input Folder"
-            value={folders.inputDir}
-            placeholder="Select folder containing source images"
-            onPick={() => pickInputDir()}
-            onDropPath={pickInputDir}
-            disabled={disabled}
-          />
-          <PathField
-            label="Output Folder"
-            value={folders.outputDir}
-            placeholder="Select folder for processed output"
-            onPick={() => pickOutputDir()}
-            onDropPath={pickOutputDir}
-            disabled={disabled}
-          />
-          <Select
-            label="Operations"
-            options={OPERATIONS_OPTIONS}
-            value={opsChoice}
-            onChange={setOpsChoice}
-            disabled={disabled}
-          />
-          <SnapSlider
-            label="Upscale Factor"
-            options={UPSCALE_OPTIONS}
-            value={upscale.scaleFactor}
-            onChange={upscale.set}
-            disabled={disabled || opsChoice === 'background_removal'}
-          />
-          {opsChoice === 'upscale' && upscale.scaleFactor === 1 && (
-            <p className={styles.helperText}>
-              "None" copies images without modification.
-            </p>
-          )}
-          <Select
-            label="Target"
-            options={TARGET_OPTIONS}
-            value={product.productType}
-            onChange={product.set}
-            disabled={disabled}
-          />
-          <Select
-            label="Preset"
-            options={PREPROCESSING_PRESET_OPTIONS}
-            value={preset.preset}
-            onChange={preset.set}
-            disabled={disabled}
-          />
-          <p className={styles.helperText}>
-            {PREPROCESSING_PRESET_OPTIONS.find(o => o.value === preset.preset)?.description}
-          </p>
-        </div>
-
-        {job.startError && (
-          <div className={styles.errorBanner}>{job.startError}</div>
-        )}
-
-        <div className={styles.actions}>
-          <button className={styles.startButton} onClick={handleStart} disabled={!canStart}>
-            {starting ? 'Starting…' : 'Start'}
-          </button>
-        </div>
-
-        {recentBatches.length > 0 && (
-          <div className={styles.recentPanel}>
-            <div className={styles.recentHeading}>Recent Preprocessing Batches</div>
-            <div className={styles.recentList}>
-              {recentBatches.map(b => (
-                <BatchCard
-                  key={b.id}
-                  batch={b}
-                  onOpen={() => onOpenBatch(b.id)}
-                  onRenamed={handleRecentRenamed}
-                  onDeleted={handleRecentDeleted}
-                />
-              ))}
-            </div>
-          </div>
-        )}
+        <SegmentedControl label="Mode" options={MODE_OPTIONS} value={mode} onChange={onModeChange} disabled={disabled} />
       </div>
-    </div>
+
+      <PathField
+        label="Input Folder"
+        value={folders.inputDir}
+        placeholder="Select folder containing source images"
+        onPick={() => pickInputDir()}
+        onDropPath={pickInputDir}
+        disabled={disabled}
+      />
+      <PathField
+        label="Output Folder"
+        value={folders.outputDir}
+        placeholder="Select folder for processed output"
+        onPick={() => pickOutputDir()}
+        onDropPath={pickOutputDir}
+        disabled={disabled}
+      />
+      <Select
+        label="Operations"
+        options={OPERATIONS_OPTIONS}
+        value={opsChoice}
+        onChange={setOpsChoice}
+        disabled={disabled}
+      />
+      <SnapSlider
+        label="Upscale Factor"
+        options={UPSCALE_OPTIONS}
+        value={upscale.scaleFactor}
+        onChange={upscale.set}
+        disabled={disabled || opsChoice === 'background_removal'}
+      />
+      {opsChoice === 'upscale' && upscale.scaleFactor === 1 && (
+        <p className={styles.helperText}>
+          "None" copies images without modification.
+        </p>
+      )}
+      <Select
+        label="Target"
+        options={TARGET_OPTIONS}
+        value={product.productType}
+        onChange={product.set}
+        disabled={disabled}
+      />
+      <div className={styles.presetField}>
+        <label className={styles.selectLabel}>Preset</label>
+        <PresetCards options={presetCardOptions} value={preset.preset} onChange={preset.set} disabled={disabled} />
+      </div>
+    </ConsoleLayout>
   )
 }

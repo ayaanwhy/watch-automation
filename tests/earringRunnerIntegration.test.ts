@@ -181,7 +181,9 @@ describe('Earring runner integration (Phase 12F)', () => {
 
     const final = await getBatch(batch.id)
     const stage = final?.stages.find(s => s.type === 'editing')
-    expect(stage?.counts).toEqual({ total: 3, succeeded: 3, failed: 0, cancelled: 0, needsFixing: 0 })
+    // lowConfidence: 1 — the Hoop image (hoop_mask.py's Automatic placeholder
+    // always reports detected: false, per its own comment further down).
+    expect(stage?.counts).toEqual({ total: 3, succeeded: 3, failed: 0, cancelled: 0, needsFixing: 0, lowConfidence: 1 })
 
     const bySku = new Map(stage?.images.map(i => [i.name, i]))
     // Stud/Drop: compare + frontImage only — no frontFullImage/detected.
@@ -252,7 +254,9 @@ describe('Earring runner integration (Phase 12F)', () => {
 
     const final = await getBatch(secondBatch.id)
     const stage = final?.stages.find(s => s.type === 'editing')
-    expect(stage?.counts).toEqual({ total: 3, succeeded: 3, failed: 0, cancelled: 0, needsFixing: 0 })
+    // lowConfidence: 1 — the Hoop image (hoop_mask.py's Automatic placeholder
+    // always reports detected: false, per its own comment further down).
+    expect(stage?.counts).toEqual({ total: 3, succeeded: 3, failed: 0, cancelled: 0, needsFixing: 0, lowConfidence: 1 })
   }, 30000)
 
   it('Hoop Automatic and Hoop Manual render byte-identical output when resolved to the same split position (same rendering implementation, different split_x source)', async () => {
@@ -361,6 +365,6 @@ describe('Earring runner integration (Phase 12F)', () => {
     // Stud and Drop have no masking step (Resolved Decision 7) — Manual mode
     // has no effect on them, so both still succeed; only Hoop fails — the
     // per-image error is what this test exists to prove, not a batch-wide one.
-    expect(stage?.counts).toEqual({ total: 3, succeeded: 2, failed: 1, cancelled: 0, needsFixing: 0 })
+    expect(stage?.counts).toEqual({ total: 3, succeeded: 2, failed: 1, cancelled: 0, needsFixing: 0, lowConfidence: 0 })
   }, 20000)
 })

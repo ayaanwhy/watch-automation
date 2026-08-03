@@ -234,6 +234,11 @@ export interface PreprocessingPresetDefinitionSavePayload {
   values: import('../constants/preprocessingPresets').PreprocessingPresetValues
 }
 
+export interface ShadowProfileDefinitionSavePayload {
+  name: import('../constants/shadowProfiles').ShadowProfileName
+  values: import('../constants/shadowProfiles').ShadowProfileValues
+}
+
 export interface PreprocessMask {
   index: number
   path: string
@@ -308,6 +313,36 @@ export interface EditingHandoffOptionsPrefs {
   rotate: EditingHandoffRotate
   destination: 'watch' | 'ring' | 'bracelet' | 'earring'
 }
+
+// Appearance overrides (Phase 13H, Settings > Appearance). 'system' defers
+// to the OS media query — the default, and the only behavior that existed
+// before this phase; 'on'/'off' force the data-reduced-motion/
+// data-reduced-transparency attributes global.css's
+// :root[data-reduced-motion='true'|'false'] rules already handle (Phase
+// 13A scaffolding) — see main.tsx's bootstrap comment for the exact
+// mechanism this slots into. ambientIntensity scales AmbientBackground's
+// blob opacity via a CSS custom property (Phase 13C component, wired here).
+export type AppearanceOverride = 'system' | 'on' | 'off'
+
+export interface AppearancePrefs {
+  reducedMotion: AppearanceOverride
+  reducedTransparency: AppearanceOverride
+  ambientIntensity: 'off' | 'subtle' | 'standard'
+}
+
+// One-shot Shadow Profile preview (Phase 13H) — renders a bundled sample
+// silhouette through the real shadow.py engine (preprocessing/
+// shadow_preview.py), never a CSS approximation. Isolated from every real
+// runner's own default path: this always renders exactly the candidate
+// `values` passed in, never the persisted/default definition.
+export interface ShadowPreviewRenderPayload {
+  values: import('../constants/shadowProfiles').ShadowProfileValues
+  pythonPath?: string
+}
+
+export type ShadowPreviewRenderResult =
+  | { ok: true; previewPath: string }
+  | { ok: false; error: string }
 
 // ── Batch registry (Phase 9B) ───────────────────────────────────────────────
 // The Batch is the primary workflow entity; see types/batch.ts.

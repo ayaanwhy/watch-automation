@@ -9,22 +9,76 @@
 
 .container {
   width: 100%;
-  max-width: 760px;
+  max-width: 1040px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
 }
 
-.modeFilter {
-  align-self: flex-start;
-  margin-bottom: var(--space-4);
+/* ── Now zone — live running-batch cards, or a quiet idle strip. ────────── */
+.nowZone {
+  min-height: 40px;
 }
 
-.empty {
-  padding: var(--space-10) var(--space-6);
-  text-align: center;
-  color: var(--text-subtle);
-  font-size: var(--text-base);
-  background: var(--surface);
-  border: 1px dashed var(--border);
-  border-radius: var(--radius-lg);
+.nowRow {
+  display: flex;
+  gap: var(--space-4);
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.idleHero {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--hairline);
+  border-radius: var(--radius-14);
+}
+
+/* ── Attention row — four stat tiles. ────────────────────────────────── */
+.attentionRow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-4);
+}
+
+@media (max-width: 760px) {
+  .attentionRow {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ── Quick launch — replaces the old CreateBatchModal funnel. ───────────── */
+.quickLaunchRow {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+/* ── Recent batches library. ─────────────────────────────────────────── */
+.library {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.libraryHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.libraryTitle {
+  font-size: var(--text-section-title);
+  font-weight: var(--weight-semibold);
+  color: var(--text-1);
+}
+
+.filterRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
 .list {

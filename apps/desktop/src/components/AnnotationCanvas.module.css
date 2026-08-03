@@ -8,15 +8,15 @@
   min-width: 220px;
   max-width: 100%;
   aspect-ratio: 1 / 1;
-  background: #111;
-  border-radius: 6px;
+  background: var(--stage-bg);
+  border-radius: var(--radius-6);
   overflow: hidden;
   outline: none;
   position: relative;
 }
 
 .container:focus-visible {
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.25);
+  box-shadow: var(--focus-ring);
 }
 
 @media (max-width: 900px) {
@@ -37,11 +37,11 @@
 }
 
 .loadingText {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.4);
+  font-size: var(--text-body);
+  color: var(--text-3);
 }
 
 .errorText {
-  font-size: 13px;
-  color: rgba(255, 80, 80, 0.8);
+  font-size: var(--text-body);
+  color: var(--danger);
 }

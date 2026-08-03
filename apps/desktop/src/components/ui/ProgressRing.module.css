@@ -1,0 +1,26 @@
+.ring {
+  transform-origin: center;
+}
+
+.track {
+  stroke: var(--surface-2);
+}
+
+.fill {
+  stroke: var(--accent);
+  transition: stroke-dashoffset var(--duration-220) var(--ease-out);
+}
+
+.indeterminate {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+:root[data-reduced-motion='true'] .indeterminate {
+  animation-duration: 2s;
+}

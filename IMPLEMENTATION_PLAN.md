@@ -1689,213 +1689,228 @@ Goal
 
 Transform the application from a functional internal production tool into a polished, premium creative application with a modern AI-first user experience.
 
-This phase focuses entirely on the user interface and user experience. Existing functionality should remain intact while the application’s visual language, interaction design, and overall usability are comprehensively reimagined.
-
-The objective is to create software that feels intelligent, responsive, and enjoyable to use for extended editing sessions.
+This phase is entirely user interface and user experience: existing functionality must remain intact while the visual language, interaction design, information architecture, and overall usability are comprehensively rebuilt on a single design system. The direction below was developed against the application as it exists after Phases 11 and 12 (batch registry and revisitability, presets, Needs Fixing, processing modes, the Earring workflow) and is approved as canonical — this section supersedes any earlier aspirational Phase 13 text, including items it deliberately rejects (page transitions, particles, parallax, dynamic lighting).
 
 ⸻
 
-Deliverables
+Phase 13 — Resolved Design Decisions
 
-Design System
+Settled during design review; not to be relitigated during implementation:
 
-Develop a cohesive visual design system shared across the entire application.
-
-This includes:
-
-* Unified spacing and layout system
-* Consistent typography hierarchy
-* Standardized iconography
-* Unified color palette
-* Shared component library
-* Consistent corner radii
-* Refined elevation and depth system
-* Design tokens for colors, spacing, animation, and effects
-
-The interface should feel coherent rather than assembled from individual screens.
-
-⸻
-
-Visual Language
-
-Replace the current flat interface with a richer visual aesthetic inspired by modern creative software.
-
-Introduce:
-
-* Layered glass surfaces
-* Soft translucency
-* Subtle blur effects
-* Premium shadows
-* Depth through layered surfaces
-* Softer contrast
-* Improved visual hierarchy
-* Increased whitespace
-* More breathable layouts
-
-The application should feel refined while remaining highly functional.
+1. Single dark theme — the only supported theme in Phase 13. No toggle, no light variant, no theme plumbing.
+2. Library / Console / Stage screen archetypes are the layout philosophy; every screen declares exactly one.
+3. Batch-first information architecture — the batch is the primary object of the application.
+4. "Atelier" is the internal design-language name only. It may appear in tokens, comments, and docs; it must never appear in user-facing copy. The visible brand remains "VTO Automation" (renaming is a separate, non-blocking decision).
+5. Glass (translucency + backdrop blur) on exactly four surfaces: the sidebar (including the Now Running tile inside it), dialogs/modals, the command palette, and toasts. Every other surface — sticky headers, popovers, menus, select dropdowns, panels, toolbars, cards — is opaque.
+6. Ultraviolet accent, extremely restrained: predominantly graphite with a subtle violet glow, not a cyberpunk aesthetic. Concrete restraint rules are specified under Visual Direction and are acceptance criteria, not suggestions.
+7. Pixel-shimmer motif used sparingly: dashboard hero/idle moments and empty states only. Never on Stage surfaces, never during runs.
+8. Custom product icon set (Watch, Ring, Bracelet, Earring, Necklace) drawn on the same stroke grid as the general icon set.
+9. No page transitions. Navigation is instantaneous — a screen renders fully the frame it appears. Only microinteractions animate (buttons, cards, hover states, dialogs, disclosures, progress, completion moments).
+10. The persistent Now Running tile in the sidebar is in scope.
+11. The per-image processing pipeline tracker is in scope: Upscale → Background Removal → Segmentation → Plugin → Save, driven by the existing NDJSON stage events.
+12. Generic running states are replaced everywhere by rich progress information: current image, current stage, ETA, throughput.
+13. Home becomes a true Dashboard: running batches, waiting review, Needs Fixing, completed today, ETA, and recent batches.
+14. No unified "New Batch" funnel. Preprocessing and Editing keep dedicated launcher screens, each redesigned as a Console. CreateBatchModal retires; batch name and Production/Testing mode become fields on the consoles themselves.
+15. Shadow Profiles become a Settings section with a real Python-backed render preview, versioned exactly like Presets (editable definitions, reset-to-default, version recorded on each batch's stage config).
+16. Input preparation options (trim, rotate, resize) are exposed directly inside the Editing workflow, not only through the preprocessing hand-off dialog.
 
 ⸻
 
-Ambient Environment
+Design Language — "Atelier" (internal name)
 
-Replace the static background with a subtle animated environment that gives the application a sense of life without becoming distracting.
+Vision: a precision instrument in a darkened jewelry atelier — the machine does heavy optical work, and the interface's job is to make that labor legible, calm, and fast.
 
-Possible elements include:
+Personality: quietly confident, not enthusiastic. Microcopy is factual and short; no exclamation marks. Completion is acknowledged with a small, well-made moment, not celebration theater. The jewelry photograph is always the hero: the entire chrome is desaturated graphite so product imagery is the only saturated, luminous thing on screen — the same reason photo tools default to neutral dark surrounds (no color distortion, no fatigue in long review sessions).
 
-* Animated ultraviolet gradients
-* Pixelated ambient fields
-* Soft pulsing illumination
-* Slow-moving particles
-* Procedural noise
-* Dynamic lighting
-* Gentle parallax
+Ultraviolet has a semantic meaning, not a decorative one: violet = "the machine is working" (running states, progress, active elements, focus). Cyan is deliberately reserved — the only Phase 13 use is the compare-slider handle — so that Phase 14's AI-predicted boundaries can own cyan as "the machine suggests."
 
-The animation should remain understated, serving as atmosphere rather than visual spectacle.
+Design principles:
 
-⸻
-
-Motion System
-
-Introduce a consistent motion language throughout the application.
-
-This includes:
-
-* Smooth page transitions
-* Animated panel transitions
-* Refined hover interactions
-* Spring-based microinteractions
-* Animated progress indicators
-* Loading skeletons
-* Success and completion animations
-* Animated batch creation and deletion
-* Fluid expanding and collapsing sections
-
-Motion should communicate hierarchy, feedback, and application state rather than exist solely for decoration.
+1. The jewelry is the interface. Imagery gets the space, the light, and the color; chrome recedes. Any component that competes with a photograph for attention is wrong.
+2. Calm surfaces, legible machinery. The pipeline's real state — stages, heartbeats, cooperative cancellation, ETA — is shown honestly and continuously. Ambient life never carries information; information never depends on animation.
+3. Depth is information. Elevation encodes transience: the deeper a surface, the longer you look at it; the higher it floats, the sooner it disappears.
+4. Speed is the aesthetic. Feedback within 100ms, no transition over ~350ms, keyboard paths for every repetitive operation. Premium feel comes from latency discipline more than visual effects.
+5. One system, every screen. Every color, radius, shadow, duration, and easing comes from a token. A hex value in a component CSS module is a defect.
+6. Defaults up front, power underneath. Presets over parameters, disclosures over walls of fields — the pattern Phase 11.5B established becomes the norm.
 
 ⸻
 
-Batch Experience
+Visual Direction
 
-Modernize the batch management experience.
+Color system (starting values, tuned and contrast-verified in 13A):
 
-Potential improvements include:
+* Graphite scale (cool, slightly violet-biased neutrals — never pure black):
+  * bg-ambient #0A0B0E (ambient canvas) · bg-app #0E1014 · surface-1 #14161B (panels, cards) · surface-2 #191C22 (raised, hover) · surface-3 #1F232B (popovers/overlays; glass basis)
+  * hairline rgba(255,255,255,0.08) / hairline-strong rgba(255,255,255,0.14) — all borders; dark UIs separate with hairlines more than shadows
+  * text-1 #EDEEF3 · text-2 #A6ABB8 · text-3 #6E7480 · text-4 (disabled) #4A4F5A
+* Ultraviolet accent: #8B7CFF (hover #9D90FF, pressed #7A6BF2, subtle fill rgba(139,124,255,0.12)).
+* Semantic colors (recalibrated for dark): success #3ECF6E · warning #FFC53D (also carries machine doubt — low-confidence / detected:false) · danger #FF6B6B · review-flag rose #F87683 (Needs Fixing — human judgment gets its own hue, distinct from machine failure red and machine doubt amber). The 🚩 emoji retires.
+* Cyan #6BE0F7: reserved (see Design Language).
 
-* Richer processing cards
-* Better queue visualization
-* More expressive progress indicators
-* Live processing feedback
-* Improved status presentation
-* Clearer hierarchy between active and completed batches
-* Better organization of historical batches
+Violet restraint rules (acceptance criteria):
 
-Processing should feel active and continuously progressing.
+* Violet appears only as: the primary action of a screen, focus rings, running/progress indicators, and selection outlines in review contexts. Filters, chips, secondary buttons, table accents, hovers — all graphite.
+* No glow effects anywhere except the completion pulse and the running dot. Primary buttons are solid, matte violet — no gradients, no halos.
+* Ambient layer opacity 3–5%, visible mainly at screen edges and behind the glass sidebar.
+* Screenshot test: any management screen at a glance reads as near-monochrome graphite with at most two violet elements. Semantic status colors must remain more prominent than the accent in any status-dense view.
 
-⸻
+Glass doctrine: glass = surfaces that float above the workspace; opaque = surfaces that hold content read for minutes. Exactly the four surfaces from Decision 5, built as blur 20–24px over surface-3 at ~75% opacity with a hairline border and subtle top-edge highlight. Text never sits over anything that moves. Popovers and menus are opaque surface-3 for text legibility.
 
-Image Review Experience
+Ambient environment (one app-level layer behind everything):
 
-Refine the editing and review workflow.
+* Two large ultraviolet radial gradients at 3–5% opacity on slow (60–90s) transform drift — CSS only.
+* A fine static noise/grain texture to prevent gradient banding (this is what makes dark gradients look expensive instead of muddy).
+* The pixel-shimmer motif (sparse grid cells that occasionally breathe) lives only in the Dashboard's idle hero strip and in empty states.
+* Pauses when the window is unfocused; freezes entirely on annotation/hoop-editor screens (precision input never competes with ambient GPU work); disabled under prefers-reduced-motion and via a Settings toggle.
 
-Improve:
+Depth & elevation — five levels, each a recipe (surface tint + hairline + shadow + optional blur), not just a shadow: 0 ambient · 1 panel (hairline only, no shadow) · 2 raised card (0 4px 16px rgba(0,0,0,0.35)) · 3 popover · 4 modal (0 24px 64px rgba(0,0,0,0.5) + blur + scrim).
 
-* Image preview presentation
-* Thumbnail grid layout
-* Selection behavior
-* Compare/front image visualization
-* Manual editing interactions
-* Zooming and panning
-* Image transition animations
-* Batch review flow
+Typography:
 
-The review experience should feel responsive and effortless.
+* Inter (variable), bundled locally — Electron must never fetch fonts at runtime; system stack fallback. JetBrains Mono (bundled) for paths, SKUs, and config values — the SKU is the operator's primary identifier and is typographically distinct everywhere it appears.
+* Scale: 11 caption · 12 label · 13 body · 14 emphasized · 16 section title · 20 page title · 28 display.
+* tabular-nums on every count, duration, percentage, and table column — numbers must not jitter as they update.
 
-⸻
+Iconography: lucide-react (MIT, tree-shakeable, consistent stroke grid) at 16/20px, 1.5px stroke. Custom product glyphs (watch, ring, bracelet, earring, necklace) drawn once on the same grid — used in sidebar, launchers, batch cards, and empty states. All unicode glyph icons (⌂ ◧ ⚙ ✎ 🚩) retire.
 
-Navigation
+Radii: 6 (inputs/chips) · 10 (buttons/cards) · 14 (panels/modals) · 20 (hero surfaces) · pill. Spacing: 4px base scale extended with 64/80 for page-level breathing room. Containers: Library/Console content max-width ~1040px centered; Stage full-bleed.
 
-Modernize the application’s navigation and overall layout.
-
-Potential improvements include:
-
-* Refined sidebar
-* Better page transitions
-* Improved information architecture
-* Clearer screen hierarchy
-* Reduced visual clutter
-* Faster navigation between workflows
+The Stage backdrop: image review areas sit on a near-black stage (#101114) — but this application's outputs are transparent PNGs with baked drop shadows (#2e170a) designed for white storefronts, which are invisible on a dark UI. Every preview surface (preview panels, fullscreen viewer, shadow-profile preview) therefore gets a backdrop toggle — Neutral / White / Checkerboard, keyboard B. This is a QA requirement, not a nicety.
 
 ⸻
 
-Component Modernization
+Layout Philosophy — Screen Archetypes
 
-Redesign every major interface component.
+Every screen declares one of three archetypes:
 
-Including:
-
-* Buttons
-* Cards
-* Dialogs
-* Forms
-* Segmented controls
-* Dropdowns
-* Progress bars
-* Notifications
-* Context menus
-* Batch cards
-* Preview panels
-* Status indicators
-
-Every component should share a consistent visual identity.
+* Library — browsing and recall. Centered max-width container, generous whitespace, card grids/lists, sticky (opaque) header. Dashboard, Batch Details, Settings.
+* Console — configure and launch. Two-pane: form on the left; a live summary panel on the right that restates every choice ("42 images · Background Removal + Upscaling · Balanced v3 · Production") and owns the primary Start action. Preprocessing setup, Editing setup.
+* Stage — do the work. Full-bleed, darkest surfaces, minimal chrome that yields to imagery, floating toolbars. Run workspaces, annotation, hoop boundary editor, fullscreen review.
 
 ⸻
 
-Color System
+Information Architecture & Navigation
 
-Introduce a refined color palette centered around premium dark surfaces and restrained accent colors.
+The batch is the center of the product. Navigation model:
 
-Examples include:
+* Sidebar (glass): Dashboard · Workflows — Preprocessing, Rings, Bracelets, Earrings, Watches, Necklaces (soon) · Now Running tile (bottom) · Settings. Real icons + product glyphs; collapse-to-rail behavior on narrow windows is kept. No global "New Batch" item.
+* Now Running tile: when any job is live (the three job contexts already survive navigation), a compact glass tile shows product glyph, batch title, progress, and current image; clicking it jumps to the run workspace from anywhere. No new IPC required.
+* Dashboard (Home, Library archetype) — three zones:
+  1. Now — live cards for running batches: product glyph, title, current image thumbnail, mini stage tracker, progress ring, ETA, throughput (img/min). Collapses to a quiet hero strip when idle (the sanctioned home of the pixel-shimmer motif).
+  2. Attention row — four stat tiles, each a filter onto the list below: Waiting review (completed editing batches containing unresolved low-confidence images) · Needs Fixing (batches with counts.needsFixing > 0, with total flagged count) · Completed today · Running (count + soonest ETA).
+  3. Recent batches — the full filterable library (product / stage / mode / status filter chips), batch cards with glyph, badges, and radial progress when live. Plus compact quick-launch tiles navigating to the consoles.
+  Data note: everything derives from the existing registry. The one anticipated additive change is a low-confidence count in BatchSummaryRecord's stage counts (needsFixing counts already exist) so the Attention row needs no N detail fetches. Additive only; no migration of existing records.
+* The "Recent Preprocessing Batches" panel on the Preprocessing screen is absorbed by the Dashboard; the console keeps at most a compact last-runs strip.
+* Dedicated launchers stay (Decision 14). Both consoles adopt the two-pane layout; batch name and Production/Testing mode live on the console (mode in the summary panel); CreateBatchModal is retired. Presets render as three selectable cards (name, one-line tradeoff, "customized" marker when definitions diverge from defaults) instead of a dropdown + helper text.
+* Command palette (⌘K, glass): navigation, "Open recent batch…", settings, and — in review contexts — backdrop/compare toggles. Creation entries navigate to the corresponding console. Doubles as the discoverability layer for keyboard shortcuts.
+* Toasts (glass, bottom-right): batch completion ("Ring Batch 14 completed — 42✓ 1 flagged", click → Batch Details) and failures, since jobs already outlive navigation; optional native macOS notification when the window is unfocused. window.confirm and inline error banners migrate into the design system's dialog/toast layer.
 
-* Deep charcoal backgrounds
-* Layered graphite surfaces
-* Ultraviolet accent lighting
-* Soft cyan highlights
-* Carefully balanced semantic colors
-* Reduced reliance on stark white
+⸻
 
-The application should avoid harsh black-and-white contrast in favor of richer tonal variation.
+Component System
+
+All rebuilt on tokens in components/ui:
+
+* Button — solid matte-violet primary, secondary (surface + hairline), ghost, danger, icon-button. Hover 100ms; press scale-to-0.98 spring; loading state with inline spinner (replaces label swaps like "Starting…").
+* Inputs / PathField — surface-1 field, hairline, accent focus ring; PathField gains a visible drop-target state (dashed accent border on drag-over), mono path text, folder-open affordance.
+* Select → custom opaque popover (needed because preset options carry descriptions).
+* SegmentedControl — sliding thumb on a spring; it appears everywhere (products, modes, filters), so its motion is the app's signature.
+* Badge system (replaces StatusChip) — dot + label, tones from the color system; running state gets a gently pulsing dot. One vocabulary for batch status, stage status, image status, low confidence, and Needs Fixing.
+* Progress family — linear bar (determinate + shimmer indeterminate), radial ring (batch cards, Now Running tile), the five-segment per-image stage tracker (Upscale → Background Removal → Segmentation → Plugin → Save), and a heartbeat-driven "GPU busy" pulse so long BiRefNet stages read as alive, not hung.
+* Cards — product glyph, title, badge row, radial progress when running; hover lift (translateY −1px + shadow deepen, 150ms); skeleton variants.
+* Dialog / Modal — glass, scale-from-0.97 + fade (220ms), focus-trapped, Esc-dismissable; standard destructive-confirm variant retires window.confirm.
+* Table (Batch Overview dashboard) — hairline rows, sticky header, mono SKUs, badge cells, sortable headers with real affordances.
+* Thumbnails — status as a thin ring + corner dot (never color washes over the image), accent outline for selection, rose corner flag for Needs Fixing, shimmer placeholder; grids stay virtualized.
+* Empty states — pixel-motif product glyph, one factual line, one action. Every list and grid gets one.
+* Toasts, command palette, skeletons — as above.
+
+⸻
+
+Motion Language
+
+Navigation is instantaneous: no page transitions, no route animations, no list-entrance stagger. Skeletons only for genuinely asynchronous data (registry fetch on cold open, thumbnail decode) — never entrance theater; synchronously available content renders immediately.
+
+The complete list of what animates: button hover/press · card hover lift · segmented thumb spring · dialog and command-palette scale/fade (overlays are not navigation) · toast slide · disclosure expand (220ms) · progress value changes, shimmer, running/heartbeat pulses · focus-ring fade (100ms) · the completion moment.
+
+Completion moment (the single signature animation): check-draw + one soft violet pulse on the finishing batch card, ~600ms, once. Failure: restrained 2px shake + danger tone.
+
+Tokens: durations 100 / 160 / 220 / 320ms; ease-out cubic-bezier(0.2, 0, 0, 1) for entrances; one shared spring for interactive elements. All CSS/SVG — no animation library. Budget (hard constraints): transform/opacity only; 350ms cap (completion moment excepted); loops limited to ambient, progress shimmer, and running pulses; everything collapses under prefers-reduced-motion.
+
+⸻
+
+Screen-by-Screen Direction
+
+* Dashboard — as specified under Information Architecture.
+* Preprocessing / Editing consoles — Console archetype; preset cards; inline validation states (Watch's spreadsheet validation gets real presentation); summary panel owns Start.
+* Run workspaces — Stage archetype; hero preview with live before/after slider; right rail: five-segment stage tracker, heartbeat pulse, rolling ETA (rolling mean of recorded per-image duration_ms — the data already exists), throughput, virtualized thumbnail strip. Cancel is a designed state: press → button morphs to "Finishing current stage…" with the cooperative-cancel explanation on hover — encoding the no-hard-kill GPU constraint into UX language instead of leaving cancel looking unresponsive.
+* Batch Details — the batch's project page, Library archetype: opaque sticky header (title, badges, mode, actions), Overview / Images / Needs Fixing sections, config grid in mono. The Images section gains a review toolbar — backdrop toggle (B), compare mode, zoom — and a keyboard QA loop: arrows traverse the grid, F toggles Needs Fixing, Enter opens fullscreen. For a reviewer walking 100+ images this turns the Needs Fixing flag from a click target into a workflow.
+* Annotation workspace & Hoop boundary editor — reskin-only zones. Tokens, chrome, and panel styling modernize; canvas interaction logic, hit targets, and keyboard behavior are untouched (recent, validated phase work; precision tools).
+* Settings — sectioned: General (interpreter) · Presets · Shadow Profiles (new) · Appearance (ambient intensity, motion, reduced-transparency toggles — user control of ambience is both taste and accessibility).
+
+⸻
+
+Functional Additions (designed into the system)
+
+Input preparation inside Editing (Decision 16): each Editing console gains a "Prepare input" disclosure — collapsed by default ("Use images as-is"), expanding to Trim toggle, Rotate segmented control, and resize (shown but locked for Earring at 1000px, with the explanatory note — exactly today's constraint). It runs the existing preprocess:prepare-for-editing-handoff IPC before batch start — folder-in/folder-out, so runner contracts are untouched. Inputs arriving via a hand-off show the "Prepared ✓" state instead. UI change plus one orchestration step; no Python change.
+
+Shadow Profiles in Settings (Decision 15): profile cards (Ring & Bracelet · Earring Stud/Drop · Earring Hoop) with color swatch, opacity, offset, blur, density, spread, and the falloff toggle where applicable. Versioned definitions with reset-to-default; each batch's stage config records shadowProfileVersion, mirroring presetVersion's auditability guarantee. The preview is always the real engine — no CSS approximation exists anywhere: shadow.py is pure PIL (no models, no GPU), so a debounced (~400ms) render of a bundled sample silhouette returns in well under a second via a small one-shot preview entry point; a subtle spinner covers the render; the result displays on the Stage backdrop defaulting to White (these shadows are designed for white storefronts — previewing on graphite would be a lie). Runners accept a profile-override file; absent the file, behavior is byte-identical to the built-in dicts and regression-gated.
 
 ⸻
 
 Accessibility
 
-Improve usability without compromising the visual direction.
-
-Focus on:
-
-* Clear typography hierarchy
-* Consistent contrast ratios
-* Readable spacing
-* Predictable interactions
-* Keyboard accessibility
-* Improved focus indicators
+Contrast ≥ 4.5:1 body text, ≥ 3:1 large text/UI on all graphite surfaces (token values verified in 13A). Status never conveyed by color alone (dot + label + tooltip). One focus-ring token (2px accent, 2px offset) on every interactive element. Full keyboard coverage: palette, grid traversal, dialog traps, Esc consistency. prefers-reduced-motion and prefers-reduced-transparency honored globally via the token layer plus explicit Settings toggles. Hit targets ≥ 28px. Legible at 125% zoom.
 
 ⸻
 
-Performance
+Performance Guardrails
 
-Maintain a fluid user experience throughout the visual overhaul.
+Transform/opacity-only animation. Blur budget: at most the four glass surfaces, never on scroll containers' children. Ambient pauses on blur/hidden, freezes on precision screens. Virtualization preserved everywhere it exists; thumbnail decode stays async; no layout-thrashing hover effects in virtualized grids. Visual enhancements must not measurably affect processing throughput or input latency on the annotation canvas.
 
-Animation and effects should remain lightweight and responsive.
+⸻
 
-Visual enhancements must not noticeably impact processing performance or application responsiveness.
+Deliberately Out of Scope
+
+Light theme / theme switching · particles, parallax, dynamic lighting · sounds · a routing-library rewrite (the App.tsx state machine works; screens change appearance, not semantics) · redesigning annotation/boundary interaction · cross-batch QA views (recorded as future work).
+
+⸻
+
+Phase 13 — Approved Execution Plan (13A–13I)
+
+Standing rules for every sub-phase:
+
+* No changes to job logic, IPC contracts, or the App.tsx state machine beyond what a sub-phase explicitly lists (13D's additive summary count; 13E's modal retirement and prepare-input orchestration; 13H's shadow-profile plumbing).
+* packages/processing (Phase 0 logic) is untouched. The only Python changes in Phase 13 are 13H's shadow-profile parameter sourcing and preview entry point, both additive and regression-gated.
+* Mechanical gates: npx tsc --noEmit and npx vitest run for every sub-phase; python -m py_compile for 13H's Python files.
+* Dependencies (approved, final): lucide-react, bundled Inter, bundled JetBrains Mono. No animation library.
+
+13A — Foundations. The Atelier token system in global.css (graphite scale, violet-restraint rules encoded as tokens, semantics, typography, spacing, radii, elevation recipes, motion tokens, focus ring, z-layers), bundled fonts, lucide-react, the custom product glyph set, contrast verification of the palette, prefers-reduced-motion/transparency plumbing. No screen changes.
+
+13B — Core components. Rebuild components/ui on tokens: Button, inputs/PathField (drop-target affordance), Select-popover, SegmentedControl, Badge system (retires StatusChip and the 🚩 emoji), progress family (linear, radial, stage tracker, heartbeat pulse), Dialog/confirm (retires window.confirm usage), toasts, skeletons, empty states. Gate: zero hardcoded hex in rebuilt components.
+
+13C — Shell & ambient. Ambient layer with pause/freeze rules; glass sidebar (components/shell) with icons, product glyphs, and the Now Running tile (derived from the three existing job contexts); toast host wired to job completions; command palette. Acceptance criterion: navigation renders same-frame — no transition animation anywhere.
+
+13D — Dashboard & library. Home → Dashboard (Now zone, Attention row, recent-batches library with filter chips, quick-launch tiles, completion moment); Batch Details header/sections restyle; the additive low-confidence count in the registry's summary counts (main process, additive, no record migration); absorption of Preprocessing's recents panel.
+
+13E — Consoles. Preprocessing and EditingSetup rebuilt as two-pane Consoles (summary panel owns Start; name + mode as console fields; CreateBatchModal retired; preset cards); the Prepare-input disclosure on Editing consoles via the existing preprocess:prepare-for-editing-handoff IPC.
+
+13F — Stage surfaces. Run workspaces (Preprocessing / Ring & Bracelet / Earring) with rich running states: hero preview + before/after, stage tracker, heartbeat, rolling ETA, throughput; the designed cooperative-cancel state; FullscreenViewer; backdrop toggle in all preview panels.
+
+13G — Review experience. Batch Details Images section: review toolbar (backdrop, compare, zoom) + keyboard QA loop (arrows, F, Enter, B); Needs Fixing presentation in the new badge vocabulary; Batch Overview (BatchDashboard) table restyle.
+
+13H — Settings & Shadow Profiles. Sectioned Settings including Appearance controls; shadow-profile editor with versioned definitions and the Python-backed debounced preview (one-shot render entry point beside preprocessing/shadow.py); runners accept an optional profile-override file with byte-identical default behavior, regression-gated; shadowProfileVersion recorded on stage config.
+
+13I — Polish pass. Motion-budget audit (verify nothing reintroduced page transitions), accessibility audit (contrast, focus, keyboard paths), performance audit (blur count, ambient cost, virtualization), empty-state completeness, reskin-only pass over annotation and hoop-editor chrome.
+
+Sequencing logic: tokens before components before screens, so nothing is styled twice; the two functional additions land where their surfaces are rebuilt anyway; the sole Python-touching item is isolated in 13H; the riskiest surfaces (precision tools) come last and shallowest.
 
 ⸻
 
 Success Criteria
 
-The application should feel like a mature creative product rather than an internal utility. Every screen should exhibit a consistent design language, thoughtful motion, and refined interaction design while preserving the speed and efficiency required for production asset generation.
+The application feels like a mature creative product rather than an internal utility: one consistent design language on every screen, instantaneous navigation, and refined microinteractions — while preserving the speed and efficiency required for production asset generation.
 
-The finished experience should evoke the same level of polish found in contemporary AI-powered creative software, emphasizing clarity, elegance, responsiveness, and craftsmanship without sacrificing usability or introducing unnecessary visual noise.
+Measurable acceptance: no raw hex values outside the token layer; navigation renders same-frame with no page transitions; the violet screenshot test passes on every management screen; glass appears on exactly the four sanctioned surfaces; every preview surface has the Neutral/White/Checker backdrop toggle; the keyboard QA loop works end-to-end in Batch Details; the Dashboard surfaces running work, review debt, and history from existing registry data; accessibility and performance guardrails hold; and no processing pipeline, IPC contract, or batch-model behavior changes except the three explicitly listed additive items.
 
 ____
 

@@ -1,0 +1,51 @@
+.tile {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-10);
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+  flex: 1;
+  min-width: 200px;
+  transition: border-color var(--duration-160) var(--ease-out), transform var(--duration-160) var(--ease-out);
+}
+
+.tile:hover {
+  border-color: var(--hairline-strong);
+  transform: translateY(-1px);
+}
+
+.tile:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.icon {
+  flex-shrink: 0;
+  color: var(--text-2);
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.label {
+  font-size: var(--text-emphasized);
+  font-weight: var(--weight-medium);
+  color: var(--text-1);
+}
+
+.description {
+  font-size: var(--text-caption);
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

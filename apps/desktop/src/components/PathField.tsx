@@ -1,4 +1,5 @@
 import { useState, type DragEvent } from 'react'
+import { FolderOpen } from 'lucide-react'
 import styles from './PathField.module.css'
 
 interface PathFieldProps {
@@ -56,6 +57,7 @@ export function PathField({ label, value, placeholder, onPick, onDropPath, disab
           {value !== '' ? value : <span className={styles.placeholder}>{placeholder}</span>}
         </span>
         <button className={styles.browseButton} onClick={onPick} disabled={disabled}>
+          <FolderOpen size={14} strokeWidth={1.5} aria-hidden="true" />
           Browse
         </button>
       </div>

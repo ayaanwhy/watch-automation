@@ -18,6 +18,11 @@ import { PreprocessingBatchSync } from './components/batch/PreprocessingBatchSyn
 import { RingBraceletBatchSync } from './components/batch/RingBraceletBatchSync'
 import { EarringBatchSync } from './components/batch/EarringBatchSync'
 import { findStageStatus } from './components/batch/batchDisplay'
+import { useConfirmDialog } from './components/ui/useConfirmDialog'
+import { ToastProvider } from './components/ui/ToastHost'
+import { CommandPalette } from './components/shell/CommandPalette'
+import { JobCompletionToasts } from './components/shell/JobCompletionToasts'
+import { AppearanceEffects } from './components/shell/AppearanceEffects'
 import type { BatchState } from './types/annotation'
 import type { SessionFile } from './types/session'
 import type { AppView, EditingProduct } from './types/navigation'
@@ -54,6 +59,9 @@ interface PendingBatch {
 }
 
 export default function App() {
+  // Retires window.confirm (Phase 13B) — see useConfirmDialog's own doc
+  // comment. UI-only local state, unrelated to view/navigation.
+  const { confirm, dialog: confirmDialog } = useConfirmDialog()
   const [view, setView] = useState<AppView>('home')
   const [pendingBatch, setPendingBatch] = useState<PendingBatch | null>(null)
   // Testing vs Production (Phase 10F) — set only by Home's CreateBatchModal;
@@ -503,7 +511,7 @@ export default function App() {
   // automatically by handleOpenBatch's terminal fallthrough).
   async function handleCompleteWatchBatch() {
     if (!watchBatchId) return
-    if (!window.confirm('Mark this batch complete and return to Home?')) return
+    if (!(await confirm('Mark this batch complete and return to Home?'))) return
     await window.api.invoke('batch-registry:update-stage', {
       id: watchBatchId,
       stageType: 'watch',
@@ -522,7 +530,16 @@ export default function App() {
   }
 
   function renderContent() {
-    if (view === 'home') return <Home onLaunch={handleLaunchFromHome} onOpenBatch={handleOpenBatch} />
+    if (view === 'home') {
+      return (
+        <Home
+          onLaunch={handleLaunchFromHome}
+          onOpenBatch={handleOpenBatch}
+          preprocessBatch={preprocessBatch}
+          editingBatch={editingBatch}
+        />
+      )
+    }
     if (view === 'settings') return <Settings />
 
     if (view === 'batchDetails' && openBatchId) {
@@ -546,8 +563,9 @@ export default function App() {
         <Preprocessing
           initialBatchName={pendingBatch?.title ?? ''}
           onCreateBatch={handleCreatePreprocessingBatch}
-          onOpenBatch={handleOpenBatch}
           onStarted={() => setView('preprocessingWorkspace')}
+          mode={pendingMode}
+          onModeChange={setPendingMode}
         />
       )
     }
@@ -599,6 +617,8 @@ export default function App() {
           onCreateRingBraceletBatch={handleCreateRingBraceletBatch}
           onCreateEarringBatch={handleCreateEarringBatch}
           onEnterHoopBoundaryEditor={handleEnterHoopBoundaryEditor}
+          mode={pendingMode}
+          onModeChange={setPendingMode}
         />
       )
     }
@@ -639,9 +659,22 @@ export default function App() {
         onCreateRingBraceletBatch={handleCreateRingBraceletBatch}
         onCreateEarringBatch={handleCreateEarringBatch}
         onEnterHoopBoundaryEditor={handleEnterHoopBoundaryEditor}
+        mode={pendingMode}
+        onModeChange={setPendingMode}
       />
     )
   }
+
+  // Ambient freeze (Phase 13C) — "freezes entirely on annotation/hoop-editor
+  // screens (precision input never competes with ambient GPU work)." Watch
+  // annotation isn't its own AppView (it's reached via view === 'editing',
+  // editingProduct === 'watch', gated by screen/entry — see renderContent's
+  // identical `screen === 'annotation' && entry !== null` check); the hoop
+  // boundary editor isn't a separate view either (it's the 'configuring'
+  // stage status within view === 'editing' — also mirrors renderContent).
+  const freezeAmbient =
+    (screen === 'annotation' && entry !== null) ||
+    (view === 'editing' && findStageStatus(editingBatch, 'editing') === 'configuring')
 
   return (
     // PreprocessingJobProvider/RingBraceletJobProvider wrap the whole shell
@@ -652,26 +685,40 @@ export default function App() {
     // for the Configure/Run switch and the Continue-to-Watch decision alike.
     // Stage status itself is never written from here — the main process owns
     // that (Phase 9C).
-    <PreprocessingJobProvider>
-      <RingBraceletJobProvider>
-        <EarringJobProvider>
-          <PreprocessingBatchSync
-            batchId={preprocessBatch?.id ?? null}
-            onBatchUpdated={setPreprocessBatch}
-          />
-          <RingBraceletBatchSync
-            batchId={editingBatch?.id ?? null}
-            onBatchUpdated={setEditingBatch}
-          />
-          <EarringBatchSync
-            batchId={editingBatch?.id ?? null}
-            onBatchUpdated={setEditingBatch}
-          />
-          <AppShell view={view} editingProduct={view === 'editing' ? editingProduct : null} onNavigate={navigate}>
-            {renderContent()}
-          </AppShell>
-        </EarringJobProvider>
-      </RingBraceletJobProvider>
-    </PreprocessingJobProvider>
+    <ToastProvider>
+      <PreprocessingJobProvider>
+        <RingBraceletJobProvider>
+          <EarringJobProvider>
+            <PreprocessingBatchSync
+              batchId={preprocessBatch?.id ?? null}
+              onBatchUpdated={setPreprocessBatch}
+            />
+            <RingBraceletBatchSync
+              batchId={editingBatch?.id ?? null}
+              onBatchUpdated={setEditingBatch}
+            />
+            <EarringBatchSync
+              batchId={editingBatch?.id ?? null}
+              onBatchUpdated={setEditingBatch}
+            />
+            <JobCompletionToasts preprocessBatch={preprocessBatch} editingBatch={editingBatch} onOpenBatch={handleOpenBatch} />
+            <AppearanceEffects />
+            <AppShell
+              view={view}
+              editingProduct={view === 'editing' ? editingProduct : null}
+              onNavigate={navigate}
+              preprocessBatch={preprocessBatch}
+              editingBatch={editingBatch}
+              onOpenBatch={handleOpenBatch}
+              freezeAmbient={freezeAmbient}
+            >
+              {renderContent()}
+            </AppShell>
+            <CommandPalette onNavigate={navigate} onOpenBatch={handleOpenBatch} />
+            {confirmDialog}
+          </EarringJobProvider>
+        </RingBraceletJobProvider>
+      </PreprocessingJobProvider>
+    </ToastProvider>
   )
 }
