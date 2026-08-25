@@ -64,12 +64,12 @@ export default function App() {
   const { confirm, dialog: confirmDialog } = useConfirmDialog()
   const [view, setView] = useState<AppView>('home')
   const [pendingBatch, setPendingBatch] = useState<PendingBatch | null>(null)
-  // Testing vs Production (Phase 10F) — set only by Home's CreateBatchModal;
-  // every other entry point (sidebar shortcuts, hand-offs, "run another")
-  // defaults/resets to 'production'. Read directly inside createBatch()
-  // below, the same way pipeline is read from pendingBatch — mode isn't
-  // user-editable on the setup screens themselves, so it doesn't need to
-  // round-trip through a child screen's local state the way title does.
+  // Testing vs Production (Phase 10F; moved onto the Console screens
+  // themselves in 13E) — the Mode field on EditingSetup's Ring/Bracelet and
+  // Earring consoles reads/writes this directly via the mode/onModeChange
+  // props below. Every other entry point (sidebar shortcuts, hand-offs,
+  // "run another") defaults/resets to 'production'. Read directly inside
+  // createBatch() below, the same way pipeline is read from pendingBatch.
   const [pendingMode, setPendingMode] = useState<BatchMode>('production')
 
   // Which product the shared Editing setup screen shows (Phase 10D) — always
@@ -330,21 +330,7 @@ export default function App() {
     setEditingBatch(detail)
   }
 
-  // Clears whatever batch App.tsx was tracking and returns to a fresh
-  // Preprocessing Configure screen — the same "Run another batch" semantic
-  // Phase 9D introduced, now reachable identically from either the live
-  // Preprocessing screen's own terminal state or a historical batch opened
-  // from Home (both render the same BatchDetails screen; see renderContent).
-  function handleRunAnotherPreprocessing() {
-    setPreprocessBatch(null)
-    setPendingBatch({ pipeline: ['preprocessing'], title: '' })
-    setPendingMode('production')
-    setHandoffFolder(null)
-    setOpenBatchId(null)
-    setView('preprocessing')
-  }
-
-  // Same semantic as handleRunAnotherPreprocessing, for Ring/Bracelet/Earring
+  // Same semantic Ring/Bracelet/Earring's own "Run Another Batch" has
   // (Phase 10D, extended in 12C) — returns to the shared Editing setup screen
   // with the same product preselected, so "Run Another Batch" from a
   // completed Ring batch doesn't dump the user back on Watch.
@@ -484,7 +470,19 @@ export default function App() {
     initialSession: SessionFile | null,
     batchName: string,
   ) {
-    const id = await resolveWatchBatchId(batch, initialSession, batchName)
+    const [id, shadowProfileDefinitions] = await Promise.all([
+      resolveWatchBatchId(batch, initialSession, batchName),
+      // Lightweight provenance, mirroring presetVersion/shadowProfileVersion's
+      // exact convention on Ring & Bracelet/Earring's stage config (Phase
+      // 13H) — reuses the same IPC channel Settings already calls, no new
+      // plumbing needed. Recorded once here (annotation start) rather than
+      // per-image: Watch has no single subprocess "job start" moment to hook
+      // into the way createSubprocessRunner's buildStageConfig does — images
+      // are queued and processed individually throughout the session (see
+      // queueHandlers.ts) — so this captures "the version active when the
+      // batch began," the closest Watch equivalent of "when the job started."
+      window.api.invoke('prefs:load-shadow-profile-definitions'),
+    ])
     void window.api.invoke('batch-registry:update-stage', {
       id,
       stageType: 'watch',
@@ -496,7 +494,11 @@ export default function App() {
         // even though it doesn't yet change annotation behavior (Phase
         // 11.5C establishes the workflow abstraction; Phase 12 adds the
         // real Automatic masking behavior for Watch).
-        config: { spreadsheetPath: batch.spreadsheetPath, processingMode: batch.processingMode ?? 'manual' },
+        config: {
+          spreadsheetPath: batch.spreadsheetPath,
+          processingMode: batch.processingMode ?? 'manual',
+          shadowProfileVersion: shadowProfileDefinitions.watch.version,
+        },
       },
     })
     setWatchBatchId(id)
@@ -547,7 +549,6 @@ export default function App() {
         <BatchDetails
           batchId={openBatchId}
           onBack={() => setView('home')}
-          onRunAnotherPreprocessing={handleRunAnotherPreprocessing}
           onEditingHandoff={handleEditingHandoff}
           onRunAnotherEditing={handleRunAnotherEditing}
         />
@@ -583,8 +584,7 @@ export default function App() {
           <BatchDetails
             batchId={preprocessBatch!.id}
             onBack={() => setView('preprocessing')}
-            onRunAnotherPreprocessing={handleRunAnotherPreprocessing}
-            onEditingHandoff={handleEditingHandoff}
+              onEditingHandoff={handleEditingHandoff}
             onRunAnotherEditing={handleRunAnotherEditing}
           />
         )
@@ -630,7 +630,6 @@ export default function App() {
         <BatchDetails
           batchId={editingBatch!.id}
           onBack={() => setView('home')}
-          onRunAnotherPreprocessing={handleRunAnotherPreprocessing}
           onEditingHandoff={handleEditingHandoff}
           onRunAnotherEditing={handleRunAnotherEditing}
         />

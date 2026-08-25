@@ -15,16 +15,18 @@ export interface SessionQueueItem {
 export interface SessionAnnotation {
   sku: string
   status: 'unannotated' | 'annotated'
+  // 'ai-adjusted' widened in Phase 14A (types/annotation.ts's BoundarySource)
+  // — deliberately NOT a SESSION_VERSION bump; see that file's comment.
   spliceBoundaries: {
     leftBoundary: number
     rightBoundary: number
-    source: 'manual' | 'ai'
+    source: 'manual' | 'ai' | 'ai-adjusted'
     confidence: number | null
   } | null
   scaleBoundaries: {
     leftBoundary: number
     rightBoundary: number
-    source: 'manual' | 'ai'
+    source: 'manual' | 'ai' | 'ai-adjusted'
     confidence: number | null
   } | null
 }

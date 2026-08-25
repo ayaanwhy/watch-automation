@@ -1,5 +1,0 @@
-/*
- * The application shell (sidebar + content frame) moved to
- * components/shell/AppShell + Sidebar in Phase 9A. This file is intentionally
- * empty; App.tsx no longer imports it.
- */

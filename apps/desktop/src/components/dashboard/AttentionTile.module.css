@@ -26,6 +26,19 @@ button.tile:focus-visible {
   box-shadow: var(--focus-ring);
 }
 
+/* Selection outline in a review/filter context — one of the sanctioned
+   violet uses (Visual Direction: "selection outlines in review contexts"),
+   not decorative accent. Post-Phase-13 addition: the active filter card had
+   no visible distinction from an inactive one. */
+.active.tile {
+  border-color: var(--accent);
+  background: var(--accent-fill);
+}
+
+.active.tile:hover {
+  border-color: var(--accent-hover);
+}
+
 .icon {
   flex-shrink: 0;
   color: var(--text-3);

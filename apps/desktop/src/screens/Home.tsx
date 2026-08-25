@@ -7,6 +7,7 @@ import { BatchCard } from '../components/batch/BatchCard'
 import { NowCard, type NowCardKind } from '../components/dashboard/NowCard'
 import { AttentionTile } from '../components/dashboard/AttentionTile'
 import { QuickLaunchTile } from '../components/dashboard/QuickLaunchTile'
+import { PixelShimmer } from '../components/dashboard/PixelShimmer'
 import { EmptyState } from '../components/ui/EmptyState'
 import { usePreprocessingJob } from '../context/PreprocessingJobContext'
 import { useRingBraceletJob } from '../context/RingBraceletJobContext'
@@ -148,12 +149,11 @@ interface NowEntry {
 }
 
 // Home → Dashboard (Phase 13D, Library archetype). Three zones: Now (live
-// running-batch cards, collapsing to a quiet idle strip), Attention (four
-// stat tiles, each a filter onto the library below), and the Recent batches
-// library itself (filterable, quick-launch tiles). Replaces the old
-// CreateBatchModal-based "New Batch" flow with direct quick-launch tiles
-// (Decision 14) — see QuickLaunchTile's own doc comment for what that means
-// for CreateBatchModal.tsx's file.
+// running-batch cards, collapsing to a quiet idle strip with the
+// pixel-shimmer motif), Attention (four stat tiles, each a filter onto the
+// library below), and the Recent batches library itself (filterable,
+// quick-launch tiles). Replaces the old modal-based "New Batch" flow with
+// direct quick-launch tiles (Decision 14).
 export default function Home({ onLaunch, onOpenBatch, preprocessBatch, editingBatch }: HomeProps) {
   const [batches, setBatches] = useState<BatchSummaryRecord[]>([])
   const [stageFilter, setStageFilter] = useState<StageFilter>('all')
@@ -289,6 +289,7 @@ export default function Home({ onLaunch, onOpenBatch, preprocessBatch, editingBa
             </div>
           ) : (
             <div className={styles.idleHero}>
+              <PixelShimmer />
               <EmptyState icon={Activity} message="Nothing running right now." />
             </div>
           )}
@@ -300,6 +301,7 @@ export default function Home({ onLaunch, onOpenBatch, preprocessBatch, editingBa
             label="Waiting review"
             value={waitingReviewBatches.length}
             tone="review"
+            active={attentionFilter === 'waitingReview'}
             onClick={waitingReviewBatches.length > 0 ? () => toggleAttentionFilter('waitingReview') : undefined}
           />
           <AttentionTile
@@ -308,12 +310,14 @@ export default function Home({ onLaunch, onOpenBatch, preprocessBatch, editingBa
             value={needsFixingBatches.length}
             detail={needsFixingTotal > 0 ? `${needsFixingTotal} image${needsFixingTotal === 1 ? '' : 's'} flagged` : undefined}
             tone="review"
+            active={attentionFilter === 'needsFixing'}
             onClick={needsFixingBatches.length > 0 ? () => toggleAttentionFilter('needsFixing') : undefined}
           />
           <AttentionTile
             icon={CalendarCheck}
             label="Completed today"
             value={completedTodayBatches.length}
+            active={attentionFilter === 'completedToday'}
             onClick={completedTodayBatches.length > 0 ? () => toggleAttentionFilter('completedToday') : undefined}
           />
           <AttentionTile
@@ -322,6 +326,7 @@ export default function Home({ onLaunch, onOpenBatch, preprocessBatch, editingBa
             value={runningBatches.length}
             detail={soonestEtaMs !== undefined ? `Soonest ~${Math.max(1, Math.round(soonestEtaMs / 60000))}m` : undefined}
             tone="running"
+            active={attentionFilter === 'running'}
             onClick={runningBatches.length > 0 ? () => toggleAttentionFilter('running') : undefined}
           />
         </section>

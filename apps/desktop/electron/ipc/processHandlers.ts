@@ -1,7 +1,19 @@
 import { join } from 'node:path'
 import { processWatch } from '@wpa/processing'
+import type { ShadowSettings } from '@wpa/processing'
 import { logger } from '../logger'
+import { getShadowProfileDefinition } from '../services/shadowProfileDefinitions'
 import type { ProcessWatchPayload, ProcessWatchResult } from '../../src/types/ipc'
+
+// packages/processing's shadowEngine.ts (Watch's own shadow implementation
+// — a separate TS port of the same algorithm preprocessing/shadow.py uses
+// for Ring & Bracelet/Earring, not shared code) takes camelCase field names
+// and has no equivalent of horizontal_falloff/canvas_base — see
+// constants/shadowProfiles.ts's module comment on the 'watch' profile.
+function watchShadowSettings(): Partial<ShadowSettings> {
+  const { x_offset, y_offset, blur_radius, spread, density, opacity, color } = getShadowProfileDefinition('watch')
+  return { xOffset: x_offset, yOffset: y_offset, blurRadius: blur_radius, spread, density, opacity, color }
+}
 
 function classifyError(err: unknown): string {
   const msg = String(err)
@@ -38,6 +50,7 @@ export async function runProcessWatch(payload: ProcessWatchPayload): Promise<Pro
       rightBoundary: spliceBoundaries.rightBoundary,
       scaleLeft: scaleBoundaries?.leftBoundary,
       scaleRight: scaleBoundaries?.rightBoundary,
+      shadow: watchShadowSettings(),
     })
     const ms = Date.now() - startedAt
     logger.info(`Processed ${sku} in ${ms}ms → ${result.outputPath}`)

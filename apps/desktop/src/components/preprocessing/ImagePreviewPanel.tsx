@@ -42,7 +42,7 @@ export function ImagePreviewPanel({
   // Persists across images in this viewing session (a user comparing many
   // images likely wants the same background throughout); the slider position
   // itself resets per image via BeforeAfterSlider's key below instead.
-  const [localBackground, setLocalBackground] = useState<ComparisonBackground>('neutral')
+  const [localBackground, setLocalBackground] = useState<ComparisonBackground>('transparent')
   const background = controlledBackground ?? localBackground
   const setBackground = controlledOnBackgroundChange ?? setLocalBackground
   // Stage backdrop toggle, keyboard 'B' (Phase 13F) — works identically

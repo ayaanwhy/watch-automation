@@ -29,6 +29,12 @@
   flex: 1;
 }
 
+.statusDirty {
+  font-size: var(--text-caption);
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
 .layout {
   display: flex;
   flex-direction: column;

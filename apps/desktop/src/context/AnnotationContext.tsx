@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, type ReactNode } from 'react'
-import { MIN_GUIDE_SEPARATION } from '../types/annotation'
+import { MIN_GUIDE_SEPARATION, resolveProvenance } from '../types/annotation'
 import type { BatchState, BoundaryData, GuideMode, WatchAnnotation } from '../types/annotation'
 import type { SpreadsheetRowData } from '../types/ipc'
 import type { SessionFile } from '../types/session'
@@ -37,10 +37,14 @@ interface AnnotationProviderProps {
   children: ReactNode
 }
 
+// `prediction: null` below — no detection provider exists yet (Phase
+// 14B/14C), so this always resolves to 'manual'/null, bit-identical to the
+// hardcoded stamp it replaces. See resolveProvenance's own doc comment.
 function clampBoundary(b: SimpleBoundary): BoundaryData {
   const safeLeft = Math.round(Math.min(b.leftBoundary, b.rightBoundary - MIN_GUIDE_SEPARATION))
   const safeRight = Math.round(Math.max(b.rightBoundary, b.leftBoundary + MIN_GUIDE_SEPARATION))
-  return { leftBoundary: safeLeft, rightBoundary: safeRight, source: 'manual', confidence: null }
+  const { source, confidence } = resolveProvenance({ leftBoundary: safeLeft, rightBoundary: safeRight }, null)
+  return { leftBoundary: safeLeft, rightBoundary: safeRight, source, confidence }
 }
 
 export function AnnotationProvider({ batch, initialSession, children }: AnnotationProviderProps) {

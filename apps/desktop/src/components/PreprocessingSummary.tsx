@@ -1,12 +1,18 @@
 import { useEffect, useState } from 'react'
+import { Button } from './ui/Button'
 import { EditingHandoffDialog, type EditingHandoffOptions } from './preprocessing/EditingHandoffDialog'
 import type { PreprocessDonePayload, PrepareProgressPayload } from '../types/ipc'
+import type { EditingProduct } from '../types/navigation'
 import styles from './PreprocessingSummary.module.css'
 
 interface PreprocessingSummaryProps {
   donePayload: PreprocessDonePayload | null
   fatalError: string | null
-  onReset: () => void
+  // The batch's own Preprocessing "Target", when it names a real editing
+  // product — used to preselect Continue to Editing's destination instead
+  // of always defaulting to Watch (post-Phase-13 fix). Undefined/generic
+  // targets fall back to the dialog's own last-used-pref behavior.
+  sourceProductType?: EditingProduct
   // Generalized (Phase 10F) from the original Watch-only "Continue to Watch
   // Processing" action — the dialog collects Trim/Rotate/Destination first,
   // then this is called with the operator's choices.
@@ -20,7 +26,7 @@ function formatDuration(ms: number): string {
   return `${minutes}m ${seconds}s`
 }
 
-export function PreprocessingSummary({ donePayload, fatalError, onReset, onEditingHandoff }: PreprocessingSummaryProps) {
+export function PreprocessingSummary({ donePayload, fatalError, sourceProductType, onEditingHandoff }: PreprocessingSummaryProps) {
   const [preparing, setPreparing] = useState(false)
   const [prepareProgress, setPrepareProgress] = useState<PrepareProgressPayload | null>(null)
   const [prepareError, setPrepareError] = useState<string | null>(null)
@@ -80,22 +86,21 @@ export function PreprocessingSummary({ donePayload, fatalError, onReset, onEditi
       {prepareError && <div className={styles.errorRow}>{prepareError}</div>}
 
       <div className={styles.actions}>
-        <button className={styles.resetButton} onClick={onReset} disabled={preparing}>
-          Run another batch
-        </button>
         {onEditingHandoff && donePayload.succeeded > 0 && !donePayload.spawnError && (
-          <button className={styles.continueButton} onClick={() => setShowHandoffDialog(true)} disabled={preparing}>
-            {preparing
-              ? prepareProgress
-                ? `Preparing… (${prepareProgress.completed}/${prepareProgress.total})`
-                : 'Preparing…'
+          <Button variant="secondary" onClick={() => setShowHandoffDialog(true)} loading={preparing}>
+            {preparing && prepareProgress
+              ? `Preparing… (${prepareProgress.completed}/${prepareProgress.total})`
               : 'Continue to Editing →'}
-          </button>
+          </Button>
         )}
       </div>
 
       {showHandoffDialog && (
-        <EditingHandoffDialog onConfirm={handleConfirmHandoff} onClose={() => setShowHandoffDialog(false)} />
+        <EditingHandoffDialog
+          onConfirm={handleConfirmHandoff}
+          onClose={() => setShowHandoffDialog(false)}
+          suggestedDestination={sourceProductType}
+        />
       )}
     </div>
   )

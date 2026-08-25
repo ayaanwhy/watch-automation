@@ -70,7 +70,7 @@ export function RingBraceletImagePreviewPanel({
   compareMode,
   zoom,
 }: RingBraceletImagePreviewPanelProps) {
-  const [localBackground, setLocalBackground] = useState<ComparisonBackground>('neutral')
+  const [localBackground, setLocalBackground] = useState<ComparisonBackground>('transparent')
   const background = controlledBackground ?? localBackground
   const setBackground = controlledOnBackgroundChange ?? setLocalBackground
   // Stage backdrop toggle, keyboard 'B' (Phase 13F) — works identically

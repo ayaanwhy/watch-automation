@@ -28,9 +28,11 @@
 }
 
 .idleHero {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
   border: 1px dashed var(--hairline);
   border-radius: var(--radius-14);
 }
@@ -48,7 +50,7 @@
   }
 }
 
-/* ── Quick launch — replaces the old CreateBatchModal funnel. ───────────── */
+/* ── Quick launch — replaces the old "New Batch" modal funnel. ──────────── */
 .quickLaunchRow {
   display: flex;
   gap: var(--space-3);

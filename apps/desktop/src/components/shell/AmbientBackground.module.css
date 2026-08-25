@@ -12,10 +12,11 @@
   border-radius: 999px;
   filter: blur(80px);
   /* --ambient-intensity is set by AppearanceEffects.tsx from Settings >
-     Appearance (Phase 13H) — 1 (standard) reproduces this exact pre-13H
-     opacity; the fallback keeps every non-app-rendered/test context (e.g.
-     a bare .module.css snapshot) looking identical to before this phase. */
-  opacity: calc(0.04 * var(--ambient-intensity, 1));
+     Appearance (Phase 13H) — 1 (standard) is the multiplier baseline. Base
+     raised from 0.04 to 0.05 post-Phase-13 (still inside the design
+     language's stated 3-5% ambient opacity range) after review found the
+     layer too subtle to read at a glance. */
+  opacity: calc(0.05 * var(--ambient-intensity, 1));
   background: radial-gradient(circle, var(--accent) 0%, transparent 70%);
   animation-timing-function: ease-in-out;
   animation-iteration-count: infinite;
@@ -23,8 +24,8 @@
 }
 
 .blobOne {
-  width: 55vw;
-  height: 55vw;
+  width: 60vw;
+  height: 60vw;
   top: -15%;
   left: -10%;
   animation-name: driftOne;
@@ -32,8 +33,8 @@
 }
 
 .blobTwo {
-  width: 45vw;
-  height: 45vw;
+  width: 50vw;
+  height: 50vw;
   bottom: -15%;
   right: -10%;
   animation-name: driftTwo;

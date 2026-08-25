@@ -15,6 +15,13 @@ export interface EditingHandoffOptions {
 interface EditingHandoffDialogProps {
   onConfirm: (options: EditingHandoffOptions) => void
   onClose: () => void
+  // The product this batch is already known to be (its Preprocessing
+  // "Target"), when determinable — wins over the operator's last-used
+  // destination pref, since preselecting the correct product for THIS
+  // batch is more useful than repeating whatever was picked last time.
+  // Undefined when the source batch's target is generic/unrecognized, in
+  // which case prior behavior (last-used pref, else Watch) applies.
+  suggestedDestination?: EditingProduct
 }
 
 const ROTATE_OPTIONS: { value: EditingHandoffRotate; label: string }[] = [
@@ -38,10 +45,10 @@ const DESTINATION_OPTIONS: { value: EditingProduct; label: string }[] = [
 // action. Remembers the operator's last-used Trim/Rotate/Destination choices
 // across runs (prefs, same pattern as SAM tuning) so a repeat hand-off to
 // the same destination doesn't require re-selecting every option.
-export function EditingHandoffDialog({ onConfirm, onClose }: EditingHandoffDialogProps) {
+export function EditingHandoffDialog({ onConfirm, onClose, suggestedDestination }: EditingHandoffDialogProps) {
   const [trim, setTrim] = useState(true)
   const [rotate, setRotate] = useState<EditingHandoffRotate>('ccw')
-  const [destination, setDestination] = useState<EditingProduct>('watch')
+  const [destination, setDestination] = useState<EditingProduct>(suggestedDestination ?? 'watch')
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
@@ -49,11 +56,11 @@ export function EditingHandoffDialog({ onConfirm, onClose }: EditingHandoffDialo
       if (prefs) {
         setTrim(prefs.trim)
         setRotate(prefs.rotate)
-        setDestination(prefs.destination)
+        setDestination(suggestedDestination ?? prefs.destination)
       }
       setLoaded(true)
     })
-  }, [])
+  }, [suggestedDestination])
 
   // Earring's shadow profiles are authored against a fixed 1000px canvas
   // basis (Phase 12A/12C) that assumes a trimmed, unrotated subject — so

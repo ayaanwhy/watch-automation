@@ -1,13 +1,15 @@
 import { useEffect } from 'react'
 import type { ComparisonBackground } from '../components/shared/BeforeAfterSlider'
 
-const CYCLE: ComparisonBackground[] = ['neutral', 'white', 'checkerboard']
+const CYCLE: ComparisonBackground[] = ['transparent', 'white', 'black']
 
 // Keyboard 'B' cycling for the Stage backdrop toggle (Phase 13F, Visual
-// Direction: "Neutral / White / Checkerboard, keyboard B"). Each preview
-// panel owns its own `background` state independently, so this hook is
-// called from within each one rather than centralized — see
-// ImagePreviewPanel.tsx / RingBraceletImagePreviewPanel.tsx.
+// Direction: "Transparent / White / Black, keyboard B" — reverted from a
+// brief Neutral/White/Checkerboard rename post-Phase-13, see
+// BeforeAfterSlider.tsx's own comment). Each preview panel owns its own
+// `background` state independently, so this hook is called from within
+// each one rather than centralized — see ImagePreviewPanel.tsx /
+// RingBraceletImagePreviewPanel.tsx.
 export function useBackdropCycle(
   background: ComparisonBackground,
   onChange: (next: ComparisonBackground) => void,

@@ -1,5 +1,7 @@
 import { useAnnotation } from '../context/AnnotationContext'
 import { useQueue } from '../context/QueueContext'
+import { Badge, type BadgeTone } from './ui/Badge'
+import type { BoundaryData } from '../types/annotation'
 import styles from './InfoPanel.module.css'
 
 const QUEUE_STATUS_LABELS: Record<string, string> = {
@@ -8,6 +10,22 @@ const QUEUE_STATUS_LABELS: Record<string, string> = {
   processing: 'Processing…',
   complete: 'Exported',
   failed: 'Export failed',
+}
+
+// Saved-annotation provenance badge (Phase 14A) — 'manual' reads as the
+// default/expected case; 'ai'/'ai-adjusted' both read as accent (violet —
+// "the machine is working/suggested this"), distinguished by label text
+// rather than a second tone. No detection provider exists yet, so in
+// practice every saved annotation is still 'manual' today; this is the
+// display half of the provenance foundation Phase 14C's real predictions
+// will populate.
+function provenanceTone(source: BoundaryData['source']): BadgeTone {
+  return source === 'manual' ? 'neutral' : 'running'
+}
+
+function provenanceLabel(boundary: BoundaryData): string {
+  const base = boundary.source === 'manual' ? 'Manual' : boundary.source === 'ai' ? 'AI' : 'AI · adjusted'
+  return boundary.confidence === null ? base : `${base} · ${Math.round(boundary.confidence * 100)}%`
 }
 
 interface InfoPanelProps {
@@ -46,6 +64,20 @@ export function InfoPanel({ onSubmit, onBack, onShowDashboard, onCompleteBatch }
         <div className={styles.statusBadge} data-status={currentAnnotation.status}>
           {currentAnnotation.status === 'annotated' ? 'Annotated' : 'Unannotated'}
         </div>
+        {currentAnnotation.status === 'annotated' && (
+          <div className={styles.provenanceRow}>
+            {currentAnnotation.spliceBoundaries && (
+              <Badge tone={provenanceTone(currentAnnotation.spliceBoundaries.source)}>
+                Splice · {provenanceLabel(currentAnnotation.spliceBoundaries)}
+              </Badge>
+            )}
+            {currentAnnotation.scaleBoundaries && (
+              <Badge tone={provenanceTone(currentAnnotation.scaleBoundaries.source)}>
+                Scale · {provenanceLabel(currentAnnotation.scaleBoundaries)}
+              </Badge>
+            )}
+          </div>
+        )}
         {queueItem && (
           <div className={styles.processingBadge} data-pstatus={queueItem.status}>
             {QUEUE_STATUS_LABELS[queueItem.status] ?? queueItem.status}

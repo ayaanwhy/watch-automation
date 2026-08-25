@@ -12,7 +12,7 @@ import { usePreprocessingPresetDefinitions } from '../hooks/usePreprocessingPres
 import { useShadowProfileDefinitions } from '../hooks/useShadowProfileDefinitions'
 import { useAppearancePrefs } from '../hooks/useAppearancePrefs'
 import { PREPROCESSING_PRESET_OPTIONS, DEFAULT_PREPROCESSING_PRESET } from '../constants/preprocessingPresets'
-import { SHADOW_PROFILE_OPTIONS, DEFAULT_SHADOW_PROFILES } from '../constants/shadowProfiles'
+import { SHADOW_PROFILE_OPTIONS } from '../constants/shadowProfiles'
 import type { PreprocessingPreset } from '../constants/preprocessingPresets'
 import type { ShadowProfileName } from '../constants/shadowProfiles'
 import type { AppearanceOverride } from '../types/ipc'
@@ -94,15 +94,14 @@ export default function Settings() {
               <PresetDefinitionEditor
                 preset={editingPreset}
                 definition={presetDefs.definitions[editingPreset]}
-                onCommit={values => void presetDefs.saveValues(editingPreset, values)}
-                onReset={() => presetDefs.resetToDefault(editingPreset)}
+                onSave={values => void presetDefs.saveValues(editingPreset, values)}
               />
             )}
           </SettingsSection>
 
           <SettingsSection
             title="Shadow Profiles"
-            description="The drop-shadow look Ring & Bracelet and Earring bake into frontImage. Reset returns a profile to the exact values shadow.py ships with — every batch that never touches this section already uses them unmodified."
+            description="The drop-shadow look Watch, Ring & Bracelet, and Earring each bake into frontImage. Edits are a draft until you press Save — Reset only resets the draft back to factory values, it doesn't apply on its own. Every batch that never touches this section uses the factory values unmodified."
           >
             <Select
               label="Editing"
@@ -114,8 +113,7 @@ export default function Settings() {
               <ShadowProfileEditor
                 name={editingShadowProfile}
                 definition={shadowDefs.definitions[editingShadowProfile]}
-                onCommit={values => void shadowDefs.saveValues(editingShadowProfile, values)}
-                onReset={() => void shadowDefs.saveValues(editingShadowProfile, DEFAULT_SHADOW_PROFILES[editingShadowProfile])}
+                onSave={values => void shadowDefs.saveValues(editingShadowProfile, values)}
               />
             )}
           </SettingsSection>

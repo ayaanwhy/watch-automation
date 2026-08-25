@@ -1,9 +1,13 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, type ReactNode } from 'react'
+import { CheckCircle2, XCircle } from 'lucide-react'
 import type { BatchValidationResult, BatchLoadResult, MatchSummary, OpenFileOptions } from '../types/ipc'
 import type { BatchState } from '../types/annotation'
 import type { SessionFile } from '../types/session'
 import { PathField } from '../components/PathField'
+import { Button } from '../components/ui/Button'
 import { SegmentedControl } from '../components/ui/SegmentedControl'
+import { ConsoleLayout } from '../components/console/ConsoleLayout'
+import { ConsoleSummaryPanel, type ConsoleSummaryItem } from '../components/console/ConsoleSummaryPanel'
 import { PROCESSING_MODE_OPTIONS } from '../constants/processingMode'
 import type { ProcessingMode } from '../constants/processingMode'
 import styles from './BatchSetup.module.css'
@@ -14,9 +18,31 @@ interface BatchSetupProps {
   // via Home's "Create & Open" with a custom title; empty for sidebar entry.
   initialBatchName?: string
   handoffFolder?: string | null
+  // Console shell (post-Phase-13 rebuild) — EditingSetup builds this once
+  // and passes the identical node to Watch/Ring&Bracelet/Earring alike, see
+  // EditingSetup.tsx.
+  productSelector: ReactNode
 }
 
-export default function BatchSetup({ onBeginAnnotation, initialBatchName = '', handoffFolder }: BatchSetupProps) {
+// Watch's own entry screen — rebuilt onto the Console archetype (Layout
+// Philosophy: two-pane, form left, live-restatement summary right owning
+// the primary action) to match Ring & Bracelet/Earring's EditingSetup.tsx
+// fields, post-Phase-13 review. This is a reskin/recomposition only: every
+// state variable, effect, and IPC call below is unchanged from the
+// pre-rebuild version — only the returned JSX (and where each piece of
+// state renders) changed. Watch's own two real differences from the other
+// products' consoles are preserved rather than papered over:
+//   - an explicit Validate button (folder/spreadsheet/output are checked
+//     together in one batch:validate + batch:load pipeline, not per-field
+//     like PathField's own incremental checks), instead of Ring/Bracelet's
+//     auto-validate-on-folder-change.
+//   - the primary action is Begin Annotation / Resume / Start Fresh, never
+//     a job.start()-shaped async action — see ConsoleSummaryPanel's
+//     hideStartButton, added specifically for the Resume/Start Fresh case.
+// No Mode (Production/Testing) control: Watch's batch-creation path has
+// never read it (see EditingSetup.tsx's own doc comment on that prop), and
+// showing a toggle that does nothing would be worse than not showing one.
+export default function BatchSetup({ onBeginAnnotation, initialBatchName = '', handoffFolder, productSelector }: BatchSetupProps) {
   const [batchName, setBatchName] = useState(initialBatchName)
   const [inputFolder, setInputFolder] = useState('')
   const [spreadsheetPath, setSpreadsheetPath] = useState('')
@@ -145,103 +171,104 @@ export default function BatchSetup({ onBeginAnnotation, initialBatchName = '', h
     }
   }
 
+  const isHandoff = Boolean(handoffFolder && inputFolder === handoffFolder)
   const showActions =
     loadResult?.ok && loadResult.match && loadResult.match.matched.length > 0 && sessionChecked
+  const matchedCount = loadResult?.ok && loadResult.match ? loadResult.match.matched.length : null
+
+  const summaryItems: ConsoleSummaryItem[] = [
+    { label: 'Matched SKUs', value: matchedCount !== null ? String(matchedCount) : '—' },
+    { label: 'Masking', value: processingMode === 'manual' ? 'Manual' : 'Automatic' },
+  ]
 
   return (
-    <>
-      {handoffFolder && inputFolder === handoffFolder && (
+    <ConsoleLayout
+      title="Editing"
+      subtitle="Choose a product, then configure a new batch."
+      headerExtra={productSelector}
+      summary={
+        <ConsoleSummaryPanel
+          items={summaryItems}
+          startLabel={matchedCount !== null ? `Begin Annotation (${matchedCount} SKUs)` : 'Begin Annotation'}
+          onStart={() => onBeginAnnotation(buildBatch(), null, batchName)}
+          canStart={Boolean(showActions) && existingSession === null}
+          hideStartButton={Boolean(showActions) && existingSession !== null}
+        >
+          {loadResult !== null && <BatchSummary result={loadResult} />}
+          {showActions && existingSession !== null && (
+            <ResumePrompt
+              session={existingSession}
+              total={loadResult!.match!.matched.length}
+              onResume={() => onBeginAnnotation(buildBatch(), existingSession, batchName)}
+              onFresh={() => onBeginAnnotation(buildBatch(), null, batchName)}
+            />
+          )}
+        </ConsoleSummaryPanel>
+      }
+    >
+      {isHandoff && (
         <p className={styles.handoffMessage}>
           ✓ Input folder prepared from Preprocessing. Choose a spreadsheet and output folder to continue.
         </p>
       )}
 
-      <div className={styles.fields}>
-        {/* Continuing an existing batch's Watch stage (hand-off from
-            Preprocessing) reuses that batch's identity — renaming isn't
-            part of this flow, so the field is hidden rather than shown
-            inert. It reappears for a genuinely new Watch batch. */}
-        {!(handoffFolder && inputFolder === handoffFolder) && (
-          <div className={styles.nameField}>
-            <label className={styles.nameLabel}>Batch Name (optional)</label>
-            <input
-              className={styles.nameInput}
-              type="text"
-              value={batchName}
-              onChange={e => setBatchName(e.target.value)}
-              placeholder="A name is generated if left blank"
-              spellCheck={false}
-            />
-          </div>
-        )}
-        <PathField
-          label="Input Folder"
-          value={inputFolder}
-          placeholder="Select folder containing watch images"
-          onPick={() => pickInputFolder()}
-          onDropPath={pickInputFolder}
-          badge={handoffFolder && inputFolder === handoffFolder ? 'Prepared ✓' : undefined}
-        />
-        <PathField
-          label="Spreadsheet"
-          value={spreadsheetPath}
-          placeholder="Select XLSX or CSV measurement file"
-          onPick={() => pickSpreadsheet()}
-          onDropPath={pickSpreadsheet}
-        />
-        <PathField
-          label="Output Folder"
-          value={outputFolder}
-          placeholder="Select folder for processed exports"
-          onPick={() => pickOutputFolder()}
-          onDropPath={pickOutputFolder}
-        />
-        <SegmentedControl
-          label="Mode"
-          options={PROCESSING_MODE_OPTIONS}
-          value={processingMode}
-          onChange={setProcessingMode}
-        />
-        {processingMode === 'automatic' && (
-          <p className={styles.helperText}>
-            AI-driven Watch masking isn't available yet — Automatic currently behaves the same as Manual (splice boundaries are still hand-drawn during annotation).
-          </p>
-        )}
-      </div>
+      {/* Continuing an existing batch's Watch stage (hand-off from
+          Preprocessing) reuses that batch's identity — renaming isn't
+          part of this flow, so the field is hidden rather than shown
+          inert. It reappears for a genuinely new Watch batch. */}
+      {!isHandoff && (
+        <div className={styles.nameField}>
+          <label className={styles.nameLabel}>Batch Name (optional)</label>
+          <input
+            className={styles.nameInput}
+            type="text"
+            value={batchName}
+            onChange={e => setBatchName(e.target.value)}
+            placeholder="A name is generated if left blank"
+            spellCheck={false}
+          />
+        </div>
+      )}
+      <PathField
+        label="Input Folder"
+        value={inputFolder}
+        placeholder="Select folder containing watch images"
+        onPick={() => pickInputFolder()}
+        onDropPath={pickInputFolder}
+        badge={isHandoff ? 'Prepared ✓' : undefined}
+      />
+      <PathField
+        label="Spreadsheet"
+        value={spreadsheetPath}
+        placeholder="Select XLSX or CSV measurement file"
+        onPick={() => pickSpreadsheet()}
+        onDropPath={pickSpreadsheet}
+      />
+      <PathField
+        label="Output Folder"
+        value={outputFolder}
+        placeholder="Select folder for processed exports"
+        onPick={() => pickOutputFolder()}
+        onDropPath={pickOutputFolder}
+      />
+      <SegmentedControl
+        label="Mode"
+        options={PROCESSING_MODE_OPTIONS}
+        value={processingMode}
+        onChange={setProcessingMode}
+      />
+      {processingMode === 'automatic' && (
+        <p className={styles.helperText}>
+          AI-driven Watch masking isn't available yet — Automatic currently behaves the same as Manual (splice boundaries are still hand-drawn during annotation).
+        </p>
+      )}
 
-      <div className={styles.actions}>
-        <button
-          className={styles.validateButton}
-          onClick={handleValidate}
-          disabled={!canValidate || isLoading}
-        >
-          {loadingMsg ?? 'Validate'}
-        </button>
-      </div>
+      <Button variant="primary" onClick={handleValidate} disabled={!canValidate} loading={isLoading}>
+        {loadingMsg ?? 'Validate'}
+      </Button>
 
       {pathResult !== null && <ValidationResults result={pathResult} />}
-      {loadResult !== null && <BatchSummary result={loadResult} />}
-
-      {showActions && (
-        existingSession !== null ? (
-          <ResumePrompt
-            session={existingSession}
-            total={loadResult!.match!.matched.length}
-            onResume={() => onBeginAnnotation(buildBatch(), existingSession, batchName)}
-            onFresh={() => onBeginAnnotation(buildBatch(), null, batchName)}
-          />
-        ) : (
-          <div className={styles.actions}>
-            <button
-              className={styles.beginButton}
-              onClick={() => onBeginAnnotation(buildBatch(), null, batchName)}
-            >
-              Begin Annotation ({loadResult!.match!.matched.length} SKUs)
-            </button>
-          </div>
-        )
-      )}
-    </>
+    </ConsoleLayout>
   )
 }
 
@@ -250,9 +277,9 @@ export default function BatchSetup({ onBeginAnnotation, initialBatchName = '', h
 function ValidationResults({ result }: { result: BatchValidationResult }) {
   if (result.ok) {
     return (
-      <div className={`${styles.results} ${styles.resultsOk}`}>
+      <div className={styles.resultsOk}>
         <div className={styles.resultRow}>
-          <span className={styles.ok}>✓</span>
+          <CheckCircle2 size={14} strokeWidth={2.25} className={styles.ok} aria-hidden="true" />
           <span>
             Input folder found
             {result.imageCount !== undefined &&
@@ -260,11 +287,11 @@ function ValidationResults({ result }: { result: BatchValidationResult }) {
           </span>
         </div>
         <div className={styles.resultRow}>
-          <span className={styles.ok}>✓</span>
+          <CheckCircle2 size={14} strokeWidth={2.25} className={styles.ok} aria-hidden="true" />
           <span>Spreadsheet found</span>
         </div>
         <div className={styles.resultRow}>
-          <span className={styles.ok}>✓</span>
+          <CheckCircle2 size={14} strokeWidth={2.25} className={styles.ok} aria-hidden="true" />
           <span>Output folder found</span>
         </div>
       </div>
@@ -272,10 +299,10 @@ function ValidationResults({ result }: { result: BatchValidationResult }) {
   }
 
   return (
-    <div className={`${styles.results} ${styles.resultsError}`}>
+    <div className={styles.resultsError}>
       {result.errors.map((error, index) => (
         <div key={index} className={styles.resultRow}>
-          <span className={styles.err}>✗</span>
+          <XCircle size={14} strokeWidth={2.25} className={styles.err} aria-hidden="true" />
           <span>{error}</span>
         </div>
       ))}
@@ -286,11 +313,11 @@ function ValidationResults({ result }: { result: BatchValidationResult }) {
 function BatchSummary({ result }: { result: BatchLoadResult }) {
   if (!result.ok) {
     return (
-      <div className={`${styles.summary} ${styles.summaryError}`}>
+      <div className={styles.summaryError}>
         <div className={styles.summaryTitle}>Batch Analysis Failed</div>
         {result.errors.map((e, i) => (
           <div key={i} className={styles.resultRow}>
-            <span className={styles.err}>✗</span>
+            <XCircle size={14} strokeWidth={2.25} className={styles.err} aria-hidden="true" />
             <span>{e}</span>
           </div>
         ))}
@@ -306,7 +333,7 @@ function BatchSummary({ result }: { result: BatchLoadResult }) {
     m.duplicateImageSkus.length > 0
 
   return (
-    <div className={`${styles.summary} ${hasWarnings ? styles.summaryWarn : styles.summaryOk}`}>
+    <div className={hasWarnings ? styles.summaryWarn : styles.summaryOk}>
       <div className={styles.summaryTitle}>Batch Summary</div>
 
       <div className={styles.statGrid}>
@@ -359,12 +386,8 @@ function ResumePrompt({ session, total, onResume, onFresh }: ResumePromptProps) 
         <span className={styles.resumeCount}>{annotated} of {total} annotated</span>
       </div>
       <div className={styles.resumeActions}>
-        <button className={styles.beginButton} onClick={onResume}>
-          Resume
-        </button>
-        <button className={styles.startFreshButton} onClick={onFresh}>
-          Start fresh
-        </button>
+        <Button variant="primary" onClick={onResume}>Resume</Button>
+        <Button variant="secondary" onClick={onFresh}>Start fresh</Button>
       </div>
     </div>
   )

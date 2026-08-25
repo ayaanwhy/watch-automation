@@ -1,111 +1,69 @@
 .summary {
-  margin-top: 24px;
-  padding: 16px;
-  border-radius: 6px;
+  margin-top: var(--space-6);
+  padding: var(--space-4);
+  border-radius: var(--radius-10);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .summaryOk {
-  background: #f0faf0;
-  border: 1px solid #b3ddb3;
+  background: var(--success-fill);
+  border: 1px solid var(--success-border);
 }
 
 .summaryWarn {
-  background: #fffbf0;
-  border: 1px solid #e0c97a;
+  background: var(--warning-fill);
+  border: 1px solid var(--warning-border);
 }
 
 .summaryTitle {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--text-label);
+  font-weight: var(--weight-semibold);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #555;
+  color: var(--text-2);
 }
 
 .errorRow {
-  font-size: 13px;
-  color: #c0392b;
+  font-size: var(--text-body);
+  color: var(--danger);
 }
 
 .statGrid {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-2);
 }
 
 .statRow {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 13px;
-  color: #333;
+  font-size: var(--text-body);
+  color: var(--text-1);
 }
 
 .statLabel {
-  color: #555;
+  color: var(--text-2);
 }
 
 .statValue {
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   font-variant-numeric: tabular-nums;
 }
 
 .statOk {
-  color: #2d8a2d;
+  color: var(--success);
 }
 
 .statWarn {
-  color: #b07a00;
+  color: var(--warning);
 }
 
 .actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-3);
   flex-wrap: wrap;
-}
-
-.resetButton {
-  padding: 8px 24px;
-  font-size: 14px;
-  font-weight: 500;
-  color: #fff;
-  background: #1a1a1a;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.resetButton:hover:not(:disabled) {
-  background: #333;
-}
-
-.resetButton:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.continueButton {
-  padding: 8px 20px;
-  font-size: 14px;
-  font-weight: 500;
-  color: #1a1a1a;
-  background: transparent;
-  border: 1px solid #c0c0c0;
-  border-radius: 6px;
-  cursor: pointer;
-  font-variant-numeric: tabular-nums;
-}
-
-.continueButton:hover:not(:disabled) {
-  background: #f5f5f5;
-  border-color: #1a1a1a;
-}
-
-.continueButton:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }

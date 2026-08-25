@@ -84,7 +84,13 @@ export async function writeShadowProfileSidecar(): Promise<string> {
   await mkdir(dir, { recursive: true })
   const filePath = join(dir, `${randomUUID()}.json`)
   const definitions = getShadowProfileDefinitions()
+  // Includes 'watch' too even though its only consumer today
+  // (processHandlers.ts's runProcessWatch) reads the definition directly
+  // in-process rather than via this sidecar — harmless to include, keeps
+  // this "the full current set" claim literally true, and costs nothing if
+  // Watch is ever moved behind a subprocess boundary later.
   const payload: Record<ShadowProfileName, ShadowProfileValues> = {
+    watch: stripVersion(definitions.watch),
     ringBracelet: stripVersion(definitions.ringBracelet),
     earringStudDrop: stripVersion(definitions.earringStudDrop),
     earringHoop: stripVersion(definitions.earringHoop),

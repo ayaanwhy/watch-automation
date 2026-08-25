@@ -4,9 +4,9 @@ import type { ComparisonBackground, CompareMode } from '../shared/BeforeAfterSli
 import styles from './ReviewToolbar.module.css'
 
 const BACKGROUND_OPTIONS: { value: ComparisonBackground; label: string }[] = [
-  { value: 'neutral', label: 'Neutral' },
+  { value: 'transparent', label: 'Transparent' },
   { value: 'white', label: 'White' },
-  { value: 'checkerboard', label: 'Checkerboard' },
+  { value: 'black', label: 'Black' },
 ]
 
 const COMPARE_MODE_OPTIONS: { value: CompareMode; label: string }[] = [

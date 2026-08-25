@@ -96,6 +96,17 @@
   border: 1px solid var(--hairline);
 }
 
+/* Saved-annotation provenance (Phase 14A) — uses the shared Badge
+   component, not this file's own bespoke badge classes; it integrates
+   cleanly since Badge already draws from the same Atelier tokens this
+   screen was retoned onto in Phase 13I. */
+.provenanceRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
 .processingBadge {
   display: inline-block;
   font-size: var(--text-caption);

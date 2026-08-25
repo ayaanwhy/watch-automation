@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useState } from 'react'
 import { Button } from './ui/Button'
 import { useShadowPreview } from '../hooks/useShadowPreview'
-import { isShadowProfileModified } from '../constants/shadowProfiles'
+import { isShadowProfileModified, DEFAULT_SHADOW_PROFILES } from '../constants/shadowProfiles'
 import { toFileUrl } from '../lib/paths'
 import type { ShadowProfileDefinition, ShadowProfileName, ShadowProfileValues } from '../constants/shadowProfiles'
 import styles from './ShadowProfileEditor.module.css'
@@ -30,15 +30,16 @@ const NUMBER_FIELDS: NumberFieldSpec[] = [
 interface ShadowProfileEditorProps {
   name: ShadowProfileName
   definition: ShadowProfileDefinition
-  onCommit: (values: ShadowProfileValues) => void
-  onReset: () => void
+  onSave: (values: ShadowProfileValues) => void
 }
 
 // Settings-only editor for one shadow profile's active values, mirroring
-// PresetDefinitionEditor.tsx's exact shape (commit-on-blur for numbers,
-// immediate commit for checkbox/color, version + modified + reset row).
+// PresetDefinitionEditor.tsx's exact shape: editing is a local draft, no
+// field persists (or bumps the version) until Save is explicitly pressed.
+// The live preview (useShadowPreview) still tracks the draft continuously —
+// only persistence is gated, not the render-as-you-type feedback loop.
 // canvas_base is intentionally not exposed — see NUMBER_FIELDS above.
-export function ShadowProfileEditor({ name, definition, onCommit, onReset }: ShadowProfileEditorProps) {
+export function ShadowProfileEditor({ name, definition, onSave }: ShadowProfileEditorProps) {
   const { version, ...values } = definition
   const [draft, setDraft] = useState<ShadowProfileValues>(values)
 
@@ -48,13 +49,12 @@ export function ShadowProfileEditor({ name, definition, onCommit, onReset }: Sha
   }, [name, version])
 
   const modified = isShadowProfileModified(name, values)
+  const draftDiffersFromFactory = isShadowProfileModified(name, draft)
+  const dirty = (Object.keys(values) as (keyof ShadowProfileValues)[]).some(key => draft[key] !== values[key])
   const preview = useShadowPreview(draft)
 
-  function commitField<K extends keyof ShadowProfileValues>(key: K, value: ShadowProfileValues[K]) {
-    if (values[key] === value) return
-    const next = { ...draft, [key]: value }
-    setDraft(next)
-    onCommit(next)
+  function updateField<K extends keyof ShadowProfileValues>(key: K, value: ShadowProfileValues[K]) {
+    setDraft(prev => ({ ...prev, [key]: value }))
   }
 
   function updateNumberField(spec: NumberFieldSpec, raw: string) {
@@ -63,8 +63,12 @@ export function ShadowProfileEditor({ name, definition, onCommit, onReset }: Sha
 
   function commitNumberField(spec: NumberFieldSpec) {
     const parsed = draft[spec.key] as number
-    const clamped = Number.isFinite(parsed) ? Math.min(spec.max, Math.max(spec.min, parsed)) : (values[spec.key] as number)
-    commitField(spec.key, clamped)
+    if (!Number.isFinite(parsed)) {
+      updateField(spec.key, values[spec.key])
+      return
+    }
+    const clamped = Math.min(spec.max, Math.max(spec.min, parsed))
+    if (clamped !== parsed) updateField(spec.key, clamped as ShadowProfileValues[typeof spec.key])
   }
 
   return (
@@ -74,8 +78,12 @@ export function ShadowProfileEditor({ name, definition, onCommit, onReset }: Sha
         <span className={modified ? styles.statusModified : styles.statusDefault}>
           {modified ? 'Modified' : 'Using factory defaults'}
         </span>
-        <Button variant="secondary" size="sm" onClick={onReset} disabled={!modified}>
+        {dirty && <span className={styles.statusDirty}>Unsaved changes</span>}
+        <Button variant="secondary" size="sm" onClick={() => setDraft(DEFAULT_SHADOW_PROFILES[name])} disabled={!draftDiffersFromFactory}>
           Reset to Default
+        </Button>
+        <Button variant="primary" size="sm" onClick={() => onSave(draft)} disabled={!dirty}>
+          Save
         </Button>
       </div>
 
@@ -87,7 +95,7 @@ export function ShadowProfileEditor({ name, definition, onCommit, onReset }: Sha
               className={styles.colorSwatch}
               type="color"
               value={draft.color}
-              onChange={e => commitField('color', e.target.value)}
+              onChange={e => updateField('color', e.target.value)}
             />
             <input
               className={styles.colorText}
@@ -95,7 +103,6 @@ export function ShadowProfileEditor({ name, definition, onCommit, onReset }: Sha
               value={draft.color}
               spellCheck={false}
               onChange={e => setDraft(prev => ({ ...prev, color: e.target.value }))}
-              onBlur={() => commitField('color', draft.color)}
             />
           </div>
 
@@ -115,14 +122,21 @@ export function ShadowProfileEditor({ name, definition, onCommit, onReset }: Sha
             </Fragment>
           ))}
 
-          <label className={styles.label} htmlFor="shadow-horizontal-falloff">Horizontal Falloff</label>
-          <input
-            id="shadow-horizontal-falloff"
-            className={styles.checkbox}
-            type="checkbox"
-            checked={draft.horizontal_falloff}
-            onChange={e => commitField('horizontal_falloff', e.target.checked)}
-          />
+          {/* Watch's own shadow engine (shadowEngine.ts) has no proportional
+              falloff concept — the flag would be a no-op there, so it's
+              hidden rather than shown-but-inert (see constants/shadowProfiles.ts). */}
+          {name !== 'watch' && (
+            <>
+              <label className={styles.label} htmlFor="shadow-horizontal-falloff">Horizontal Falloff</label>
+              <input
+                id="shadow-horizontal-falloff"
+                className={styles.checkbox}
+                type="checkbox"
+                checked={draft.horizontal_falloff}
+                onChange={e => updateField('horizontal_falloff', e.target.checked)}
+              />
+            </>
+          )}
         </div>
 
         <div className={styles.previewPane}>

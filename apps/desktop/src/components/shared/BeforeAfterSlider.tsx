@@ -3,12 +3,11 @@ import { ChevronsLeftRight } from 'lucide-react'
 import { SegmentedControl } from '../ui/SegmentedControl'
 import styles from './BeforeAfterSlider.module.css'
 
-// Phase 13F — renamed to the Stage backdrop toggle's own vocabulary (Visual
-// Direction: "Neutral / White / Checkerboard, keyboard B"). 'transparent'/
-// 'black' are gone, not aliased: this type's only two call sites
-// (ImagePreviewPanel.tsx, RingBraceletImagePreviewPanel.tsx) migrated in the
-// same phase, so there was nothing left to keep backward-compatible.
-export type ComparisonBackground = 'neutral' | 'white' | 'checkerboard'
+// Reverted post-Phase-13 back to the pre-13F vocabulary (Transparent /
+// White / Black) — the Neutral/White/Checkerboard rename made reviewing
+// transparent PNG assets against a checker pattern less direct than the
+// original "Transparent" option, per explicit product direction.
+export type ComparisonBackground = 'transparent' | 'white' | 'black'
 
 // Phase 13G — Batch Details' review toolbar. 'sideBySide' shows both images
 // at once, unclipped, no drag handle — some reviewers prefer it over the
@@ -39,15 +38,15 @@ interface BeforeAfterSliderProps {
 }
 
 const BACKGROUND_OPTIONS: { value: ComparisonBackground; label: string }[] = [
-  { value: 'neutral', label: 'Neutral' },
+  { value: 'transparent', label: 'Transparent' },
   { value: 'white', label: 'White' },
-  { value: 'checkerboard', label: 'Checkerboard' },
+  { value: 'black', label: 'Black' },
 ]
 
 const BACKGROUND_CLASS: Record<ComparisonBackground, string> = {
-  neutral: 'bgNeutral',
+  transparent: 'bgTransparent',
   white: 'bgWhite',
-  checkerboard: 'bgCheckerboard',
+  black: 'bgBlack',
 }
 
 // Draggable before/after comparison. Both images are laid into the SAME

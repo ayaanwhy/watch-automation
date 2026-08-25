@@ -26,7 +26,7 @@
   border: 1px solid var(--hairline-strong);
   border-radius: var(--radius-6);
   box-shadow: var(--elevation-2-shadow);
-  transition: transform var(--duration-220) var(--ease-spring), width var(--duration-220) var(--ease-spring);
+  transition: transform var(--duration-320) var(--ease-spring), width var(--duration-320) var(--ease-spring);
   pointer-events: none;
 }
 

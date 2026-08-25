@@ -1,5 +1,4 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { PageHeader } from '../components/ui/PageHeader'
 import { SegmentedControl } from '../components/ui/SegmentedControl'
 import { PathField } from '../components/PathField'
 import { ConsoleLayout } from '../components/console/ConsoleLayout'
@@ -69,21 +68,22 @@ interface EditingSetupProps {
 }
 
 // The shared Editing setup screen (Phase 10D, extended in 12C, rebuilt as a
-// Console in 13E): one product selector, with Watch's existing BatchSetup,
-// the Ring & Bracelet fields, or the Earring fields rendered beneath it
-// depending on the current selection. This is the single entry point for
-// all four — Home's generic "Editing" launch and each sidebar shortcut all
-// render this same component, differing only in which product is
-// preselected (see App.tsx).
+// Console in 13E): one product selector, with Watch's BatchSetup, the Ring
+// & Bracelet fields, or the Earring fields rendered beneath it depending on
+// the current selection. This is the single entry point for all four —
+// Home's generic "Editing" launch and each sidebar shortcut all render this
+// same component, differing only in which product is preselected (see
+// App.tsx).
 //
-// Watch/BatchSetup is a reskin-only exception here, deliberately: it's a
-// large, validated, pre-existing component with its own internal Begin
-// Annotation action and no Production/Testing concept in its batch-creation
-// path (see the `mode` prop's doc comment) — lifting it into the two-pane
-// Console/shared-Start-button shape would be a real functional change to a
-// component this phase's scope doesn't touch, not a pure reskin. Ring &
-// Bracelet and Earring get the full Console treatment; Watch keeps its
-// existing plain layout, unchanged (see the Phase 13E report).
+// Watch/BatchSetup got the full Console treatment in a post-Phase-13 pass
+// (it was a deliberate reskin-only exception through 13E — see git history
+// for that rationale — since lifting it into the two-pane shape was judged
+// a functional change at the time; on review the recomposition turned out
+// to be layout/chrome-only after all, so it now matches Ring & Bracelet and
+// Earring exactly). BatchSetup owns its own ConsoleLayout/ConsoleSummaryPanel
+// directly, the same self-contained pattern RingBraceletFields/EarringFields
+// below already use — every field, effect, and IPC call inside it is
+// unchanged; only where each piece renders moved.
 export default function EditingSetup({
   product,
   onProductChange,
@@ -104,17 +104,12 @@ export default function EditingSetup({
 
   if (product === 'watch') {
     return (
-      <div className={styles.page}>
-        <div className={styles.container}>
-          <PageHeader title="Editing" subtitle="Choose a product, then configure a new batch." />
-          {productSelector}
-          <BatchSetup
-            onBeginAnnotation={onBeginAnnotation}
-            initialBatchName={initialBatchName}
-            handoffFolder={handoffFolder}
-          />
-        </div>
-      </div>
+      <BatchSetup
+        onBeginAnnotation={onBeginAnnotation}
+        initialBatchName={initialBatchName}
+        handoffFolder={handoffFolder}
+        productSelector={productSelector}
+      />
     )
   }
 

@@ -22,6 +22,12 @@ interface ConsoleSummaryPanelProps {
   // EarringFields' match-summary warnings, which are specific enough to
   // that screen that they don't belong in the generic item list.
   children?: ReactNode
+  // Watch's console (post-Phase-13) — an existing saved session means the
+  // primary action is really a Resume/Start Fresh choice, not a single
+  // Start button; that pair renders as `children` instead, in place of the
+  // button this hides. Every other caller omits this (stays visible,
+  // unchanged).
+  hideStartButton?: boolean
 }
 
 // The Console archetype's right pane (Phase 13E) — "owns the primary Start
@@ -35,6 +41,7 @@ export function ConsoleSummaryPanel({
   canStart,
   error,
   children,
+  hideStartButton = false,
 }: ConsoleSummaryPanelProps) {
   return (
     <div className={styles.panel}>
@@ -51,9 +58,11 @@ export function ConsoleSummaryPanel({
       )}
       {children}
       {error && <div className={styles.errorBanner}>{error}</div>}
-      <Button onClick={onStart} disabled={!canStart || starting} loading={starting} className={styles.startButton}>
-        {startLabel}
-      </Button>
+      {!hideStartButton && (
+        <Button onClick={onStart} disabled={!canStart || starting} loading={starting} className={styles.startButton}>
+          {startLabel}
+        </Button>
+      )}
     </div>
   )
 }

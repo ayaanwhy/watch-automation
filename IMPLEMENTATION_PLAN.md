@@ -1775,7 +1775,7 @@ Iconography: lucide-react (MIT, tree-shakeable, consistent stroke grid) at 16/20
 
 Radii: 6 (inputs/chips) · 10 (buttons/cards) · 14 (panels/modals) · 20 (hero surfaces) · pill. Spacing: 4px base scale extended with 64/80 for page-level breathing room. Containers: Library/Console content max-width ~1040px centered; Stage full-bleed.
 
-The Stage backdrop: image review areas sit on a near-black stage (#101114) — but this application's outputs are transparent PNGs with baked drop shadows (#2e170a) designed for white storefronts, which are invisible on a dark UI. Every preview surface (preview panels, fullscreen viewer, shadow-profile preview) therefore gets a backdrop toggle — Neutral / White / Checkerboard, keyboard B. This is a QA requirement, not a nicety.
+The Stage backdrop: image review areas sit on a near-black stage (#101114) — but this application's outputs are transparent PNGs with baked drop shadows (#2e170a) designed for white storefronts, which are invisible on a dark UI. Every preview surface (preview panels, fullscreen viewer, shadow-profile preview) therefore gets a backdrop toggle — Transparent / White / Black, keyboard B. This is a QA requirement, not a nicety. (Briefly renamed Neutral/White/Checkerboard in 13F/13G; reverted post-Phase-13 — reviewing transparent PNG assets against the checker pattern under its original "Transparent" name was preferable.)
 
 ⸻
 
@@ -1910,7 +1910,7 @@ Success Criteria
 
 The application feels like a mature creative product rather than an internal utility: one consistent design language on every screen, instantaneous navigation, and refined microinteractions — while preserving the speed and efficiency required for production asset generation.
 
-Measurable acceptance: no raw hex values outside the token layer; navigation renders same-frame with no page transitions; the violet screenshot test passes on every management screen; glass appears on exactly the four sanctioned surfaces; every preview surface has the Neutral/White/Checker backdrop toggle; the keyboard QA loop works end-to-end in Batch Details; the Dashboard surfaces running work, review debt, and history from existing registry data; accessibility and performance guardrails hold; and no processing pipeline, IPC contract, or batch-model behavior changes except the three explicitly listed additive items.
+Measurable acceptance: no raw hex values outside the token layer; navigation renders same-frame with no page transitions; the violet screenshot test passes on every management screen; glass appears on exactly the four sanctioned surfaces; every preview surface has the Transparent/White/Black backdrop toggle; the keyboard QA loop works end-to-end in Batch Details; the Dashboard surfaces running work, review debt, and history from existing registry data; accessibility and performance guardrails hold; and no processing pipeline, IPC contract, or batch-model behavior changes except the three explicitly listed additive items.
 
 ____
 
@@ -1919,54 +1919,157 @@ Phase 14 — AI-Assisted Watch Annotation & Boundary Detection
 
 Goal
 
-Introduce AI-assisted boundary detection for Watch annotation — first as a standardized provider abstraction decoupled from any specific detection method, then as a real AI prediction that pre-populates guides for user review.
+Introduce AI-assisted boundary detection for Watch annotation: a standardized boundary-provider abstraction decoupled from any specific detection method, then a real AI prediction (watchdialcoord.clouddeploy.in) that pre-populates the annotation guides for user review. Manual annotation remains fully intact; Automatic mode (the Phase 11.5C toggle that has awaited this phase) becomes real.
 
-Deliverables
-
-Boundary Provider Interface
-
-Standardize:
-
-* leftBoundary
-* rightBoundary
-* boundarySource
-
-Provider Abstraction
-
-Support:
-
-* Manual Provider
-* AI Provider (future)
-
-Metadata Support
-
-Store:
-
-* boundarySource
-* confidence score
+This section is the canonical Phase 14 plan, produced against the codebase as of Phase 13 and against live probing of the detection endpoint. It supersedes the earlier outline text.
 
 ⸻
 
-AI Boundary Provider
+API Investigation — What the Endpoint Actually Serves (probed 2026-08-18, ~11:10 UTC)
 
-Generate:
+The endpoint was probed extensively before writing this plan. Findings:
 
-* leftBoundary
-* rightBoundary
+* Ports 80/443 serve a stock Apache 2.4.58 (Ubuntu) default page. Roughly 60 path candidates (GET and POST, both schemes: /predict, /detect, /docs, /openapi.json, /score, /api/*, /v1|v2/models, /run/predict, /invocations, /watchdialcoord/*, hyphen/underscore variants, alternate Host vhosts) all return Apache's own 404 — no reverse-proxy rule routes to any application.
+* The TLS certificate is self-signed: CN semantic.….bx.internal.cloudapp.net (an Azure-internal hostname), valid 2026-02-04 → 2036-02-02. Not issued for this domain, not from a trusted CA. Electron's default networking will reject it.
+* Port 9000 is MinIO object storage (anonymous access denied), 9001 its console — co-located infrastructure, not the inference API. No other common service ports are open.
 
-Review Workflow
+Conclusion: the inference service is either not deployed or not proxied yet. The real request/response contract could NOT be captured, and none has been invented. Everything wire-format-independent below is fully specified; wire-format-dependent code is isolated to one mapping module behind the Contract Capture gate in 14B.
 
-AI prediction
-→ User review
-→ Processing
+Re-probed 2026-08-20 (14B Contract Capture gate attempt) — identical state, no change: ports 80/443 still serve the same stock Apache 2.4.58 (Ubuntu) default page; ~40 additional/repeated path candidates (GET and POST) all return Apache's own 404, including every plausible "watch dial coord" naming variant and standard FastAPI/MLflow/TorchServe conventions (/docs, /openapi.json, /redoc, /invocations, /run/predict, /health, /healthz, /ping, /v1|v2/models); the TLS certificate is byte-identical to the one recorded above (same self-signed CN, same validity window — the server has not been reconfigured); common alternate app ports (8000, 8080, 8443, 5000, 3000, 8501, 7860) are unreachable. 14B is still externally blocked; only the Contract Capture step is affected — nothing else in this plan needed to change as a result.
 
-Confidence Display
+Two consequences already known regardless of the eventual contract:
 
-Display prediction confidence.
+* TLS: the correct fix is a real certificate on the server (public domain — Let's Encrypt). Acceptable fallback: pin this server's certificate for this hostname only inside the detection service. A global certificate-error bypass is forbidden.
+* Config: the endpoint URL must be operator-configurable via prefs (the Python-interpreter-override pattern), since the deployment is still moving.
+
+⸻
+
+Current State (source of truth for the implementer)
+
+* BoundaryData (src/types/annotation.ts) already carries source: 'manual' | 'ai' and confidence: number | null — the provider fields exist. WatchAnnotation holds spliceBoundaries (strap cut, white guides) and scaleBoundaries (dial edges, orange guides, only when the spreadsheet row's measureBy is "Dial"). All boundaries are x-coordinates in original image pixels.
+* AnnotationCanvas resets guides on watchKey change and initializes once, when the image fit is ready and guide state is null: from savedSpliceBoundaries, else defaults (20%/80% of width; scale guides inset 15% inside splice). MIN_GUIDE_SEPARATION = 10.
+* AnnotationContext.submitAnnotation clamps and unconditionally stamps source:'manual', confidence:null, marks annotated, advances; the caller enqueues queue:add with plain {left,right} pairs + widthMm.
+* Processing (queueHandlers → runProcessWatch → packages/processing) consumes only the plain pairs; source/confidence never reach the engine and don't need to.
+* Session v4 already persists source/confidence per boundary pair. session:load discards any file whose version ≠ SESSION_VERSION after migrations (sessionHandlers.ts) — see the session-version trap below.
+* processingMode 'automatic' | 'manual' already exists on BatchSetup (default 'manual'), rides on BatchState, and is recorded on the watch stage config. Automatic currently displays "AI-driven Watch masking isn't available yet." Phase 14 makes it real — no new toggle.
+* The renderer loads images via file:// URLs; the main process is where image bytes are read and the API is called (fs access, no CORS, TLS control).
+
+⸻
+
+Architecture — Provider Abstraction Without Breaking Manual
+
+Three small pieces; no plugin registry, no new dependencies:
+
+1. boundarySource is the provider tag. Widen the union to 'manual' | 'ai' | 'ai-adjusted' in types/annotation.ts and types/session.ts. Manual provider = the existing hand-drawn flow (already stamps 'manual'); AI provider = the new detection path; 'ai-adjusted' = an AI prediction the user then moved — required to measure the success criterion (accepted vs adjusted vs manual).
+   * Session-version trap: do NOT bump SESSION_VERSION. Widening a string union is runtime-invisible (no shape change, nothing validates the union at runtime, v4 files stay valid). Bumping to v5 without a migration would silently discard every operator's resumable session at sessionHandlers' strict version check. Review checkpoint.
+2. Detection service in the main process — electron/services/boundaryDetection.ts (fat service): reads the image file, calls the API per the captured contract, validates and maps the response, returns a typed result. The wire format touches only this file (plus its test fixtures).
+3. One thin IPC channel — boundary:detect in new electron/ipc/boundaryHandlers.ts, registered in main.ts, typed in types/ipc.ts + types/electron.d.ts.
+
+Renderer-facing internal contract (stable regardless of wire format):
+
+* BoundaryDetectPayload { imagePath: string }
+* BoundaryDetectResult = { ok: true, spliceBoundaries: {leftBoundary, rightBoundary} | null, scaleBoundaries: {leftBoundary, rightBoundary} | null, confidence: number | null (normalized 0–1) } | { ok: false, error: string, retryable: boolean }
+
+Both pairs are optional-by-null because which pair the API predicts is the central unresolved contract question (below). The renderer plumbing is written once and works for either answer.
+
+⸻
+
+Contract Capture Gate (inside 14B) — Mapping Rules
+
+When the service is live, rerun the probe and record results into this section:
+
+1. Check /openapi.json and /docs first (self-describing if FastAPI); otherwise capture the request shape (multipart file field name vs base64 JSON, content type, auth headers) by testing with a real preprocessed watch PNG.
+2. Save at least 3 real request/response pairs as fixtures in tests/fixtures/boundaryApi/ — they become the mapping module's regression tests.
+3. Resolve and record these mapping decisions — the only place judgment is needed:
+   * Coordinate space: original-image pixels vs normalized 0–1 vs resized-inference pixels. The mapping module must output original-image pixel x-coordinates (what the whole app speaks). If the API answers in its own resized space, capture how to recover the scale (dims echoed back, or scale by known original dims).
+   * Which boundaries: the service name ("watch dial coord") suggests dial-edge coordinates — which map to scaleBoundaries (orange guides), NOT spliceBoundaries. If it returns only dial edges, Automatic pre-populates scale guides for Dial watches and splice guides remain manually placed (still a real win — dial edges are the precision drag). If it returns splice coordinates too (or instead), map accordingly. Do not guess; record the product decision at the gate.
+   * Confidence: field name, range (0–1 vs 0–100), per-boundary vs per-image; normalize to 0–1, null if absent.
+   * Failure shape: what "no watch found" / low-quality looks like vs an HTTP error.
+4. Mapping validation (regardless of contract): reject non-finite numbers; clamp into [0, imageWidth]; enforce left < right with at least MIN_GUIDE_SEPARATION; a rejected payload is a detection failure, never garbage guides.
+5. TLS + auth: re-verify the certificate at integration time; implement host-scoped pinning only if still self-signed; any API key arrives via prefs, never hardcoded.
+
+⸻
+
+Automatic Mode UX — Populate, Review, Accept
+
+* When detection runs: only when batch.processingMode === 'automatic', and only for the current annotation when it is unannotated with no saved boundaries. Manual mode makes ZERO API calls — asserted via main-process logs in the regression checklist.
+* Population without races (canvas interaction logic untouched): add one surgical prop to AnnotationCanvas — holdGuides?: boolean. While true, the two guide-initialization effects don't run; the image still renders. The workspace passes savedSpliceBoundaries = annotation.spliceBoundaries ?? prediction?.splice ?? null (same for scale) and holdGuides = (detectionStatus === 'pending'). Guides therefore initialize exactly once, after the prediction settles (success → AI values; failure/timeout → today's defaults). No mid-drag guide teleporting, no dirty-state tracking.
+* The service timeout bounds the hold. Prefetch the next unannotated image's prediction while the user works on the current one (per-SKU Map cache in the renderer) — after the first image the hold is normally zero.
+* Review/edit/accept: the review interaction IS the existing annotation interaction — AI guides appear pre-placed; the user inspects, optionally drags/nudges (unchanged mechanics), and Submit = accept. No new approval buttons on the canvas.
+* InfoPanel — new "AI Detection" section (hidden entirely in manual mode), states: "Detecting boundaries…" (pending) · "AI boundaries · NN% confidence" badge (warning tone below 0.5 — display-only, never gates Submit or processing) · "Detection failed — using default guides" + Retry · "AI detection unavailable — continuing manually" (circuit-break) · provenance badge for already-annotated SKUs (Manual / AI / AI · adjusted, + confidence).
+* Provenance on submit (AnnotationContext): replace the unconditional 'manual' stamp with a pure resolution function — prediction exists and submitted ints equal predicted ints → 'ai' with confidence preserved; prediction exists but values differ → 'ai-adjusted' with confidence preserved; no prediction → 'manual' with null (bit-identical to today for manual mode). Predictions are rounded to ints when applied, so exact integer equality is the correct "untouched" test.
+
+⸻
+
+Storage & Propagation
+
+* Session: already carries source/confidence; 'ai-adjusted' widens the union; SESSION_VERSION stays 4.
+* Queue / processing / packages/processing: untouched. QueueAddPayload keeps plain pairs. The spec's "processing engine no longer depends on manual annotation" is satisfied by boundary origin, not engine changes.
+* Batch registry: no schema change. Batch Details already loads the watch SessionFile; 14D adds a derived display row in the watch stage block — "AI accepted X · adjusted Y · manual Z" — computed from annotation sources at render time. The success-criterion metric at zero data-model cost.
+* BatchSetup: update the Automatic-mode note copy (it currently says AI isn't available). Default stays 'manual' for Phase 14; flipping the default is a post-validation decision.
+
+⸻
+
+Loading, Error, Retry, Fallback
+
+* Timeout 10s per request; one automatic retry on network-level failure only (not on a well-formed "no detection" response).
+* Stale responses: in-flight requests keyed by SKU; responses for SKUs no longer relevant are ignored (navigation may outrun the API).
+* Circuit breaker: after 3 consecutive failures in a batch, stop auto-detecting for the remainder of the batch (banner state in InfoPanel); per-SKU Retry still allowed and resets the breaker on success.
+* Fallback is always manual: every failure path lands on today's default guides with full manual interaction. The AI path can never block Submit, never blocks navigation, and its failure can never corrupt an annotation.
+* Failures logged via the existing main-process logger with response detail (Phase 11 observability standard).
+
+⸻
+
+File Changes
+
+* src/types/annotation.ts, src/types/session.ts — widen source union with 'ai-adjusted' (no SESSION_VERSION bump)
+* src/types/ipc.ts, src/types/electron.d.ts — BoundaryDetectPayload/BoundaryDetectResult, boundary:detect channel, endpoint-override prefs channel
+* electron/services/boundaryDetection.ts — NEW: API client, TLS handling, response mapping + validation, timeout/retry
+* electron/ipc/boundaryHandlers.ts — NEW: thin boundary:detect handler
+* electron/main.ts — register boundary handlers
+* electron/ipc/prefsHandlers.ts — endpoint-override pref (pythonResolver override pattern)
+* src/context/AnnotationContext.tsx — provenance-resolving submit; prediction cache + status for current SKU; prefetch-next
+* src/components/AnnotationCanvas.tsx — holdGuides prop only (init-effect gate)
+* src/screens/AnnotationWorkspace.tsx — wire prediction state → canvas props (automatic mode only)
+* src/components/InfoPanel.tsx (+ module.css) — AI Detection section, provenance badges
+* src/screens/BatchSetup.tsx — updated Automatic-mode copy
+* src/screens/BatchDetails.tsx — (14D) derived AI-assisted counts row for the watch stage
+* tests/boundaryProvenance.test.ts — NEW: provenance resolution cases
+* tests/boundaryDetectionMapping.test.ts — NEW: mapping/validation against captured fixtures (tests/fixtures/boundaryApi/)
+* tests/sessionAiSource.test.ts — NEW: v4 round-trip with 'ai-adjusted'; guards against the version-discard regression
+
+Untouched, explicitly: packages/processing/**, queueHandlers.ts, processHandlers.ts, all Python, all other products' flows, canvas drag/keyboard logic.
+
+⸻
+
+Phase 14 — Approved Execution Plan (14A–14D)
+
+14A — Provenance foundation (no API). Union widening; provenance-resolving submit (pure function + unit tests); InfoPanel provenance badges for saved annotations; session round-trip test. Gate: npx tsc --noEmit, npx vitest run; manual check — Manual-mode annotate/submit/resume behaves bit-identically; a pre-existing v4 session still resumes.
+
+14B — Contract capture + detection service. BLOCKING PREREQUISITE: the endpoint must be live. Rerun the probe, record the contract and mapping decisions into this section, save fixtures. Then: boundaryDetection.ts, boundary:detect, endpoint pref, TLS decision (real certificate strongly preferred; host-scoped pinning otherwise — never a global bypass). Gate: tsc, vitest (mapping fixtures); manual smoke call against the live API from the app's main process.
+
+14C — Automatic-mode UX. Prediction fetch/prefetch/cache, holdGuides, InfoPanel AI section with all six states, circuit breaker, stale-response guards, BatchSetup copy. Gate: tsc, vitest; manual checklist — automatic-mode happy path (accept / adjust / reject-and-redraw), API-down fallback mid-batch, resume mid-batch, re-queue of an AI-annotated SKU, and zero API calls in manual mode (verified in logs).
+
+14D — Metrics + validation. Batch Details AI-assisted counts; run a real batch in both modes and record the annotation-time comparison against the success criterion; docs. Gate: tsc, vitest, recorded before/after timing note.
+
+Sub-phase ordering: 14A is implementable immediately (no API dependency); 14B is externally blocked until the endpoint deploys; 14C/14D follow in order.
+
+⸻
+
+Risks & Open Items
+
+1. The API is not up — 14B is externally blocked as of 2026-08-18; 14A is not.
+2. Splice vs dial mapping — the service name suggests dial coordinates → scale guides; settled only with a real payload + product decision at the 14B gate.
+3. Session-version trap — do not bump SESSION_VERSION; a bump without migration silently deletes every resumable session.
+4. TLS — self-signed certificate on a public domain; push for a real certificate, pin as fallback, never globally bypass.
+5. Latency unknown — the hold/prefetch design assumes seconds-scale inference; if slower, prefetch depth (not the architecture) is the tuning knob.
 
 ⸻
 
 Success Criteria
 
-* Processing engine no longer depends on manual annotation.
-* Users spend significantly less time annotating.
+* Manual mode is byte-for-byte behaviorally unchanged, and makes zero API calls.
+* In Automatic mode, guides are pre-populated by the AI provider, reviewed and accepted/adjusted through the unchanged annotation interaction, with provenance (manual / ai / ai-adjusted) and confidence persisted per boundary pair and surfaced in the UI and Batch Details.
+* Every AI failure path degrades gracefully to manual annotation without blocking Submit or corrupting state.
+* The processing engine consumes boundaries identically regardless of origin — no processing changes.
+* Measured annotation time in Automatic mode is significantly lower than Manual on a real batch (recorded at the 14D gate).

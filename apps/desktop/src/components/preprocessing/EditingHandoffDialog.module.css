@@ -7,14 +7,14 @@
 .checkboxRow {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: var(--text-sm);
-  color: var(--text);
+  gap: var(--space-2);
+  font-size: var(--text-body);
+  color: var(--text-1);
   cursor: pointer;
 }
 
 .earringNote {
-  font-size: var(--text-sm);
-  color: var(--text-muted);
+  font-size: var(--text-body);
+  color: var(--text-2);
   margin: 0;
 }

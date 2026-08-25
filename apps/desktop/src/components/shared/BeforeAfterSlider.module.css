@@ -37,24 +37,12 @@
   flex: 1;
 }
 
-/* Stage backdrop (Phase 13F) — the same near-black surface every review
-   area sits on. */
-.bgNeutral {
-  background-color: var(--stage-bg);
-}
-
-/* Literal white, not a token — this option exists specifically to simulate
-   a white storefront backdrop (the shadows these pipelines produce are
-   designed against one), so it must render as pure white regardless of
-   theme, the same way --checker-a/--checker-b below are deliberately
-   outside the graphite scale. */
-.bgWhite {
-  background-color: #fff;
-}
-
 /* Classic transparency-indicator checkerboard — deliberately outside the
-   graphite scale (see global.css's --checker-a/--checker-b comment). */
-.bgCheckerboard {
+   graphite scale (see global.css's --checker-a/--checker-b comment). This
+   is the "Transparent" option: reviewing a transparent PNG against this
+   pattern is the whole point, restored post-Phase-13 after the brief
+   Neutral/White/Checkerboard rename made it one tap further away. */
+.bgTransparent {
   background-color: var(--checker-a);
   background-image:
     linear-gradient(45deg, var(--checker-b) 25%, transparent 25%),
@@ -63,6 +51,21 @@
     linear-gradient(-45deg, transparent 75%, var(--checker-b) 75%);
   background-size: 20px 20px;
   background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+}
+
+/* Literal white, not a token — this option exists specifically to simulate
+   a white storefront backdrop (the shadows these pipelines produce are
+   designed against one), so it must render as pure white regardless of
+   theme, the same way --checker-a/--checker-b above are deliberately
+   outside the graphite scale. */
+.bgWhite {
+  background-color: #fff;
+}
+
+/* Also literal, for the same reason .bgWhite is — a true black reference
+   backdrop, not the app's graphite --stage-bg tone. */
+.bgBlack {
+  background-color: #000;
 }
 
 .image {

@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArrowLeft, Pencil, Check, X, Flag, FolderX } from 'lucide-react'
-import { usePreprocessingJob } from '../context/PreprocessingJobContext'
 import { useRingBraceletJob } from '../context/RingBraceletJobContext'
 import { useEarringJob } from '../context/EarringJobContext'
 import { PreprocessingSummary } from '../components/PreprocessingSummary'
@@ -36,10 +35,6 @@ import styles from './BatchDetails.module.css'
 interface BatchDetailsProps {
   batchId: string
   onBack: () => void
-  // Navigates to a fresh Preprocessing Configure screen, clearing whatever
-  // batch App.tsx was tracking — the same semantic "Run another batch" has
-  // always had, just reachable from here too now.
-  onRunAnotherPreprocessing: () => void
   // Generalized (Phase 10F) from the original Watch-only "Continue to Watch
   // Processing" — options are collected by EditingHandoffDialog before this
   // is called (see PreprocessingSummary).
@@ -139,7 +134,7 @@ const EDITING_CONFIG_FIELDS: [string, string, string | undefined][] = [
 ]
 
 // Testing/Production is editable after creation (Phase 10F correction) —
-// same options shape as Home's filter / CreateBatchModal's picker.
+// same options shape as Home's filter and EditingSetup's Mode field.
 const MODE_OPTIONS: { value: BatchMode; label: string }[] = [
   { value: 'production', label: 'Production' },
   { value: 'testing', label: 'Testing' },
@@ -201,11 +196,9 @@ function StageTiming({ stage }: { stage: StageRecord }) {
 export default function BatchDetails({
   batchId,
   onBack,
-  onRunAnotherPreprocessing,
   onEditingHandoff,
   onRunAnotherEditing,
 }: BatchDetailsProps) {
-  const job = usePreprocessingJob()
   const ringBraceletJob = useRingBraceletJob()
   const earringJob = useEarringJob()
   const [batch, setBatch] = useState<BatchDetailRecord | null>(null)
@@ -218,7 +211,7 @@ export default function BatchDetails({
   // same backdrop/compare/zoom choice applies regardless of which image is
   // selected or whether the viewer is fullscreen; passed down as controlled
   // props to whichever preview panel is currently mounted.
-  const [reviewBackground, setReviewBackground] = useState<ComparisonBackground>('neutral')
+  const [reviewBackground, setReviewBackground] = useState<ComparisonBackground>('transparent')
   const [reviewCompareMode, setReviewCompareMode] = useState<CompareMode>('slider')
   const [reviewZoom, setReviewZoom] = useState(1)
 
@@ -349,11 +342,6 @@ export default function BatchDetails({
       needsFixing: next,
     })
     if (updated) setBatch(updated)
-  }
-
-  function handleRunAnother() {
-    job.reset()
-    onRunAnotherPreprocessing()
   }
 
   function handleRunAnotherEditing(product: 'ring' | 'bracelet' | 'earring') {
@@ -583,7 +571,14 @@ export default function BatchDetails({
                   <PreprocessingSummary
                     donePayload={buildDonePayload(preprocessingStage)}
                     fatalError={preprocessingStage.status === 'failed' ? preprocessingStage.error : null}
-                    onReset={handleRunAnother}
+                    sourceProductType={
+                      // "Target" as already displayed in the config grid below
+                      // (Phase 10A) — reused here to preselect Continue to
+                      // Editing's destination instead of defaulting to Watch.
+                      (['watch', 'ring', 'bracelet', 'earring'] as const).find(
+                        p => preprocessingStage.config['objectType'] === p
+                      )
+                    }
                     onEditingHandoff={
                       // Phase 10F: was gated on `batch.currentStage === 'watch'`,
                       // a leftover from pre-10D combined-pipeline Home templates

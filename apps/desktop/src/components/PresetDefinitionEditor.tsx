@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useState } from 'react'
 import { Select } from './ui/Select'
 import { Button } from './ui/Button'
-import { isPresetModified } from '../constants/preprocessingPresets'
+import { isPresetModified, resolveFactoryPreset } from '../constants/preprocessingPresets'
 import type { PreprocessingPreset, PreprocessingPresetDefinition, PreprocessingPresetValues } from '../constants/preprocessingPresets'
 import styles from './PresetDefinitionEditor.module.css'
 
@@ -45,16 +45,15 @@ const MASK_THRESHOLD_DEFAULT = 0.5
 interface PresetDefinitionEditorProps {
   preset: PreprocessingPreset
   definition: PreprocessingPresetDefinition
-  onCommit: (values: PreprocessingPresetValues) => void
-  onReset: () => void
+  onSave: (values: PreprocessingPresetValues) => void
 }
 
-// Settings-only editor for one preset's active values. Commits number/text
-// fields on blur (not per-keystroke) so the definition's version — meant as
-// lightweight provenance, not a per-character change counter — only
-// advances once per completed edit. Checkboxes and selects commit
-// immediately, since a single change event is already the whole edit.
-export function PresetDefinitionEditor({ preset, definition, onCommit, onReset }: PresetDefinitionEditorProps) {
+// Settings-only editor for one preset's active values. Editing is a local
+// draft (post-Phase-13 change): every field just updates `draft` in place —
+// nothing persists, and the definition's version doesn't advance, until
+// Save is explicitly pressed. "Reset to Default" also only resets the
+// draft, for the same reason — it takes Save to actually apply.
+export function PresetDefinitionEditor({ preset, definition, onSave }: PresetDefinitionEditorProps) {
   const { version, ...values } = definition
   const [draft, setDraft] = useState<PreprocessingPresetValues>(values)
 
@@ -63,13 +62,14 @@ export function PresetDefinitionEditor({ preset, definition, onCommit, onReset }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preset, version])
 
+  // "Modified" describes the persisted definition (unchanged meaning);
+  // "dirty" is new — the draft has unsaved edits the Save button acts on.
   const modified = isPresetModified(preset, values)
+  const draftDiffersFromFactory = isPresetModified(preset, draft)
+  const dirty = (Object.keys(values) as (keyof PreprocessingPresetValues)[]).some(key => draft[key] !== values[key])
 
-  function commitField<K extends keyof PreprocessingPresetValues>(key: K, value: PreprocessingPresetValues[K]) {
-    if (values[key] === value) return
-    const next = { ...draft, [key]: value }
-    setDraft(next)
-    onCommit(next)
+  function updateField<K extends keyof PreprocessingPresetValues>(key: K, value: PreprocessingPresetValues[K]) {
+    setDraft(prev => ({ ...prev, [key]: value }))
   }
 
   function updateNumberField(spec: NumberFieldSpec, raw: string) {
@@ -78,8 +78,12 @@ export function PresetDefinitionEditor({ preset, definition, onCommit, onReset }
 
   function commitNumberField(spec: NumberFieldSpec) {
     const parsed = draft[spec.key] as number
-    const clamped = Number.isFinite(parsed) ? Math.min(spec.max, Math.max(spec.min, parsed)) : (values[spec.key] as number)
-    commitField(spec.key, clamped)
+    if (!Number.isFinite(parsed)) {
+      updateField(spec.key, values[spec.key])
+      return
+    }
+    const clamped = Math.min(spec.max, Math.max(spec.min, parsed))
+    if (clamped !== parsed) updateField(spec.key, clamped as PreprocessingPresetValues[typeof spec.key])
   }
 
   return (
@@ -89,8 +93,12 @@ export function PresetDefinitionEditor({ preset, definition, onCommit, onReset }
         <span className={modified ? styles.statusModified : styles.statusDefault}>
           {modified ? 'Modified' : 'Using factory defaults'}
         </span>
-        <Button variant="secondary" size="sm" onClick={onReset} disabled={!modified}>
+        {dirty && <span className={styles.statusDirty}>Unsaved changes</span>}
+        <Button variant="secondary" size="sm" onClick={() => setDraft(resolveFactoryPreset(preset))} disabled={!draftDiffersFromFactory}>
           Reset to Default
+        </Button>
+        <Button variant="primary" size="sm" onClick={() => onSave(draft)} disabled={!dirty}>
+          Save
         </Button>
       </div>
 
@@ -101,7 +109,7 @@ export function PresetDefinitionEditor({ preset, definition, onCommit, onReset }
           className={styles.checkbox}
           type="checkbox"
           checked={draft.refineForeground}
-          onChange={e => commitField('refineForeground', e.target.checked)}
+          onChange={e => updateField('refineForeground', e.target.checked)}
         />
 
         <label className={styles.label}>Edge Mode</label>
@@ -109,7 +117,7 @@ export function PresetDefinitionEditor({ preset, definition, onCommit, onReset }
           <Select
             options={EDGE_MODE_OPTIONS}
             value={draft.edgeMode}
-            onChange={value => commitField('edgeMode', value)}
+            onChange={value => updateField('edgeMode', value)}
           />
         </div>
 
@@ -136,7 +144,7 @@ export function PresetDefinitionEditor({ preset, definition, onCommit, onReset }
             className={styles.checkbox}
             type="checkbox"
             checked={draft.maskThreshold !== null}
-            onChange={e => commitField('maskThreshold', e.target.checked ? MASK_THRESHOLD_DEFAULT : null)}
+            onChange={e => updateField('maskThreshold', e.target.checked ? MASK_THRESHOLD_DEFAULT : null)}
           />
           <input
             className={styles.input}
@@ -150,7 +158,7 @@ export function PresetDefinitionEditor({ preset, definition, onCommit, onReset }
             onBlur={() => {
               if (draft.maskThreshold === null) return
               const clamped = Number.isFinite(draft.maskThreshold) ? Math.min(1, Math.max(0, draft.maskThreshold)) : (values.maskThreshold ?? MASK_THRESHOLD_DEFAULT)
-              commitField('maskThreshold', clamped)
+              if (clamped !== draft.maskThreshold) updateField('maskThreshold', clamped)
             }}
           />
         </div>
@@ -161,7 +169,7 @@ export function PresetDefinitionEditor({ preset, definition, onCommit, onReset }
           className={styles.checkbox}
           type="checkbox"
           checked={draft.samMultimaskOutput}
-          onChange={e => commitField('samMultimaskOutput', e.target.checked)}
+          onChange={e => updateField('samMultimaskOutput', e.target.checked)}
         />
       </div>
     </div>
