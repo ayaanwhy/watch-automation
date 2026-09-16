@@ -2,6 +2,13 @@
   /* Wider than the old dropdown trigger needed — four always-visible tiles
      (Watch/Ring/Bracelet/Earrings) need room for their labels. */
   max-width: 480px;
+  /* Matches PageHeader's own .sticky margin-bottom (--space-3) exactly, so
+     the gap down to the first field reads identically to Preprocessing's
+     console, which has no headerExtra and so only ever shows that one
+     PageHeader-native gap. Post-Phase-13 polish fix — this was previously
+     undeclared, leaving the product selector flush against the two-pane
+     grid below it. */
+  margin-bottom: var(--space-3);
 }
 
 .nameRow {

@@ -19,6 +19,12 @@ interface SelectProps<T extends string> {
   value: T
   onChange: (value: T) => void
   disabled?: boolean
+  // Trigger reads as "on" (accent border + tinted fill) — for a Select used
+  // as a filter control, where a non-default value needs the same
+  // obviously-active signal SegmentedControl gets for free from its pill
+  // highlight. Purely visual; callers decide what "active" means (e.g.
+  // value !== 'all').
+  active?: boolean
 }
 
 // Generic custom dropdown matching the app's own form-control language,
@@ -27,7 +33,14 @@ interface SelectProps<T extends string> {
 // legibility; glass is reserved for the four sanctioned surfaces). No new
 // dependency — a trigger button + an absolutely-positioned listbox, closing
 // on outside click or Escape, with standard ARIA listbox semantics.
-export function Select<T extends string>({ label, options, value, onChange, disabled = false }: SelectProps<T>) {
+export function Select<T extends string>({
+  label,
+  options,
+  value,
+  onChange,
+  disabled = false,
+  active = false,
+}: SelectProps<T>) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const current = options.find(o => o.value === value)
@@ -54,7 +67,7 @@ export function Select<T extends string>({ label, options, value, onChange, disa
       <div className={styles.selectRoot}>
         <button
           type="button"
-          className={styles.trigger}
+          className={active ? `${styles.trigger} ${styles.triggerActive}` : styles.trigger}
           onClick={() => !disabled && setOpen(o => !o)}
           disabled={disabled}
           aria-haspopup="listbox"

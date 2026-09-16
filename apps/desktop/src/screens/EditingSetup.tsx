@@ -3,7 +3,9 @@ import { SegmentedControl } from '../components/ui/SegmentedControl'
 import { PathField } from '../components/PathField'
 import { ConsoleLayout } from '../components/console/ConsoleLayout'
 import { ConsoleSummaryPanel, type ConsoleSummaryItem } from '../components/console/ConsoleSummaryPanel'
+import { ResumePrompt } from '../components/console/ResumePrompt'
 import { PrepareInputDisclosure } from '../components/editing/PrepareInputDisclosure'
+import { useToast } from '../components/ui/ToastHost'
 import BatchSetup from './BatchSetup'
 import { useRingBraceletFolders } from '../hooks/useRingBraceletFolders'
 import { useEarringFolders } from '../hooks/useEarringFolders'
@@ -43,11 +45,18 @@ interface EditingSetupProps {
   handoffFolder: string | null
   // Ring & Bracelet — resolves/creates the Batch backing this run, mirroring
   // Preprocessing's onCreateBatch. Called before job.start() so its id can be
-  // forwarded to the runner.
-  onCreateRingBraceletBatch: (sourceDir: string, title: string, product: 'ring' | 'bracelet') => Promise<string>
+  // forwarded to the runner. resumeBatchId (Item 3, post-Phase-13 polish):
+  // reuses an existing unfinished batch instead of minting a new one — see
+  // App.tsx's handleCreateRingBraceletBatch doc comment.
+  onCreateRingBraceletBatch: (
+    sourceDir: string,
+    title: string,
+    product: 'ring' | 'bracelet',
+    resumeBatchId?: string,
+  ) => Promise<string>
   // Earring (Phase 12C) — same role as onCreateRingBraceletBatch, no product
   // param needed since there's only one Earring product.
-  onCreateEarringBatch: (sourceDir: string, title: string) => Promise<string>
+  onCreateEarringBatch: (sourceDir: string, title: string, resumeBatchId?: string) => Promise<string>
   // Hoop Manual boundary placement (Phase 12E) — called instead of starting
   // the job when Manual mode has at least one Hoop SKU present. Carries the
   // already-updated batch detail (from the batch-registry:update-stage call
@@ -160,7 +169,7 @@ interface RingBraceletFieldsProps {
   // writes prefs:save-ring-bracelet-folders before navigating here). This
   // prop only drives the "Prepared ✓" badge once that value has loaded.
   handoffFolder: string | null
-  onCreateBatch: (sourceDir: string, title: string, product: 'ring' | 'bracelet') => Promise<string>
+  onCreateBatch: (sourceDir: string, title: string, product: 'ring' | 'bracelet', resumeBatchId?: string) => Promise<string>
   mode: BatchMode
   onModeChange: (mode: BatchMode) => void
   productSelector: ReactNode
@@ -188,9 +197,20 @@ function RingBraceletFields({
   // triggered from inside this console instead of arriving via the
   // Preprocessing → Editing hand-off dialog.
   const [preparedInputDir, setPreparedInputDir] = useState<string | null>(null)
+  // Saved-session parity with Watch (Item 3, post-Phase-13 polish) — Ring &
+  // Bracelet has no SessionFile/annotation step, so there's nothing to
+  // "resume" in Watch's sense. What genuinely carries over is an unfinished
+  // prior batch at these exact input/output/product paths: the Python
+  // runner's own idempotent-skip behavior (Phase 11.5D) means re-running
+  // against it picks up only the images that didn't already succeed.
+  // `null` = none found yet / not checked; only set to a real batch when
+  // that batch's editing stage is genuinely unfinished (see the effect
+  // below) — a fully completed match means nothing to resume, so no prompt.
+  const [existingBatch, setExistingBatch] = useState<BatchDetailRecord | null>(null)
   const folders = useRingBraceletFolders(product)
   const python = usePythonInterpreter()
   const job = useRingBraceletJob()
+  const { showToast } = useToast()
 
   // Phase 11.5D — lightweight pre-flight validation: does the input folder
   // exist and contain at least one image runner.py would actually pick up?
@@ -215,7 +235,36 @@ function RingBraceletFields({
     return () => { cancelled = true }
   }, [folders.inputDir])
 
-  const canStart = folders.inputDir !== '' && folders.outputDir !== '' && python.isValid && !starting && validation?.ok === true
+  // Runs once the input folder is valid and an output folder is chosen —
+  // mirrors BatchSetup's runValidate → session:load sequencing (session
+  // lookup only after the path-level checks pass), just spread across two
+  // effects here since Ring & Bracelet's own validation is itself effect-driven
+  // rather than a single button call.
+  useEffect(() => {
+    if (!(validation?.ok === true) || folders.outputDir === '') {
+      setExistingBatch(null)
+      return
+    }
+    let cancelled = false
+    window.api
+      .invoke('batch-registry:find-editing', { product, inputFolder: folders.inputDir, outputFolder: folders.outputDir })
+      .then(found => {
+        if (cancelled) return
+        const stage = found?.stages.find(s => s.type === 'editing')
+        const unfinished = stage !== undefined && stage.status !== 'completed'
+        setExistingBatch(unfinished ? found : null)
+      })
+    return () => { cancelled = true }
+  }, [product, validation, folders.inputDir, folders.outputDir])
+
+  const showResumePrompt = existingBatch !== null
+  const canStart =
+    folders.inputDir !== '' &&
+    folders.outputDir !== '' &&
+    python.isValid &&
+    !starting &&
+    validation?.ok === true &&
+    !showResumePrompt
 
   async function pickInputDir(explicitPath?: string) {
     if (starting) return
@@ -229,19 +278,42 @@ function RingBraceletFields({
     if (path !== null) folders.setOutputDir(path)
   }
 
-  async function handleStart() {
-    if (!canStart) return
+  // resumeBatchId set only from ResumePrompt's onResume below — bypasses
+  // the canStart gate deliberately (Resume is offered exactly when canStart
+  // would otherwise be false, since showResumePrompt is one of its terms).
+  //
+  // Queueing (Item 5A, post-Phase-13 polish) — see Preprocessing.tsx's
+  // identical branch for the full rationale. Applies to Resume too: if a
+  // same-type job is already running, Resume queues exactly like a fresh
+  // Start rather than failing.
+  async function handleStart(resumeBatchId?: string) {
+    if (!resumeBatchId && !canStart) return
     setStarting(true)
-    const batchId = await onCreateBatch(folders.inputDir, batchName, product)
+    setExistingBatch(null)
+    const batchId = await onCreateBatch(folders.inputDir, batchName, product, resumeBatchId)
     const overridePath = python.override.trim()
-    await job.start({
+    const payload = {
       inputDir: folders.inputDir,
       outputDir: folders.outputDir,
       batchId,
       product,
       processingMode,
       ...(overridePath !== '' ? { pythonPath: overridePath } : {}),
-    })
+    }
+
+    if (job.phase === 'running') {
+      await window.api.invoke('batch-registry:update-stage', {
+        id: batchId,
+        stageType: 'editing',
+        patch: { status: 'queued', config: { product } },
+      })
+      job.enqueue(payload)
+      showToast({ title: 'Batch queued', description: 'It will start automatically once the current run finishes.' })
+      setStarting(false)
+      return
+    }
+
+    await job.start(payload)
     setStarting(false)
   }
 
@@ -264,11 +336,25 @@ function RingBraceletFields({
       summary={
         <ConsoleSummaryPanel
           items={summaryItems}
-          onStart={handleStart}
+          onStart={() => handleStart()}
+          startLabel={job.phase === 'running' ? 'Add to Queue' : 'Start'}
           canStart={canStart}
           starting={starting}
           error={job.startError}
-        />
+          hideStartButton={showResumePrompt}
+        >
+          {showResumePrompt && existingBatch && (
+            <ResumePrompt
+              label="Unfinished batch found"
+              detail={(() => {
+                const stage = existingBatch.stages.find(s => s.type === 'editing')!
+                return `${stage.counts.succeeded} of ${stage.counts.total} processed`
+              })()}
+              onResume={() => handleStart(existingBatch.id)}
+              onFresh={() => { setExistingBatch(null); void handleStart() }}
+            />
+          )}
+        </ConsoleSummaryPanel>
       }
     >
       {isHandoff && (
@@ -356,7 +442,7 @@ interface EarringFieldsProps {
   initialBatchName: string
   // See RingBraceletFieldsProps.handoffFolder — same display-only role.
   handoffFolder: string | null
-  onCreateBatch: (sourceDir: string, title: string) => Promise<string>
+  onCreateBatch: (sourceDir: string, title: string, resumeBatchId?: string) => Promise<string>
   onEnterHoopBoundaryEditor: (detail: BatchDetailRecord) => void
   mode: BatchMode
   onModeChange: (mode: BatchMode) => void
@@ -381,9 +467,14 @@ function EarringFields({
   const [matching, setMatching] = useState(false)
   // See RingBraceletFields' identical field for the exact same rationale.
   const [preparedInputDir, setPreparedInputDir] = useState<string | null>(null)
+  // See RingBraceletFields' identical field/effect for the full rationale —
+  // Earring's product is fixed ('earring') where RingBraceletFields' is a
+  // prop, otherwise the same find-editing + "unfinished only" lookup.
+  const [existingBatch, setExistingBatch] = useState<BatchDetailRecord | null>(null)
   const folders = useEarringFolders()
   const python = usePythonInterpreter()
   const job = useEarringJob()
+  const { showToast } = useToast()
 
   // Same lightweight pre-flight check as Ring & Bracelet's — folder
   // existence + at least one supported image.
@@ -425,6 +516,25 @@ function EarringFields({
     return () => { cancelled = true }
   }, [folders.inputDir, folders.metadataFilePath])
 
+  // See RingBraceletFields' identical effect for the full rationale.
+  useEffect(() => {
+    if (!(validation?.ok === true) || folders.outputDir === '') {
+      setExistingBatch(null)
+      return
+    }
+    let cancelled = false
+    window.api
+      .invoke('batch-registry:find-editing', { product: 'earring', inputFolder: folders.inputDir, outputFolder: folders.outputDir })
+      .then(found => {
+        if (cancelled) return
+        const stage = found?.stages.find(s => s.type === 'editing')
+        const unfinished = stage !== undefined && stage.status !== 'completed'
+        setExistingBatch(unfinished ? found : null)
+      })
+    return () => { cancelled = true }
+  }, [validation, folders.inputDir, folders.outputDir])
+
+  const showResumePrompt = existingBatch !== null
   const canStart =
     folders.inputDir !== '' &&
     folders.outputDir !== '' &&
@@ -432,7 +542,8 @@ function EarringFields({
     python.isValid &&
     !starting &&
     validation?.ok === true &&
-    match?.ok === true
+    match?.ok === true &&
+    !showResumePrompt
 
   async function pickInputDir(explicitPath?: string) {
     if (starting) return
@@ -457,10 +568,13 @@ function EarringFields({
     if (path !== null) folders.setMetadataFilePath(path)
   }
 
-  async function handleStart() {
-    if (!canStart) return
+  // resumeBatchId set only from ResumePrompt's onResume below — see
+  // RingBraceletFields' identical function for the full rationale.
+  async function handleStart(resumeBatchId?: string) {
+    if (!resumeBatchId && !canStart) return
     setStarting(true)
-    const batchId = await onCreateBatch(folders.inputDir, batchName)
+    setExistingBatch(null)
+    const batchId = await onCreateBatch(folders.inputDir, batchName, resumeBatchId)
 
     // Manual mode + at least one Hoop SKU in the matched sheet → the
     // boundary editor, not the job, is next (Phase 12E, Resolved Decision
@@ -493,14 +607,32 @@ function EarringFields({
     }
 
     const overridePath = python.override.trim()
-    await job.start({
+    const payload = {
       inputDir: folders.inputDir,
       outputDir: folders.outputDir,
       batchId,
       metadataFilePath: folders.metadataFilePath,
       processingMode,
       ...(overridePath !== '' ? { pythonPath: overridePath } : {}),
-    })
+    }
+
+    // Queueing (Item 5A, post-Phase-13 polish) — see Preprocessing.tsx's
+    // identical branch for the full rationale. Only reachable here (not the
+    // Hoop Manual branch above, which hands off to the boundary editor
+    // instead of starting a job directly).
+    if (job.phase === 'running') {
+      await window.api.invoke('batch-registry:update-stage', {
+        id: batchId,
+        stageType: 'editing',
+        patch: { status: 'queued', config: { product: 'earring' } },
+      })
+      job.enqueue(payload)
+      showToast({ title: 'Batch queued', description: 'It will start automatically once the current run finishes.' })
+      setStarting(false)
+      return
+    }
+
+    await job.start(payload)
     setStarting(false)
   }
 
@@ -534,12 +666,25 @@ function EarringFields({
       summary={
         <ConsoleSummaryPanel
           items={summaryItems}
-          onStart={handleStart}
+          onStart={() => handleStart()}
+          startLabel={job.phase === 'running' ? 'Add to Queue' : 'Start'}
           canStart={canStart}
           starting={starting}
           error={job.startError}
+          hideStartButton={showResumePrompt}
         >
           {match && <EarringMatchSummary result={match} />}
+          {showResumePrompt && existingBatch && (
+            <ResumePrompt
+              label="Unfinished batch found"
+              detail={(() => {
+                const stage = existingBatch.stages.find(s => s.type === 'editing')!
+                return `${stage.counts.succeeded} of ${stage.counts.total} processed`
+              })()}
+              onResume={() => handleStart(existingBatch.id)}
+              onFresh={() => { setExistingBatch(null); void handleStart() }}
+            />
+          )}
         </ConsoleSummaryPanel>
       }
     >

@@ -27,6 +27,13 @@ export type StageType = 'preprocessing' | 'watch' | 'editing' | 'qa' | 'export'
 export type StageStatus =
   | 'not_started'
   | 'configuring'
+  // Post-Phase-13 polish (queueing) — a Start request accepted while another
+  // job of the same pipeline type is already running. Purely a renderer-side
+  // wait state (see useSubprocessJob's queue) — no subprocess exists yet for
+  // this stage. Never persists across an app restart (nothing survives to
+  // drain it), so reconcileBatchesOnStartup resets it exactly like an
+  // interrupted 'running' stage.
+  | 'queued'
   | 'running'
   | 'completed'
   | 'failed'
@@ -34,10 +41,20 @@ export type StageStatus =
 
 export type BatchStatus =
   | 'draft'
+  | 'queued'
   | 'in_progress'
   | 'completed'
   | 'failed'
   | 'cancelled'
+
+// Normalized product classification, derived from whichever stage carries
+// it (preprocessing's config.objectType, or watch/editing's config.product —
+// 'watch' is definitional for a 'watch' stage, no config lookup needed) —
+// computed once in batchModel.ts's recompute(), mirroring how
+// currentStage/counts are already cached rather than read live per-consumer.
+// Null when the batch has no stage yet, or that stage hasn't recorded one
+// (e.g. a preprocessing batch before its first job start).
+export type BatchProductType = 'watch' | 'ring' | 'bracelet' | 'earring' | 'generic'
 
 // Testing vs Production (Phase 10F) — independent numbering/title prefix per
 // mode (see batchModel.formatBatchTitle), filterable on Home. Optional so
@@ -156,6 +173,7 @@ export interface BatchSummaryRecord {
   stageStatuses: { type: StageType; status: StageStatus }[]
   currentStage: StageType | null
   nextStage: StageType | null
+  productType: BatchProductType | null
   counts: StageCounts
   durationMs: number | null
   createdAt: string

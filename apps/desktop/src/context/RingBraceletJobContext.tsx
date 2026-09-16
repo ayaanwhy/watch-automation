@@ -29,9 +29,15 @@ interface RingBraceletJobContextValue {
   cancelPhase: CancelPhase
   donePayload: RingBraceletDonePayload | null
   startedAt: number | null
+  activeBatchId: string | null
   start(payload: RingBraceletStartPayload): Promise<void>
   cancel(): Promise<void>
   reset(): void
+  // Queueing (Item 5A, post-Phase-13 polish) — see useSubprocessJob's own
+  // doc comments on these three for the full contract.
+  enqueue(payload: RingBraceletStartPayload): void
+  queuedBatchIds: string[]
+  cancelQueued(batchId: string): void
 }
 
 // Mirrors PreprocessingJobContext's structure exactly (mounted for the

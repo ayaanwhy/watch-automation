@@ -29,6 +29,7 @@ interface PreprocessingJobContextValue {
   cancelPhase: CancelPhase
   donePayload: PreprocessDonePayload | null
   startedAt: number | null
+  activeBatchId: string | null
   // Resolves true only once the job has actually started (jobId assigned,
   // phase → 'running') — the caller (Preprocessing.tsx, Phase 10F) uses this
   // to decide whether to navigate to the dedicated workspace screen, rather
@@ -37,6 +38,11 @@ interface PreprocessingJobContextValue {
   start(payload: PreprocessStartPayload): Promise<boolean>
   cancel(): Promise<void>
   reset(): void
+  // Queueing (Item 5A, post-Phase-13 polish) — see useSubprocessJob's own
+  // doc comments on these three for the full contract.
+  enqueue(payload: PreprocessStartPayload): void
+  queuedBatchIds: string[]
+  cancelQueued(batchId: string): void
 }
 
 // Owns the preprocess:* job lifecycle for the lifetime of the app, not the

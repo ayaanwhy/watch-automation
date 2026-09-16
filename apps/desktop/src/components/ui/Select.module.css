@@ -48,6 +48,15 @@
   cursor: not-allowed;
 }
 
+.triggerActive {
+  border-color: var(--accent);
+  background: var(--accent-fill);
+}
+
+.triggerActive:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
 .triggerLabel {
   overflow: hidden;
   text-overflow: ellipsis;

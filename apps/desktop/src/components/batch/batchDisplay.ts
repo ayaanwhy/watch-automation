@@ -14,6 +14,7 @@ export const STAGE_LABELS: Record<StageType, string> = {
 
 export const BATCH_STATUS_LABELS: Record<BatchStatus, string> = {
   draft: 'Draft',
+  queued: 'In Queue',
   in_progress: 'In progress',
   completed: 'Completed',
   failed: 'Failed',
@@ -22,7 +23,10 @@ export const BATCH_STATUS_LABELS: Record<BatchStatus, string> = {
 
 // Phase 13D — returns Badge's tone vocabulary (StatusChip retired; both of
 // this function's only two consumers, BatchCard and BatchDetails, migrated
-// to Badge in this same phase).
+// to Badge in this same phase). 'queued' stays neutral (graphite) rather
+// than reusing 'running' — it's a calm wait state, not active machine work,
+// and the design language reserves the accent/running tone for "the machine
+// is working" specifically.
 export function batchStatusTone(status: BatchStatus): BadgeTone {
   switch (status) {
     case 'completed': return 'success'
@@ -36,6 +40,7 @@ export function batchStatusTone(status: BatchStatus): BadgeTone {
 export const STAGE_STATUS_LABELS: Record<StageStatus, string> = {
   not_started: 'Not started',
   configuring: 'Configuring',
+  queued: 'In Queue',
   running: 'Running',
   completed: 'Completed',
   failed: 'Failed',

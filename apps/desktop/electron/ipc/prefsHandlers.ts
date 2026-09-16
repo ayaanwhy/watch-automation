@@ -5,6 +5,7 @@ import { logger } from '../logger'
 import { atomicWriteJson } from '../services/atomicFile'
 import { getPresetDefinitions, savePresetDefinition } from '../services/preprocessingPresetDefinitions'
 import { getShadowProfileDefinitions, saveShadowProfileDefinition } from '../services/shadowProfileDefinitions'
+import { loadBoundaryEndpoint, saveBoundaryEndpoint } from '../services/boundaryEndpointPrefs'
 import type {
   PreprocessingPreset,
   PreprocessingPresetValues,
@@ -214,6 +215,12 @@ export function registerPrefsHandlers(): void {
       logWriteError('upscale-factor.json', err)
     }
   })
+
+  // ── Watch AI boundary-detection endpoint override (Phase 14B) ──────────────
+  ipcMain.handle('prefs:load-boundary-endpoint', async (): Promise<string | null> => loadBoundaryEndpoint())
+  ipcMain.handle('prefs:save-boundary-endpoint', async (_event, payload: string | null): Promise<void> =>
+    saveBoundaryEndpoint(payload),
+  )
 
   // ── Product type pref ───────────────────────────────────────────────────────
   ipcMain.handle('prefs:load-product-type', async (): Promise<ProductType | null> => {

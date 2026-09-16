@@ -80,7 +80,17 @@
 .filterRow {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: var(--space-2);
+}
+
+/* Status filter (compact dropdown, not segmented — six values read better
+   as one trigger than six pills). Fixed width keeps it from stretching to
+   fill the row like a form field would; matches SegmentedControl's own
+   compact footprint at this row's height. Active-state highlighting is
+   Select's own `active` prop (see Select.module.css's .triggerActive). */
+.statusFilter {
+  width: 160px;
 }
 
 .list {

@@ -8,6 +8,7 @@ import { Button } from '../components/ui/Button'
 import { SegmentedControl } from '../components/ui/SegmentedControl'
 import { ConsoleLayout } from '../components/console/ConsoleLayout'
 import { ConsoleSummaryPanel, type ConsoleSummaryItem } from '../components/console/ConsoleSummaryPanel'
+import { ResumePrompt } from '../components/console/ResumePrompt'
 import { PROCESSING_MODE_OPTIONS } from '../constants/processingMode'
 import type { ProcessingMode } from '../constants/processingMode'
 import styles from './BatchSetup.module.css'
@@ -197,8 +198,8 @@ export default function BatchSetup({ onBeginAnnotation, initialBatchName = '', h
           {loadResult !== null && <BatchSummary result={loadResult} />}
           {showActions && existingSession !== null && (
             <ResumePrompt
-              session={existingSession}
-              total={loadResult!.match!.matched.length}
+              label="Saved session found"
+              detail={`${existingSession.annotations.filter(a => a.status === 'annotated').length} of ${loadResult!.match!.matched.length} annotated`}
               onResume={() => onBeginAnnotation(buildBatch(), existingSession, batchName)}
               onFresh={() => onBeginAnnotation(buildBatch(), null, batchName)}
             />
@@ -366,29 +367,6 @@ function BatchSummary({ result }: { result: BatchLoadResult }) {
       {m.duplicateImageSkus.length > 0 && (
         <SkuList title="Duplicate Image SKUs" skus={m.duplicateImageSkus} />
       )}
-    </div>
-  )
-}
-
-interface ResumePromptProps {
-  session: SessionFile
-  total: number
-  onResume(): void
-  onFresh(): void
-}
-
-function ResumePrompt({ session, total, onResume, onFresh }: ResumePromptProps) {
-  const annotated = session.annotations.filter(a => a.status === 'annotated').length
-  return (
-    <div className={styles.resumePrompt}>
-      <div className={styles.resumeInfo}>
-        <span className={styles.resumeLabel}>Saved session found</span>
-        <span className={styles.resumeCount}>{annotated} of {total} annotated</span>
-      </div>
-      <div className={styles.resumeActions}>
-        <Button variant="primary" onClick={onResume}>Resume</Button>
-        <Button variant="secondary" onClick={onFresh}>Start fresh</Button>
-      </div>
     </div>
   )
 }

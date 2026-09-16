@@ -30,6 +30,7 @@ import type {
   BatchRenamePayload,
   BatchSetModePayload,
   BatchFindWatchPayload,
+  BatchFindEditingPayload,
   BatchSetImageNeedsFixingPayload,
   BatchSetHoopSplitPayload,
   RingBraceletStartPayload,
@@ -53,6 +54,10 @@ import type {
   ShadowProfileDefinitionSavePayload,
   ShadowPreviewRenderPayload,
   ShadowPreviewRenderResult,
+  ThumbnailGetPayload,
+  ThumbnailGetResult,
+  BoundaryDetectPayload,
+  BoundaryDetectResult,
 } from './ipc'
 import type { BatchDetailRecord, BatchSummaryRecord } from './batch'
 import type {
@@ -112,6 +117,7 @@ declare global {
       invoke(channel: 'batch-registry:rename', payload: BatchRenamePayload): Promise<BatchDetailRecord | null>
       invoke(channel: 'batch-registry:set-mode', payload: BatchSetModePayload): Promise<BatchDetailRecord | null>
       invoke(channel: 'batch-registry:find-watch', payload: BatchFindWatchPayload): Promise<BatchDetailRecord | null>
+      invoke(channel: 'batch-registry:find-editing', payload: BatchFindEditingPayload): Promise<BatchDetailRecord | null>
       invoke(channel: 'batch-registry:set-image-needs-fixing', payload: BatchSetImageNeedsFixingPayload): Promise<BatchDetailRecord | null>
       invoke(channel: 'batch-registry:set-hoop-split', payload: BatchSetHoopSplitPayload): Promise<BatchDetailRecord | null>
       invoke(channel: 'batch-registry:delete', payload: { id: string }): Promise<boolean>
@@ -146,6 +152,14 @@ declare global {
       // Appearance (Phase 13H)
       invoke(channel: 'prefs:load-appearance'): Promise<AppearancePrefs>
       invoke(channel: 'prefs:save-appearance', payload: AppearancePrefs): Promise<void>
+
+      // Review-sidebar thumbnails (Item 6, post-Phase-13 polish)
+      invoke(channel: 'thumbnail:get', payload: ThumbnailGetPayload): Promise<ThumbnailGetResult>
+
+      // Watch AI boundary detection (Phase 14B)
+      invoke(channel: 'boundary:detect', payload: BoundaryDetectPayload): Promise<BoundaryDetectResult>
+      invoke(channel: 'prefs:load-boundary-endpoint'): Promise<string | null>
+      invoke(channel: 'prefs:save-boundary-endpoint', payload: string | null): Promise<void>
     }
   }
 }

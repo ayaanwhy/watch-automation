@@ -6,6 +6,7 @@ import { SegmentedControl } from '../components/ui/SegmentedControl'
 import { ConsoleLayout } from '../components/console/ConsoleLayout'
 import { ConsoleSummaryPanel, type ConsoleSummaryItem } from '../components/console/ConsoleSummaryPanel'
 import { PresetCards } from '../components/console/PresetCards'
+import { useToast } from '../components/ui/ToastHost'
 import { usePythonInterpreter } from '../hooks/usePythonInterpreter'
 import { usePreprocessingPreset } from '../hooks/usePreprocessingPreset'
 import { usePreprocessingPresetDefinitions } from '../hooks/usePreprocessingPresetDefinitions'
@@ -117,6 +118,7 @@ export default function Preprocessing({ initialBatchName = '', onCreateBatch, on
   const product = useProductType()
   const preset  = usePreprocessingPreset()
   const job     = usePreprocessingJob()
+  const { showToast } = useToast()
   // Read-only here — only used to compute each preset card's "Customized"
   // marker (definitions.value !== factory default). Editing definitions
   // remains Settings-only (usePreprocessingPresetDefinitions.saveValues).
@@ -143,13 +145,22 @@ export default function Preprocessing({ initialBatchName = '', onCreateBatch, on
     !disabled
   )
 
+  // Queueing (Item 5A, post-Phase-13 polish) — Preprocessing's own runner
+  // type only ever allows one active subprocess at a time (GPU/VRAM
+  // contention — see subprocessRunner.ts), and this hook can only represent
+  // one job's live progress. So a Start while one is already running queues
+  // instead of erroring: the batch is still created now (visible in the
+  // Dashboard immediately, status 'In Queue') and handed to job.enqueue(),
+  // which starts it automatically once the active run finishes. No
+  // navigation to the live workspace yet — there's nothing live to show
+  // until it actually starts.
   async function handleStart() {
     if (!canStart) return
     setStarting(true)
     const batchId = await onCreateBatch(folders.inputDir, batchName)
     const overridePath = python.override.trim()
     const operations = OPERATIONS_BY_CHOICE[opsChoice]
-    const started = await job.start({
+    const payload = {
       inputDir:  folders.inputDir,
       outputDir: folders.outputDir,
       batchId,
@@ -161,7 +172,21 @@ export default function Preprocessing({ initialBatchName = '', onCreateBatch, on
       operations,
       ...(overridePath !== '' ? { pythonPath: overridePath } : {}),
       preset: preset.preset,
-    })
+    }
+
+    if (job.phase === 'running') {
+      await window.api.invoke('batch-registry:update-stage', {
+        id: batchId,
+        stageType: 'preprocessing',
+        patch: { status: 'queued', config: { objectType: product.productType } },
+      })
+      job.enqueue(payload)
+      showToast({ title: 'Batch queued', description: 'It will start automatically once the current run finishes.' })
+      setStarting(false)
+      return
+    }
+
+    const started = await job.start(payload)
     setStarting(false)
     if (started) onStarted()
   }
@@ -195,6 +220,7 @@ export default function Preprocessing({ initialBatchName = '', onCreateBatch, on
         <ConsoleSummaryPanel
           items={summaryItems}
           onStart={handleStart}
+          startLabel={job.phase === 'running' ? 'Add to Queue' : 'Start'}
           canStart={canStart}
           starting={starting}
           error={job.startError}

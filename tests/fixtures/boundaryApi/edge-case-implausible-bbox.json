@@ -1,0 +1,13 @@
+{
+  "_provenance": "HAND-CONSTRUCTED, not a real API response — exercises rejection of a bbox whose width is below MIN_GUIDE_SEPARATION after clamping. The API has never been observed to return this; this is a defensive-validation test only.",
+  "imageWidth": 1000,
+  "response": {
+    "success": true,
+    "message": "Image loaded successfully. Size: 1000x800",
+    "bbox": [500, 10, 503, 790]
+  },
+  "expected": {
+    "ok": false,
+    "retryable": false
+  }
+}

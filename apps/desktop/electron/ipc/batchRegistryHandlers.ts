@@ -7,6 +7,7 @@ import type {
   BatchRenamePayload,
   BatchSetModePayload,
   BatchFindWatchPayload,
+  BatchFindEditingPayload,
   BatchSetImageNeedsFixingPayload,
   BatchSetHoopSplitPayload,
 } from '../../src/types/ipc'
@@ -40,6 +41,10 @@ export function registerBatchRegistryHandlers(): void {
 
   ipcMain.handle('batch-registry:find-watch', async (_e, p: BatchFindWatchPayload): Promise<BatchDetailRecord | null> =>
     registry.findWatchBatch(p.inputFolder, p.outputFolder, p.spreadsheetPath),
+  )
+
+  ipcMain.handle('batch-registry:find-editing', async (_e, p: BatchFindEditingPayload): Promise<BatchDetailRecord | null> =>
+    registry.findEditingBatch(p.product, p.inputFolder, p.outputFolder),
   )
 
   ipcMain.handle('batch-registry:delete', async (_e, p: { id: string }): Promise<boolean> =>

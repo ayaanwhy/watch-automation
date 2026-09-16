@@ -1,0 +1,15 @@
+{
+  "_provenance": "HAND-CONSTRUCTED, not a real API response — exercises the mapping's clamp-into-[0, imageWidth] rule for a bbox that overshoots the image on both sides. The API has never been observed to return values outside the image; this is a defensive-validation test only.",
+  "imageWidth": 1000,
+  "response": {
+    "success": true,
+    "message": "Image loaded successfully. Size: 1000x800",
+    "bbox": [-50, 10, 1200, 790]
+  },
+  "expected": {
+    "ok": true,
+    "spliceBoundaries": null,
+    "scaleBoundaries": { "leftBoundary": 0, "rightBoundary": 1000 },
+    "confidence": null
+  }
+}

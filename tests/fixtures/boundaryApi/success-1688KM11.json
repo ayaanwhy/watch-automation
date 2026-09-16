@@ -1,0 +1,17 @@
+{
+  "_provenance": "Real POST to https://watchdialcoord.clouddeploy.in/bbox/predict, captured 2026-09-16 against sampledata/1688KM11.png. bbox was verified by overlaying the exact returned rectangle onto the unmodified source image — it lands on the watch case/bezel edges, excluding the bracelet.",
+  "sourceImage": "1688KM11.png",
+  "imageWidth": 1696,
+  "imageHeight": 982,
+  "response": {
+    "success": true,
+    "message": "Image loaded successfully. Size: 1696x982",
+    "bbox": [263, 4, 1312, 979]
+  },
+  "expected": {
+    "ok": true,
+    "spliceBoundaries": null,
+    "scaleBoundaries": { "leftBoundary": 263, "rightBoundary": 1312 },
+    "confidence": null
+  }
+}

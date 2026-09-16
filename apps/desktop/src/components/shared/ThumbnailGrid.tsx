@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type UIEvent } from 'react'
 import { Images } from 'lucide-react'
 import { ThumbnailCell, type ThumbnailStatus } from './ThumbnailCell'
 import { EmptyState } from '../ui/EmptyState'
+import { useThumbnailCache } from '../../hooks/useThumbnailCache'
 import { joinPath, toFileUrl } from '../../lib/paths'
 import styles from './ThumbnailGrid.module.css'
 
@@ -66,6 +67,7 @@ export function ThumbnailGrid({ images, inputDir, selectedImage, onSelect }: Thu
   const [containerWidth, setContainerWidth] = useState(0)
   const [containerHeight, setContainerHeight] = useState(0)
   const [scrollTop, setScrollTop] = useState(0)
+  const getThumbSrc = useThumbnailCache()
 
   useEffect(() => {
     const el = containerRef.current
@@ -119,6 +121,7 @@ export function ThumbnailGrid({ images, inputDir, selectedImage, onSelect }: Thu
           const index = startIndex + i
           const row = Math.floor(index / columns)
           const col = index % columns
+          const sourcePath = joinPath(inputDir, img.name)
           return (
             <ThumbnailCell
               key={img.name}
@@ -126,7 +129,7 @@ export function ThumbnailGrid({ images, inputDir, selectedImage, onSelect }: Thu
               status={img.status}
               lowConfidence={img.lowConfidence}
               needsFixing={img.needsFixing}
-              src={toFileUrl(joinPath(inputDir, img.name))}
+              src={getThumbSrc(sourcePath, toFileUrl(sourcePath))}
               selected={img.name === selectedImage}
               onClick={() => onSelect(img.name)}
               style={{

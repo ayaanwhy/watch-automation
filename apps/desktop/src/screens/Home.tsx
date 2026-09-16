@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Layers, Gem, Eye, Flag, CalendarCheck, Activity } from 'lucide-react'
 import { PageHeader } from '../components/ui/PageHeader'
 import { SegmentedControl } from '../components/ui/SegmentedControl'
+import { Select } from '../components/ui/Select'
 import { Button } from '../components/ui/Button'
 import { BatchCard } from '../components/batch/BatchCard'
 import { NowCard, type NowCardKind } from '../components/dashboard/NowCard'
@@ -13,7 +14,7 @@ import { usePreprocessingJob } from '../context/PreprocessingJobContext'
 import { useRingBraceletJob } from '../context/RingBraceletJobContext'
 import { useEarringJob } from '../context/EarringJobContext'
 import type { ProgressState } from '../context/useSubprocessJob'
-import type { BatchDetailRecord, BatchMode, BatchStatus, BatchSummaryRecord, StageType } from '../types/batch'
+import type { BatchDetailRecord, BatchMode, BatchProductType, BatchStatus, BatchSummaryRecord } from '../types/batch'
 import styles from './Home.module.css'
 
 // Home's own entry-id vocabulary — no longer maps 1:1 onto a resolved
@@ -42,15 +43,20 @@ interface HomeProps {
   editingBatch: BatchDetailRecord | null
 }
 
-type StageFilter = 'all' | StageType
+// Stage here means pipeline category, not product — Watch moved to the
+// Product Type filter below (it's a product, not a stage; its underlying
+// StageType is still 'watch', matched via WATCH_STAGE_TYPES in the filter
+// predicate). 'editing' covers Ring/Bracelet/Earring/Watch's shared stage
+// type; 'preprocessing' covers all products that pass through it.
+type StageFilter = 'all' | 'preprocessing' | 'editing'
 type ModeFilter = 'all' | BatchMode
+type ProductTypeFilter = 'all' | BatchProductType
 type StatusFilterValue = 'all' | BatchStatus
 type AttentionFilter = null | 'waitingReview' | 'needsFixing' | 'completedToday' | 'running'
 
 const STAGE_FILTER_OPTIONS: { value: StageFilter; label: string }[] = [
   { value: 'all', label: 'All stages' },
   { value: 'preprocessing', label: 'Preprocessing' },
-  { value: 'watch', label: 'Watch' },
   { value: 'editing', label: 'Editing' },
 ]
 
@@ -60,8 +66,26 @@ const MODE_FILTER_OPTIONS: { value: ModeFilter; label: string }[] = [
   { value: 'testing', label: 'Testing' },
 ]
 
+// Watch's own pipeline runs its stage as StageType 'watch', not 'editing' —
+// see batch.ts's StageType comment. Product Type filtering must still work
+// across both Preprocessing and Editing batches, so this list covers every
+// product a batch's productType (computeProductType in batchModel.ts) can
+// resolve to, independent of which stage carries it. 'generic' (a
+// Preprocessing-only objectType) is intentionally omitted — not part of the
+// four requested product tiles.
+const PRODUCT_TYPE_FILTER_OPTIONS: { value: ProductTypeFilter; label: string }[] = [
+  { value: 'all', label: 'All products' },
+  { value: 'ring', label: 'Rings' },
+  { value: 'bracelet', label: 'Bracelets' },
+  { value: 'earring', label: 'Earrings' },
+  { value: 'watch', label: 'Watch' },
+]
+
+// Compact dropdown (not segmented) per the Dashboard polish pass — a status
+// row with six values reads better as a single trigger than six pills.
 const STATUS_FILTER_OPTIONS: { value: StatusFilterValue; label: string }[] = [
   { value: 'all', label: 'All statuses' },
+  { value: 'queued', label: 'In Queue' },
   { value: 'in_progress', label: 'Running' },
   { value: 'completed', label: 'Completed' },
   { value: 'failed', label: 'Failed' },
@@ -158,6 +182,7 @@ export default function Home({ onLaunch, onOpenBatch, preprocessBatch, editingBa
   const [batches, setBatches] = useState<BatchSummaryRecord[]>([])
   const [stageFilter, setStageFilter] = useState<StageFilter>('all')
   const [modeFilter, setModeFilter] = useState<ModeFilter>('all')
+  const [productTypeFilter, setProductTypeFilter] = useState<ProductTypeFilter>('all')
   const [statusFilter, setStatusFilter] = useState<StatusFilterValue>('all')
   const [attentionFilter, setAttentionFilter] = useState<AttentionFilter>(null)
 
@@ -196,6 +221,15 @@ export default function Home({ onLaunch, onOpenBatch, preprocessBatch, editingBa
 
   function handleDeleted(id: string) {
     setBatches(prev => prev.filter(b => b.id !== id))
+    // Queueing (Item 5A, post-Phase-13 polish) — a queued batch's payload
+    // lives only in its job hook's in-memory queue (see useSubprocessJob),
+    // not the registry record just deleted above. Without this, deleting a
+    // still-queued batch here would leave that payload to drain and run
+    // later against a batchId that no longer exists. Harmless no-op for any
+    // id that isn't actually queued in a given hook.
+    preprocessingJob.cancelQueued(id)
+    ringBraceletJob.cancelQueued(id)
+    earringJob.cancelQueued(id)
   }
 
   function toggleAttentionFilter(next: Exclude<AttentionFilter, null>) {
@@ -256,8 +290,14 @@ export default function Home({ onLaunch, onOpenBatch, preprocessBatch, editingBa
   const needsFixingIds = new Set(needsFixingBatches.map(b => b.id))
   const completedTodayIds = new Set(completedTodayBatches.map(b => b.id))
   const filteredBatches = batches.filter(b => {
-    if (stageFilter !== 'all' && !b.pipeline.includes(stageFilter)) return false
+    // Watch's pipeline stage is StageType 'watch', not 'editing' — the
+    // Stage filter's 'editing' option means "editing-category work", which
+    // for filtering purposes includes Watch's own stage (Watch moved to the
+    // Product Type filter; it no longer has a dedicated Stage option).
+    if (stageFilter === 'preprocessing' && !b.pipeline.includes('preprocessing')) return false
+    if (stageFilter === 'editing' && !b.pipeline.includes('editing') && !b.pipeline.includes('watch')) return false
     if (modeFilter !== 'all' && (b.mode ?? 'production') !== modeFilter) return false
+    if (productTypeFilter !== 'all' && b.productType !== productTypeFilter) return false
     if (statusFilter !== 'all' && b.status !== statusFilter) return false
     if (attentionFilter === 'waitingReview' && !waitingReviewIds.has(b.id)) return false
     if (attentionFilter === 'needsFixing' && !needsFixingIds.has(b.id)) return false
@@ -266,7 +306,12 @@ export default function Home({ onLaunch, onOpenBatch, preprocessBatch, editingBa
     return true
   })
 
-  const hasAnyFilter = stageFilter !== 'all' || modeFilter !== 'all' || statusFilter !== 'all' || attentionFilter !== null
+  const hasAnyFilter =
+    stageFilter !== 'all' ||
+    modeFilter !== 'all' ||
+    productTypeFilter !== 'all' ||
+    statusFilter !== 'all' ||
+    attentionFilter !== null
 
   return (
     <div className={styles.page}>
@@ -356,6 +401,7 @@ export default function Home({ onLaunch, onOpenBatch, preprocessBatch, editingBa
                 onClick={() => {
                   setStageFilter('all')
                   setModeFilter('all')
+                  setProductTypeFilter('all')
                   setStatusFilter('all')
                   setAttentionFilter(null)
                 }}
@@ -383,11 +429,19 @@ export default function Home({ onLaunch, onOpenBatch, preprocessBatch, editingBa
               />
               <SegmentedControl
                 variant="pill"
-                aria-label="Filter by status"
-                options={STATUS_FILTER_OPTIONS}
-                value={statusFilter}
-                onChange={setStatusFilter}
+                aria-label="Filter by product type"
+                options={PRODUCT_TYPE_FILTER_OPTIONS}
+                value={productTypeFilter}
+                onChange={setProductTypeFilter}
               />
+              <div className={styles.statusFilter}>
+                <Select
+                  options={STATUS_FILTER_OPTIONS}
+                  value={statusFilter}
+                  onChange={setStatusFilter}
+                  active={statusFilter !== 'all'}
+                />
+              </div>
             </div>
           )}
 

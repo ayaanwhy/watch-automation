@@ -34,9 +34,15 @@ interface EarringJobContextValue {
   cancelPhase: CancelPhase
   donePayload: EarringDonePayload | null
   startedAt: number | null
+  activeBatchId: string | null
   start(payload: EarringStartPayload): Promise<void>
   cancel(): Promise<void>
   reset(): void
+  // Queueing (Item 5A, post-Phase-13 polish) — see useSubprocessJob's own
+  // doc comments on these three for the full contract.
+  enqueue(payload: EarringStartPayload): void
+  queuedBatchIds: string[]
+  cancelQueued(batchId: string): void
 }
 
 // Mirrors RingBraceletJobContext's structure exactly — see that file and

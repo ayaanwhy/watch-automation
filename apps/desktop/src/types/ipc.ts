@@ -402,6 +402,18 @@ export interface BatchFindWatchPayload {
   spreadsheetPath: string
 }
 
+// Post-Phase-13 polish (Item 3) — Ring/Bracelet/Earring's analogue of
+// BatchFindWatchPayload. There's no SessionFile for these products (no
+// annotation step to resume — see ResumePrompt's doc comment), so "Resume"
+// means finding the existing editing-stage batch for these exact
+// inputDir/outputDir/product fields and reusing its id, relying on the
+// Python runners' own idempotent-skip behavior to pick up where it left off.
+export interface BatchFindEditingPayload {
+  product: 'ring' | 'bracelet' | 'earring'
+  inputFolder: string
+  outputFolder: string
+}
+
 // ── Ring & Bracelet asset generation (Phase 10C) ────────────────────────────
 // Consumes Universal Preprocessing's already-prepared transparent PNGs — this
 // stage never touches raw photos or runs its own background removal. Wire
@@ -568,3 +580,37 @@ export interface EarringFolderPrefs {
   outputDir: string | null
   metadataFilePath: string | null
 }
+
+// ── Review-sidebar thumbnails (Item 6, post-Phase-13 polish) ───────────────
+// See electron/services/thumbnailCache.ts for the full rationale.
+
+export interface ThumbnailGetPayload {
+  path: string
+}
+
+export type ThumbnailGetResult =
+  | { ok: true; thumbnailPath: string }
+  | { ok: false; error: string }
+
+// ── Watch AI boundary detection (Phase 14B) ─────────────────────────────────
+// SAM3 Watch Segmentation API (watchdialcoord.clouddeploy.in, live as of
+// 2026-09-15). Verified against a real successful response (2026-09-16,
+// sampledata/1688KM11.png): the service returns one bounding box for the
+// watch case/dial only — the bracelet/straps fall outside it — so it maps
+// to scaleBoundaries (dial/case edges) exclusively. It never informs
+// spliceBoundaries (the strap-cut points), which this provider simply has
+// no data for. The live schema (captured from the real /openapi.json, not
+// assumed) has no confidence field at all, so confidence is always null
+// from this provider — by design, not a placeholder for "not implemented."
+export interface BoundaryDetectPayload {
+  imagePath: string
+}
+
+export interface BoundaryPredictionPair {
+  leftBoundary: number
+  rightBoundary: number
+}
+
+export type BoundaryDetectResult =
+  | { ok: true; spliceBoundaries: null; scaleBoundaries: BoundaryPredictionPair | null; confidence: null }
+  | { ok: false; error: string; retryable: boolean }

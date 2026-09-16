@@ -16,7 +16,7 @@
 // PreprocessingJobContext.tsx / RingBraceletJobContext.tsx) — per Phase 10's
 // deliberate "keep preprocessing and asset generation cleanly separated",
 // this hook only shares the state machine, not the public contract.
-import { useCallback, useRef, useState, type MutableRefObject } from 'react'
+import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react'
 
 export type JobPhase = 'idle' | 'running' | 'done'
 
@@ -90,6 +90,16 @@ export interface SubprocessJobHandle<TImage extends BaseImageState, TStart, TDon
   cancelPhase: CancelPhase
   donePayload: TDone | null
   startedAt: number | null
+  // batchId of whichever job is currently active (running, or just finished
+  // and not yet reset) — read off the payload passed to the `start()` call
+  // that's actually in effect right now, not whatever a caller separately
+  // tracks. Queueing (Item 5A) is exactly why this needed to become the
+  // source of truth: when the drain effect below auto-starts the next
+  // queued payload, nothing outside this hook decided to — so anything
+  // that needs "which batch is this job about" (the *BatchSync components'
+  // refetch-on-phase-change) must read it from here, not a prop a Console
+  // set once at the original Start click.
+  activeBatchId: string | null
   /** Only valid to read from inside a `window.api.on` subscription callback. */
   jobIdRef: MutableRefObject<string | null>
   // Resolves true only once the job has actually started (jobId assigned,
@@ -98,6 +108,28 @@ export interface SubprocessJobHandle<TImage extends BaseImageState, TStart, TDon
   start: (payload: TStart) => Promise<boolean>
   cancel: () => Promise<void>
   reset: () => void
+  // Queueing (Item 5A, post-Phase-13 polish) — same-pipeline-type concurrency
+  // stays unsafe (GPU/VRAM contention — see subprocessRunner.ts's own
+  // per-type activeJob guard) and this hook can only ever represent one
+  // active job's live progress at a time (phase/progress/images are
+  // singular), so a second Start while one is already running queues rather
+  // than erroring. `enqueue` appends payload to an internal FIFO; a job
+  // finishing (phase → 'done') automatically drains the next one via
+  // `start()`, so it picks up the normal running/progress/done lifecycle
+  // exactly like any other job once its turn begins. The caller is
+  // responsible for marking the backing batch's stage 'queued' in the
+  // registry beforehand (this hook has no batch-registry access) — see
+  // Preprocessing.tsx/EditingSetup.tsx's handleStart for the pairing.
+  enqueue: (payload: TStart) => void
+  // batchId of every payload currently waiting (best-effort — payloads with
+  // no batchId field are simply omitted, not counted). Lets a Console show
+  // "N queued" or offer to cancel one without the hook needing to know
+  // anything about the batch registry itself.
+  queuedBatchIds: string[]
+  // Removes one not-yet-started payload from the queue (e.g. the user
+  // deletes/cancels a still-queued batch from the Dashboard). No-op if that
+  // batchId isn't queued (already started, or never was).
+  cancelQueued: (batchId: string) => void
   /** Feed one parsed NDJSON event in — call from the pipeline's own typed `window.api.on('X:event', ...)` subscription. */
   dispatchEvent: (event: Record<string, unknown>) => void
   /** Feed the terminal done payload in — call from the pipeline's own typed `window.api.on('X:done', ...)` subscription. */
@@ -115,8 +147,11 @@ export function useSubprocessJob<TImage extends BaseImageState, TStart, TDone ex
   const [cancelPhase, setCancelPhase] = useState<CancelPhase>('none')
   const [donePayload, setDonePayload] = useState<TDone | null>(null)
   const [startedAt, setStartedAt] = useState<number | null>(null)
+  const [activeBatchId, setActiveBatchId] = useState<string | null>(null)
+  const [queuedBatchIds, setQueuedBatchIds] = useState<string[]>([])
 
   const jobIdRef = useRef<string | null>(null)
+  const queueRef = useRef<TStart[]>([])
 
   const dispatchEvent = useCallback((event: Record<string, unknown>) => {
     const type = event['type']
@@ -191,6 +226,7 @@ export function useSubprocessJob<TImage extends BaseImageState, TStart, TDone ex
       return false
     }
     jobIdRef.current = result.jobId
+    setActiveBatchId((payload as { batchId?: string }).batchId ?? null)
     setStartedAt(Date.now())
     setPhase('running')
     return true
@@ -204,6 +240,38 @@ export function useSubprocessJob<TImage extends BaseImageState, TStart, TDone ex
     await config.cancelInvoke(jobIdRef.current)
   }, [config])
 
+  function syncQueuedBatchIds() {
+    setQueuedBatchIds(
+      queueRef.current
+        .map(p => (p as { batchId?: string }).batchId)
+        .filter((id): id is string => id !== undefined),
+    )
+  }
+
+  const enqueue = useCallback((payload: TStart) => {
+    queueRef.current = [...queueRef.current, payload]
+    syncQueuedBatchIds()
+  }, [])
+
+  const cancelQueued = useCallback((batchId: string) => {
+    queueRef.current = queueRef.current.filter(p => (p as { batchId?: string }).batchId !== batchId)
+    syncQueuedBatchIds()
+  }, [])
+
+  // Drains one queued payload the instant the active job frees up. Runs
+  // start() directly (not through any Console-level gating) — by the time a
+  // payload reached the queue, its batch was already created/validated, so
+  // there's nothing left to re-check.
+  useEffect(() => {
+    if (phase !== 'idle' && phase !== 'done') return
+    if (queueRef.current.length === 0) return
+    const [next, ...rest] = queueRef.current
+    queueRef.current = rest
+    syncQueuedBatchIds()
+    void start(next)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase])
+
   const reset = useCallback(() => {
     jobIdRef.current = null
     setPhase('idle')
@@ -214,10 +282,12 @@ export function useSubprocessJob<TImage extends BaseImageState, TStart, TDone ex
     setCancelPhase('none')
     setDonePayload(null)
     setStartedAt(null)
+    setActiveBatchId(null)
   }, [])
 
   return {
-    phase, progress, images, startError, fatalError, cancelPhase, donePayload, startedAt, jobIdRef,
+    phase, progress, images, startError, fatalError, cancelPhase, donePayload, startedAt, activeBatchId, jobIdRef,
     start, cancel, reset, dispatchEvent, dispatchDone,
+    enqueue, queuedBatchIds, cancelQueued,
   }
 }

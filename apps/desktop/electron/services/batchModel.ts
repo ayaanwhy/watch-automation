@@ -5,6 +5,7 @@
 import type {
   BatchDetailRecord,
   BatchMode,
+  BatchProductType,
   BatchStatus,
   BatchSummaryRecord,
   StageCounts,
@@ -65,11 +66,36 @@ export function deriveBatchStatus(stages: StageRecord[]): BatchStatus {
   if (stages.length === 0) return 'draft'
   const statuses = stages.map(s => s.status)
   if (statuses.some(s => s === 'running')) return 'in_progress'
+  if (statuses.some(s => s === 'queued')) return 'queued'
   if (statuses.every(s => s === 'completed')) return 'completed'
   if (statuses.some(s => s === 'failed')) return 'failed'
   if (statuses.some(s => s === 'cancelled')) return 'cancelled'
   if (statuses.some(s => s !== 'not_started')) return 'in_progress'
   return 'draft'
+}
+
+// Normalized product classification (Dashboard filter — post-Phase-13
+// polish), derived the same way rollupCounts already derives counts: from
+// whichever stage is current, falling back to the last stage. 'watch' is
+// definitional for a 'watch' stage; preprocessing/editing read it off their
+// own config field (objectType / product respectively) — the same fields
+// BatchDetails' config grid already displays, just normalized here into one
+// shared vocabulary instead of two differently-named free-form strings.
+export function computeProductType(stages: StageRecord[], current: StageType | null): BatchProductType | null {
+  const byType = new Map(stages.map(s => [s.type, s]))
+  const stage = (current ? byType.get(current) : undefined) ?? stages[stages.length - 1]
+  if (!stage) return null
+  if (stage.type === 'watch') return 'watch'
+  if (stage.type === 'editing') {
+    const product = stage.config['product']
+    return product === 'ring' || product === 'bracelet' || product === 'earring' ? product : null
+  }
+  if (stage.type === 'preprocessing') {
+    const objectType = stage.config['objectType']
+    return objectType === 'watch' || objectType === 'ring' || objectType === 'bracelet' ||
+      objectType === 'earring' || objectType === 'generic' ? objectType : null
+  }
+  return null
 }
 
 // The batch's headline counts follow its current stage (fallback: the last
@@ -101,6 +127,7 @@ export function recompute(detail: BatchDetailRecord, now: string): BatchDetailRe
     stageStatuses: detail.stages.map(s => ({ type: s.type, status: s.status })),
     currentStage: current,
     nextStage: computeNextStage(detail.pipeline, current),
+    productType: computeProductType(detail.stages, current),
     status: deriveBatchStatus(detail.stages),
     counts: rollupCounts(detail.stages, current),
     durationMs: computeDurationMs(detail.stages),
@@ -130,6 +157,7 @@ export function createBatchDetail(params: {
     stageStatuses: [],
     currentStage: null,
     nextStage: null,
+    productType: null,
     counts: { ...ZERO_COUNTS },
     durationMs: null,
     createdAt: now,

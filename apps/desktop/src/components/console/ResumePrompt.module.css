@@ -1,0 +1,37 @@
+.resumePrompt {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--accent-fill);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-10);
+}
+
+.resumeInfo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.resumeLabel {
+  font-size: var(--text-label);
+  font-weight: var(--weight-semibold);
+  color: var(--text-1);
+}
+
+.resumeCount {
+  font-size: var(--text-label);
+  color: var(--success);
+  font-weight: var(--weight-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+.resumeActions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.resumeActions > * {
+  flex: 1;
+}

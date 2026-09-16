@@ -165,10 +165,17 @@ export async function reconcileBatchesOnStartup(): Promise<void> {
     const now = new Date().toISOString()
     let batchWasInterrupted = false
     for (const stage of detail.stages) {
-      if (stage.status !== 'running') continue
+      if (stage.status !== 'running' && stage.status !== 'queued') continue
+      // A 'queued' stage is only ever drained by the renderer's in-memory
+      // queue (useSubprocessJob) — that queue does not survive an app
+      // restart, so a stage still 'queued' at startup has definitely lost
+      // its turn and needs the same reset a genuinely-interrupted 'running'
+      // stage already gets, just with an accurate message.
       detail = applyStagePatch(detail, stage.type, {
         status: 'failed',
-        error: 'Interrupted — the application was closed while this stage was running.',
+        error: stage.status === 'queued'
+          ? 'Interrupted — the application was closed while this stage was waiting in queue.'
+          : 'Interrupted — the application was closed while this stage was running.',
       }, now)
       batchWasInterrupted = true
     }
@@ -375,6 +382,38 @@ export async function findWatchBatch(
       stage.inputDir === inputFolder &&
       stage.outputDir === outputFolder &&
       stage.config.spreadsheetPath === spreadsheetPath
+    ) {
+      return detail!
+    }
+  }
+  return null
+}
+
+// Ring/Bracelet/Earring's analogue of findWatchBatch (post-Phase-13 polish,
+// Item 3). These products have no SessionFile/annotation step — nothing to
+// resume in that sense — so this instead finds the existing editing-stage
+// batch for these exact product/inputDir/outputDir fields, so "Resume" can
+// reuse it rather than mint a duplicate, the same idempotent-skip guarantee
+// findWatchBatch's caller relies on. Same bounded-scope, most-recent-wins
+// shape as findWatchBatch.
+export async function findEditingBatch(
+  product: 'ring' | 'bracelet' | 'earring',
+  inputFolder: string,
+  outputFolder: string,
+): Promise<BatchDetailRecord | null> {
+  const index = await readIndex()
+  const candidates = index.batches
+    .filter(b => b.pipeline.includes('editing'))
+    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
+
+  for (const candidate of candidates) {
+    const detail = await getBatch(candidate.id)
+    const stage = detail?.stages.find(s => s.type === 'editing')
+    if (
+      stage &&
+      stage.config.product === product &&
+      stage.inputDir === inputFolder &&
+      stage.outputDir === outputFolder
     ) {
       return detail!
     }

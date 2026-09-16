@@ -299,12 +299,21 @@ export default function App() {
   // Mirrors handleCreatePreprocessingBatch — the 'editing' StageType covers
   // both products; which one is recorded on the stage config by
   // ring-bracelet:start itself (see ringBraceletHandlers.ts), not here.
+  //
+  // resumeBatchId (Item 3, post-Phase-13 polish): set only when the user
+  // clicked "Resume" on RingBraceletFields' ResumePrompt, after
+  // batch-registry:find-editing located an existing unfinished batch at the
+  // exact same inputDir/outputDir/product. Reuses that batch's id outright
+  // — no new registry record — the same "never mint a duplicate on Resume"
+  // guarantee resolveWatchBatchId's session lookup provides for Watch,
+  // adapted for a product with no SessionFile of its own.
   async function handleCreateRingBraceletBatch(
     sourceDir: string,
     title: string,
-    _product: 'ring' | 'bracelet'
+    _product: 'ring' | 'bracelet',
+    resumeBatchId?: string,
   ): Promise<string> {
-    const id = await createBatch(['editing'], sourceDir, title)
+    const id = resumeBatchId ?? (await createBatch(['editing'], sourceDir, title))
     const detail = await window.api.invoke('batch-registry:get', { id })
     setEditingBatch(detail)
     return id
@@ -312,9 +321,10 @@ export default function App() {
 
   // Same 'editing' StageType, same shared editingBatch state as Ring &
   // Bracelet above — Earring's own product is recorded on the stage config
-  // by earring:start itself (see earringHandlers.ts), not here.
-  async function handleCreateEarringBatch(sourceDir: string, title: string): Promise<string> {
-    const id = await createBatch(['editing'], sourceDir, title)
+  // by earring:start itself (see earringHandlers.ts), not here. See
+  // handleCreateRingBraceletBatch's doc comment for resumeBatchId.
+  async function handleCreateEarringBatch(sourceDir: string, title: string, resumeBatchId?: string): Promise<string> {
+    const id = resumeBatchId ?? (await createBatch(['editing'], sourceDir, title))
     const detail = await window.api.invoke('batch-registry:get', { id })
     setEditingBatch(detail)
     return id
@@ -688,18 +698,9 @@ export default function App() {
       <PreprocessingJobProvider>
         <RingBraceletJobProvider>
           <EarringJobProvider>
-            <PreprocessingBatchSync
-              batchId={preprocessBatch?.id ?? null}
-              onBatchUpdated={setPreprocessBatch}
-            />
-            <RingBraceletBatchSync
-              batchId={editingBatch?.id ?? null}
-              onBatchUpdated={setEditingBatch}
-            />
-            <EarringBatchSync
-              batchId={editingBatch?.id ?? null}
-              onBatchUpdated={setEditingBatch}
-            />
+            <PreprocessingBatchSync onBatchUpdated={setPreprocessBatch} />
+            <RingBraceletBatchSync onBatchUpdated={setEditingBatch} />
+            <EarringBatchSync onBatchUpdated={setEditingBatch} />
             <JobCompletionToasts preprocessBatch={preprocessBatch} editingBatch={editingBatch} onOpenBatch={handleOpenBatch} />
             <AppearanceEffects />
             <AppShell

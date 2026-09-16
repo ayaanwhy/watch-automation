@@ -1,0 +1,15 @@
+{
+  "_provenance": "Real POST to https://watchdialcoord.clouddeploy.in/bbox/predict, captured 2026-09-15/16 against a synthetic (non-watch) test image, to exercise the genuine failure shape. `message` is an unstructured, apparently-internal string (a raw exception) — the mapping must never parse it for meaning, only branch on `success`.",
+  "sourceImage": "synthetic (non-watch) — not a real watch photo, used only to trigger the API's real 'nothing detected' response shape",
+  "imageWidth": 800,
+  "imageHeight": 800,
+  "response": {
+    "success": false,
+    "message": "attempt to get argmax of an empty sequence",
+    "bbox": null
+  },
+  "expected": {
+    "ok": false,
+    "retryable": false
+  }
+}

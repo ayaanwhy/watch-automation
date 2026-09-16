@@ -14,7 +14,11 @@ interface ThumbnailCellProps {
   status: ThumbnailStatus
   lowConfidence?: boolean
   needsFixing?: boolean
-  src: string
+  // null while its thumbnail is still being generated (Item 6, post-Phase-13
+  // polish — see useThumbnailCache) — rendered as a plain placeholder rather
+  // than falling back to the original full-resolution file, which would
+  // defeat the whole point of not decoding it for a 92px cell.
+  src: string | null
   selected: boolean
   onClick: () => void
   style?: CSSProperties
@@ -52,7 +56,9 @@ export function ThumbnailCell({ name, status, lowConfidence, needsFixing, src, s
       title={title}
       data-status={status}
     >
-      <img className={styles.image} src={src} alt="" loading="lazy" decoding="async" draggable={false} />
+      {src !== null && (
+        <img className={styles.image} src={src} alt="" loading="lazy" decoding="async" draggable={false} />
+      )}
       {status === 'processing' && (
         <div className={styles.sweepTrack}>
           <div className={styles.sweepBar} />
