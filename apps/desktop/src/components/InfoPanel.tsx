@@ -36,8 +36,22 @@ interface InfoPanelProps {
 }
 
 export function InfoPanel({ onSubmit, onBack, onShowDashboard, onCompleteBatch }: InfoPanelProps) {
-  const { batch, annotations, currentIndex, mode, currentAnnotation, currentRow, annotatedCount, navigate, setMode } =
-    useAnnotation()
+  const {
+    batch,
+    annotations,
+    currentIndex,
+    mode,
+    currentAnnotation,
+    currentRow,
+    annotatedCount,
+    navigate,
+    setMode,
+    aiDetectionEnabled,
+    currentDetectionStatus,
+    currentScalePrediction,
+    circuitBroken,
+    retryDetection,
+  } = useAnnotation()
   const { items: queueItems } = useQueue()
 
   const total = annotations.length
@@ -87,6 +101,19 @@ export function InfoPanel({ onSubmit, onBack, onShowDashboard, onCompleteBatch }
           <div className={styles.processingError}>{queueItem.error}</div>
         )}
       </section>
+
+      {aiDetectionEnabled && currentAnnotation.status === 'unannotated' && (
+        <section className={styles.section}>
+          <div className={styles.sectionLabel}>AI Detection</div>
+          <AiDetectionStatusRow
+            status={currentDetectionStatus}
+            circuitBroken={circuitBroken}
+            hasScalePrediction={currentScalePrediction !== null}
+            measureBy={currentRow?.measureBy ?? 'Case'}
+            onRetry={retryDetection}
+          />
+        </section>
+      )}
 
       <section className={styles.section}>
         <div className={styles.sectionLabel}>Measurements</div>
@@ -168,6 +195,52 @@ export function InfoPanel({ onSubmit, onBack, onShowDashboard, onCompleteBatch }
       </div>
     </div>
   )
+}
+
+// AI Detection status (Phase 14C) — a single combined status, not a
+// per-boundary-type one: one boundary:detect call resolves both splice and
+// scale together, so there's no meaningful separate "splice detecting,
+// scale detecting" state to show (unlike the post-submission provenance
+// badges above, which really are two independent, already-settled facts).
+// No confidence percentage anywhere here — the live API schema has none.
+interface AiDetectionStatusRowProps {
+  status: 'idle' | 'pending' | 'success' | 'failed'
+  circuitBroken: boolean
+  hasScalePrediction: boolean
+  measureBy: string
+  onRetry(): void
+}
+
+function AiDetectionStatusRow({ status, circuitBroken, hasScalePrediction, measureBy, onRetry }: AiDetectionStatusRowProps) {
+  if (circuitBroken) {
+    return (
+      <div className={styles.aiRow}>
+        <Badge tone="warning">AI detection unavailable — continuing manually</Badge>
+        <button className={styles.retryButton} onClick={onRetry}>Retry</button>
+      </div>
+    )
+  }
+  if (status === 'failed') {
+    return (
+      <div className={styles.aiRow}>
+        <Badge tone="warning">Detection failed — using default guides</Badge>
+        <button className={styles.retryButton} onClick={onRetry}>Retry</button>
+      </div>
+    )
+  }
+  if (status === 'success') {
+    // Dial watches can partially succeed — case_bbox detected (splice
+    // populated) but dial_bbox missing/invalid (scale still needs manual
+    // placement). Case watches always succeed-or-fail together (scale
+    // mirrors splice), so this distinction only ever applies to Dial.
+    const isDial = measureBy.toLowerCase() === 'dial'
+    const label =
+      isDial && !hasScalePrediction
+        ? 'AI case boundary applied — dial not detected, set scale manually'
+        : 'AI boundaries applied'
+    return <Badge tone="success">{label}</Badge>
+  }
+  return <Badge tone="running">Detecting…</Badge>
 }
 
 function MetaRow({ label, value }: { label: string; value: string }) {

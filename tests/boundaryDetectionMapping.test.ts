@@ -22,21 +22,54 @@ function loadFixture(name: string) {
 }
 
 describe('mapSegmentationResponse — Phase 14B contract mapping (pure, no network)', () => {
-  it('maps a real captured success response to scaleBoundaries only, never spliceBoundaries', () => {
+  // Finalized 2026-09-18 against the real two-box API (verified with both
+  // boxes overlaid on the same real image simultaneously): case_bbox is
+  // the watch CASE boundary (confirmed by the AI team 2026-09-17, then the
+  // API itself split its single `bbox` field into `case_bbox`/`dial_bbox`
+  // on 2026-09-18) — it maps to spliceBoundaries always, and to
+  // scaleBoundaries for Measure By 'Case' (mirrored — no separate scale
+  // concept exists for Case watches). For 'Dial', scaleBoundaries comes
+  // from dial_bbox, extracted/clamped the same way; null only if dial_bbox
+  // itself is absent/invalid on that response (a genuine partial success).
+
+  it('maps a real captured success response to spliceBoundaries, and mirrors case_bbox into scaleBoundaries for Measure By Case', () => {
     const fixture = loadFixture('success-1688KM11.json')
-    const result = mapSegmentationResponse(fixture.response, fixture.imageWidth)
-    expect(result).toEqual(fixture.expected)
+    const result = mapSegmentationResponse(fixture.response, fixture.imageWidth, 'Case')
     expect(result.ok).toBe(true)
     if (result.ok) {
-      expect(result.spliceBoundaries).toBeNull()
-      expect(result.confidence).toBeNull()
+      expect(result.spliceBoundaries).toEqual({ leftBoundary: 263, rightBoundary: 1312 })
       expect(result.scaleBoundaries).toEqual({ leftBoundary: 263, rightBoundary: 1312 })
+      expect(result.confidence).toBeNull()
     }
+  })
+
+  it('maps the same real captured response to spliceBoundaries from case_bbox and scaleBoundaries from dial_bbox for Measure By Dial', () => {
+    const fixture = loadFixture('success-1688KM11.json')
+    const result = mapSegmentationResponse(fixture.response, fixture.imageWidth, 'Dial')
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.spliceBoundaries).toEqual({ leftBoundary: 263, rightBoundary: 1312 })
+      expect(result.scaleBoundaries).toEqual({ leftBoundary: 356, rightBoundary: 1212 })
+      expect(result.confidence).toBeNull()
+    }
+  })
+
+  it('treats a real response with case_bbox but no dial_bbox as a partial success for Measure By Dial (splice populated, scale null)', () => {
+    const fixture = loadFixture('edge-case-dial-not-detected.json')
+    const result = mapSegmentationResponse(fixture.response, fixture.imageWidth, 'Dial')
+    expect(result).toEqual(fixture.expectedForDial)
+  })
+
+  it('Measure By comparison is case-insensitive, mirroring AnnotationCanvas.tsx\'s own convention', () => {
+    const fixture = loadFixture('success-1688KM11.json')
+    const result = mapSegmentationResponse(fixture.response, fixture.imageWidth, 'dial')
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.scaleBoundaries).toEqual({ leftBoundary: 356, rightBoundary: 1212 })
   })
 
   it('maps a real captured success:false response to a generic failure, never surfacing the raw message text', () => {
     const fixture = loadFixture('failure-no-detection.json')
-    const result = mapSegmentationResponse(fixture.response, fixture.imageWidth)
+    const result = mapSegmentationResponse(fixture.response, fixture.imageWidth, 'Case')
     expect(result.ok).toBe(false)
     if (!result.ok) {
       expect(result.retryable).toBe(fixture.expected.retryable)
@@ -46,29 +79,52 @@ describe('mapSegmentationResponse — Phase 14B contract mapping (pure, no netwo
     }
   })
 
-  it('clamps a bbox that overshoots the image bounds on both sides', () => {
+  it('clamps a bbox that overshoots the image bounds on both sides (Case: mirrored; Dial: splice only)', () => {
     const fixture = loadFixture('edge-case-out-of-bounds-bbox.json')
-    const result = mapSegmentationResponse(fixture.response, fixture.imageWidth)
-    expect(result).toEqual(fixture.expected)
+    expect(mapSegmentationResponse(fixture.response, fixture.imageWidth, 'Case')).toEqual(fixture.expectedForCase)
+    expect(mapSegmentationResponse(fixture.response, fixture.imageWidth, 'Dial')).toEqual(fixture.expectedForDial)
   })
 
   it('rejects a bbox whose clamped width is below MIN_GUIDE_SEPARATION as a detection failure, not garbage guides', () => {
     const fixture = loadFixture('edge-case-implausible-bbox.json')
-    const result = mapSegmentationResponse(fixture.response, fixture.imageWidth)
+    const result = mapSegmentationResponse(fixture.response, fixture.imageWidth, 'Case')
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.retryable).toBe(fixture.expected.retryable)
   })
 
   it('rejects a malformed bbox (wrong length / non-finite values) as a detection failure', () => {
-    expect(mapSegmentationResponse({ success: true, message: '', bbox: [1, 2, 3] }, 1000).ok).toBe(false)
-    expect(mapSegmentationResponse({ success: true, message: '', bbox: [1, 2, NaN, 4] }, 1000).ok).toBe(false)
-    expect(mapSegmentationResponse({ success: true, message: '', bbox: null }, 1000).ok).toBe(false)
+    expect(mapSegmentationResponse({ success: true, message: '', case_bbox: [1, 2, 3] }, 1000, 'Case').ok).toBe(false)
+    expect(mapSegmentationResponse({ success: true, message: '', case_bbox: [1, 2, NaN, 4] }, 1000, 'Case').ok).toBe(false)
+    expect(mapSegmentationResponse({ success: true, message: '', case_bbox: null }, 1000, 'Case').ok).toBe(false)
   })
 
   it('treats out-of-order bbox x-coordinates (x2 < x1) as still valid, taking min/max', () => {
-    const result = mapSegmentationResponse({ success: true, message: '', bbox: [800, 5, 200, 900] }, 1000)
+    const result = mapSegmentationResponse({ success: true, message: '', case_bbox: [800, 5, 200, 900] }, 1000, 'Case')
     expect(result.ok).toBe(true)
-    if (result.ok) expect(result.scaleBoundaries).toEqual({ leftBoundary: 200, rightBoundary: 800 })
+    if (result.ok) expect(result.spliceBoundaries).toEqual({ leftBoundary: 200, rightBoundary: 800 })
+  })
+
+  it('rejects an implausible dial_bbox (below MIN_GUIDE_SEPARATION) without failing the whole result — scaleBoundaries stays null, spliceBoundaries still populates', () => {
+    const result = mapSegmentationResponse(
+      { success: true, message: '', case_bbox: [100, 5, 900, 900], dial_bbox: [500, 5, 503, 900] },
+      1000,
+      'Dial',
+    )
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.spliceBoundaries).toEqual({ leftBoundary: 100, rightBoundary: 900 })
+      expect(result.scaleBoundaries).toBeNull()
+    }
+  })
+
+  it('ignores dial_bbox entirely for Measure By Case, even if present', () => {
+    const result = mapSegmentationResponse(
+      { success: true, message: '', case_bbox: [100, 5, 900, 900], dial_bbox: [300, 50, 700, 850] },
+      1000,
+      'Case',
+    )
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.scaleBoundaries).toEqual({ leftBoundary: 100, rightBoundary: 900 })
   })
 })
 
@@ -80,10 +136,10 @@ describe('detectBoundaries — network behavior (mocked fetch, real image file)'
   })
 
   it('does not retry a well-formed success:false response (not a network failure)', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ success: false, message: 'x', bbox: null }), { status: 200 }))
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ success: false, message: 'x', case_bbox: null }), { status: 200 }))
     globalThis.fetch = fetchMock as unknown as typeof fetch
 
-    const result = await detectBoundaries(REAL_WATCH_IMAGE)
+    const result = await detectBoundaries(REAL_WATCH_IMAGE, 'Case')
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.retryable).toBe(false)
@@ -94,11 +150,11 @@ describe('detectBoundaries — network behavior (mocked fetch, real image file)'
       .fn()
       .mockRejectedValueOnce(new Error('ECONNRESET'))
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ success: true, message: 'ok', bbox: [10, 0, 90, 100] }), { status: 200 }),
+        new Response(JSON.stringify({ success: true, message: 'ok', case_bbox: [10, 0, 90, 100] }), { status: 200 }),
       )
     globalThis.fetch = fetchMock as unknown as typeof fetch
 
-    const result = await detectBoundaries(REAL_WATCH_IMAGE)
+    const result = await detectBoundaries(REAL_WATCH_IMAGE, 'Case')
     expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(result.ok).toBe(true)
   })
@@ -107,7 +163,7 @@ describe('detectBoundaries — network behavior (mocked fetch, real image file)'
     const fetchMock = vi.fn().mockRejectedValue(new Error('ECONNRESET'))
     globalThis.fetch = fetchMock as unknown as typeof fetch
 
-    const result = await detectBoundaries(REAL_WATCH_IMAGE)
+    const result = await detectBoundaries(REAL_WATCH_IMAGE, 'Case')
     expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.retryable).toBe(true)
@@ -117,20 +173,41 @@ describe('detectBoundaries — network behavior (mocked fetch, real image file)'
     const fetchMock = vi.fn().mockResolvedValue(new Response('Internal Server Error', { status: 500 }))
     globalThis.fetch = fetchMock as unknown as typeof fetch
 
-    const result = await detectBoundaries(REAL_WATCH_IMAGE)
+    const result = await detectBoundaries(REAL_WATCH_IMAGE, 'Case')
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.retryable).toBe(true)
   })
 
-  it('never populates spliceBoundaries regardless of outcome', async () => {
+  it('threads Measure By through to the mapping end-to-end, extracting both case_bbox and dial_bbox for Dial', async () => {
     const fetchMock = vi
       .fn()
-      .mockResolvedValue(new Response(JSON.stringify({ success: true, message: 'ok', bbox: [10, 0, 90, 100] }), { status: 200 }))
+      .mockResolvedValue(
+        new Response(JSON.stringify({ success: true, message: 'ok', case_bbox: [10, 0, 90, 100], dial_bbox: [20, 10, 80, 90] }), {
+          status: 200,
+        }),
+      )
     globalThis.fetch = fetchMock as unknown as typeof fetch
 
-    const result = await detectBoundaries(REAL_WATCH_IMAGE)
+    const result = await detectBoundaries(REAL_WATCH_IMAGE, 'Dial')
     expect(result.ok).toBe(true)
-    if (result.ok) expect(result.spliceBoundaries).toBeNull()
+    if (result.ok) {
+      expect(result.spliceBoundaries).toEqual({ leftBoundary: 10, rightBoundary: 90 })
+      expect(result.scaleBoundaries).toEqual({ leftBoundary: 20, rightBoundary: 80 })
+    }
+  })
+
+  it('a Dial response missing dial_bbox still ends-to-end resolves splice from case_bbox, scale null', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ success: true, message: 'ok', case_bbox: [10, 0, 90, 100] }), { status: 200 }))
+    globalThis.fetch = fetchMock as unknown as typeof fetch
+
+    const result = await detectBoundaries(REAL_WATCH_IMAGE, 'Dial')
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.spliceBoundaries).toEqual({ leftBoundary: 10, rightBoundary: 90 })
+      expect(result.scaleBoundaries).toBeNull()
+    }
   })
 })

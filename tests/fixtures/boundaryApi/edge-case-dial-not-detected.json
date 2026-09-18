@@ -1,0 +1,16 @@
+{
+  "_provenance": "HAND-CONSTRUCTED, not a real API response — the schema (confirmed from openapi.json) allows dial_bbox to independently be null even when case_bbox and success are both present/true, but this exact combination has not been observed live. Exercises the partial-success path: case detected, dial not — spliceBoundaries should still populate from case_bbox, scaleBoundaries should be null for Measure By Dial (not a whole-response failure).",
+  "imageWidth": 1696,
+  "response": {
+    "success": true,
+    "message": "Image loaded successfully. Size: 1696x982",
+    "case_bbox": [263, 4, 1312, 979],
+    "dial_bbox": null
+  },
+  "expectedForDial": {
+    "ok": true,
+    "spliceBoundaries": { "leftBoundary": 263, "rightBoundary": 1312 },
+    "scaleBoundaries": null,
+    "confidence": null
+  }
+}

@@ -1,17 +1,12 @@
 {
-  "_provenance": "Real POST to https://watchdialcoord.clouddeploy.in/bbox/predict, captured 2026-09-16 against sampledata/1688KM11.png. bbox was verified by overlaying the exact returned rectangle onto the unmodified source image — it lands on the watch case/bezel edges, excluding the bracelet.",
+  "_provenance": "Real POST to https://watchdialcoord.clouddeploy.in/bbox/predict, captured 2026-09-18 against sampledata/1688KM11.png (1696x982), after the API's dial_bbox rollout. Both boxes verified by overlaying them simultaneously onto the unmodified source image: case_bbox (unchanged from the 2026-09-16 pre-rollout capture of the same image) wraps the case/bezel, excluding the bracelet; dial_bbox is a tighter box nested inside case_bbox, wrapping the dial face specifically and excluding the case/bezel ring. No 'expected' field here: the correct mapping depends on Measure By (Case vs Dial), which isn't part of the captured API response — see boundaryDetectionMapping.test.ts for both cases computed against this same real response.",
   "sourceImage": "1688KM11.png",
   "imageWidth": 1696,
   "imageHeight": 982,
   "response": {
     "success": true,
     "message": "Image loaded successfully. Size: 1696x982",
-    "bbox": [263, 4, 1312, 979]
-  },
-  "expected": {
-    "ok": true,
-    "spliceBoundaries": null,
-    "scaleBoundaries": { "leftBoundary": 263, "rightBoundary": 1312 },
-    "confidence": null
+    "case_bbox": [263, 4, 1312, 979],
+    "dial_bbox": [356, 57, 1212, 965]
   }
 }

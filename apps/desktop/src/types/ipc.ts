@@ -595,15 +595,29 @@ export type ThumbnailGetResult =
 // ── Watch AI boundary detection (Phase 14B) ─────────────────────────────────
 // SAM3 Watch Segmentation API (watchdialcoord.clouddeploy.in, live as of
 // 2026-09-15). Verified against a real successful response (2026-09-16,
-// sampledata/1688KM11.png): the service returns one bounding box for the
-// watch case/dial only — the bracelet/straps fall outside it — so it maps
-// to scaleBoundaries (dial/case edges) exclusively. It never informs
-// spliceBoundaries (the strap-cut points), which this provider simply has
-// no data for. The live schema (captured from the real /openapi.json, not
-// assumed) has no confidence field at all, so confidence is always null
-// from this provider — by design, not a placeholder for "not implemented."
+// sampledata/1688KM11.png), then corrected 2026-09-17 per the AI team's own
+// confirmation: the bbox this endpoint returns today is the watch
+// CASE/lug-to-lug boundary — not the dial. The AI team is adding a second,
+// separate dial bbox to the response "within a few hours" of 2026-09-17;
+// that field's name/shape is intentionally NOT modeled here yet (no
+// schema to guess from). electron/services/boundaryDetection.ts isolates
+// all of this API-specific mapping — callers (AnnotationContext etc., not
+// built yet — 14C) only ever see the resolved shape below, never bbox
+// fields directly. The resolved mapping (per app product decision, not the
+// API's own semantics):
+//   Measure By 'Case': spliceBoundaries = case bbox, scaleBoundaries = same
+//   Measure By 'Dial': spliceBoundaries = case bbox, scaleBoundaries = dial
+//     bbox — unavailable until the API's second bbox ships, so this result
+//     is a legitimate partial success (spliceBoundaries populated,
+//     scaleBoundaries null) in the meantime, not a failure.
+// measureBy is required input because the mapping depends on it — this
+// keeps that dependency inside the detection layer instead of leaking bbox
+// semantics out to annotation/editing code. The live schema has no
+// confidence field at all (verified from the real /openapi.json, not
+// assumed), so confidence is always null from this provider.
 export interface BoundaryDetectPayload {
   imagePath: string
+  measureBy: string
 }
 
 export interface BoundaryPredictionPair {
@@ -612,5 +626,5 @@ export interface BoundaryPredictionPair {
 }
 
 export type BoundaryDetectResult =
-  | { ok: true; spliceBoundaries: null; scaleBoundaries: BoundaryPredictionPair | null; confidence: null }
+  | { ok: true; spliceBoundaries: BoundaryPredictionPair | null; scaleBoundaries: BoundaryPredictionPair | null; confidence: null }
   | { ok: false; error: string; retryable: boolean }

@@ -12,6 +12,6 @@ import type { BoundaryDetectPayload, BoundaryDetectResult } from '../../src/type
 export function registerBoundaryHandlers(): void {
   ipcMain.handle('boundary:detect', async (_event, payload: BoundaryDetectPayload): Promise<BoundaryDetectResult> => {
     const endpointOverride = await loadBoundaryEndpoint()
-    return detectBoundaries(payload.imagePath, endpointOverride)
+    return detectBoundaries(payload.imagePath, payload.measureBy, endpointOverride)
   })
 }

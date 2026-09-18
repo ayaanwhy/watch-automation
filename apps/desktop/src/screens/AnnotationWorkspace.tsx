@@ -76,10 +76,15 @@ function AnnotationContent({
         ref={canvasRef}
         watchKey={`${currentIndex}-${currentAnnotation.sku}`}
         filePath={filePath}
-        savedSpliceBoundaries={currentAnnotation.spliceBoundaries}
-        savedScaleBoundaries={currentAnnotation.scaleBoundaries}
+        // Phase 14C — an already-saved annotation always wins; otherwise
+        // fall back to the live AI prediction for this SKU (null in manual
+        // mode, or while nothing has been predicted yet — same 20%/80%/
+        // inset defaults as before in that case).
+        savedSpliceBoundaries={currentAnnotation.spliceBoundaries ?? ctx.currentSplicePrediction}
+        savedScaleBoundaries={currentAnnotation.scaleBoundaries ?? ctx.currentScalePrediction}
         measureBy={measureBy}
         mode={mode}
+        holdGuides={ctx.holdGuides}
       />
       <InfoPanel
         onSubmit={handleSubmit}

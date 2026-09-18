@@ -10,7 +10,7 @@ import {
 import { Group, Image as KonvaImage, Layer, Line, Rect, Stage } from 'react-konva'
 import type Konva from 'konva'
 import { MIN_GUIDE_SEPARATION } from '../types/annotation'
-import type { BoundaryData, GuideMode } from '../types/annotation'
+import type { GuideMode } from '../types/annotation'
 import { useWatchImage } from '../hooks/useWatchImage'
 import styles from './AnnotationCanvas.module.css'
 
@@ -129,15 +129,28 @@ export interface AnnotationCanvasHandle {
 interface AnnotationCanvasProps {
   watchKey: string
   filePath: string
-  savedSpliceBoundaries: BoundaryData | null
-  savedScaleBoundaries: BoundaryData | null
+  // {leftBoundary, rightBoundary} is all these need — a saved annotation
+  // (BoundaryData) or a live AI prediction (BoundaryPredictionPair, Phase
+  // 14C) both satisfy this structurally; source/confidence are never read
+  // for initialization.
+  savedSpliceBoundaries: { leftBoundary: number; rightBoundary: number } | null
+  savedScaleBoundaries: { leftBoundary: number; rightBoundary: number } | null
   measureBy: string
   mode: GuideMode
+  // Phase 14C — while true, both guide-init effects below hold: the image
+  // still renders, but guides don't initialize to their 20%/80% (splice) or
+  // inset (scale) defaults. Sourced from AnnotationContext's holdGuides,
+  // true exactly while a live prediction for this SKU could still arrive
+  // and change the initial position — set once the prediction settles
+  // (success → AI values via the saved* props above; failure → the
+  // existing defaults) so guides initialize exactly once, never teleport
+  // mid-drag.
+  holdGuides?: boolean
 }
 
 export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCanvasProps>(
   function AnnotationCanvas(
-    { watchKey, filePath, savedSpliceBoundaries, savedScaleBoundaries, measureBy, mode },
+    { watchKey, filePath, savedSpliceBoundaries, savedScaleBoundaries, measureBy, mode, holdGuides = false },
     ref
   ) {
     // showScaleGuides is true for Dial watches; comparison is case-insensitive.
@@ -214,7 +227,13 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
     useEffect(() => { fitRef.current = fit }, [fit])
 
     // ── Initialise splice guides when image is ready ─────────────────────────
+    // holdGuides (Phase 14C) — while a live AI prediction for this SKU could
+    // still arrive, this effect no-ops entirely (image still renders via the
+    // Layer above, which doesn't depend on guide state). Once holdGuides
+    // clears, this re-runs and initializes from whatever savedSpliceBoundaries
+    // is by then (a settled prediction, or the pre-existing default).
     useEffect(() => {
+      if (holdGuides) return
       if (!fit || spliceLeftPx !== null) return
       const saved = savedSpliceBoundariesRef.current
       if (saved) {
@@ -224,10 +243,11 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
         setSpliceLeftPx(Math.round(naturalWidth * 0.20))
         setSpliceRightPx(Math.round(naturalWidth * 0.80))
       }
-    }, [fit, spliceLeftPx, naturalWidth])
+    }, [fit, spliceLeftPx, naturalWidth, holdGuides])
 
     // ── Initialise scale guides after splice guides are set ──────────────────
     useEffect(() => {
+      if (holdGuides) return
       if (!showScaleGuides || !fit || spliceLeftPx === null || spliceRightPx === null || scaleLeftPx !== null) return
       const saved = savedScaleBoundariesRef.current
       if (saved) {
@@ -238,7 +258,7 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
         setScaleLeftPx(spliceLeftPx + inset)
         setScaleRightPx(spliceRightPx - inset)
       }
-    }, [fit, showScaleGuides, spliceLeftPx, spliceRightPx, scaleLeftPx])
+    }, [fit, showScaleGuides, spliceLeftPx, spliceRightPx, scaleLeftPx, holdGuides])
 
     // ── Expose guide values to parent ─────────────────────────────────────────
     useImperativeHandle(ref, () => ({

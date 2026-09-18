@@ -1948,10 +1948,22 @@ Re-probed 2026-09-15 — **the service is now live.** HTTP (port 80) now issues 
 * Missing/malformed `image` field → standard FastAPI `422` with the documented `HTTPValidationError` shape (verified directly, matches `openapi.json` exactly).
 * Failure shape (verified directly with two synthetic non-watch test images — a plain shape and an SVG watch-like dial+straps composite, since no real watch photo was available in this checkout's `sampledata/`): both returned `HTTP 200`, `{"success": false, "message": "attempt to get argmax of an empty sequence", "bbox": null}`. The failure signal is `success: false` (never a non-200 status) and `message` is an **unstructured, apparently-internal exception string** — not a stable error code/enum. Mapping code should treat any `success: false` uniformly as "detection failed" and must not pattern-match on `message` text.
 
-**Not yet determined — no real watch image was available in this environment's `sampledata/` to trigger a successful detection, so these remain open rather than guessed:**
-* What the single `bbox` represents — the whole watch (case + straps) or the dial region only. The API name ("SAM3 Watch Segmentation") suggests whole-watch segmentation, which would argue for mapping to `spliceBoundaries`, not `scaleBoundaries` — the reverse of the plan's original dial-coordinate assumption. Genuinely unresolved until a real successful response is seen.
-* `bbox`'s 4-number order/format (`[x1,y1,x2,y2]` is the common convention but unconfirmed) and coordinate space (original-image pixels vs. some resized inference space).
-* Confidence: **the schema has no confidence field at all** (`SegmentationResponse` is exactly `success`/`message`/`bbox`, confirmed from the live `openapi.json`, not assumed). The Phase 14 design's confidence badge/threshold UX has no data source from this API as it exists today — needs a product decision (drop it, or treat `success` as a binary stand-in), not an invented number.
+Re-probed 2026-09-16 — real successful call against `sampledata/1688KM11.png` (1696×982): `bbox: [263, 4, 1312, 979]`. Resolved directly, not guessed:
+* Order/format: `[x1, y1, x2, y2]`, original-image pixel space (confirmed by overlaying the exact rectangle onto the unmodified source image and image and matching Y-range against the full alpha-channel bounding box). No resize/inference-space recovery needed.
+* What it represents: visually, the box wraps the round watch case/bezel tightly, excluding the bracelet entirely (~62% of the image's alpha-content width) — confirmed by rendering the rectangle over the real image and inspecting it directly.
+* Confidence: **the schema has no confidence field at all** (`SegmentationResponse` is exactly `success`/`message`/`bbox`, confirmed from the live `openapi.json`). The Phase 14 design's confidence badge/threshold UX has no data source from this API — resolved as: confidence is always `null` from this provider, by design (14A already built `confidence: number | null` throughout, so this needed no rework).
+
+**Mapping corrected 2026-09-17**, per direct confirmation from the AI team (not re-derived from the visual inspection above, which only established the box's *region*, not its *product-model name*): the bbox is specifically the watch **CASE / lug-to-lug** boundary. The AI team separately added a second, dial-specific bbox to the response.
+
+**Dial bbox shipped and verified 2026-09-18.** Re-probed `/openapi.json`: `SegmentationResponse`'s single `bbox` field was replaced with `case_bbox` and `dial_bbox` (both `array[integer] | null`, same shape as the old field) — real schema, not guessed. The service was fully unresponsive (connection hangs on every endpoint, including previously-instant ones) for several minutes immediately after this schema became visible, before recovering on its own — noted in case it recurs, no action taken since it self-resolved. Real call against `sampledata/1688KM11.png` once back up: `case_bbox: [263, 4, 1312, 979]` (byte-identical to the 2026-09-16 capture), `dial_bbox: [356, 57, 1212, 965]`. Verified by overlaying **both** rectangles on the same real image simultaneously: `dial_bbox` is a tighter box nested inside `case_bbox`, wrapping the dial face specifically and excluding the case/bezel ring — exactly the intended semantics, same `[x1,y1,x2,y2]` convention and coordinate space as `case_bbox`.
+
+Resolved, finalized app-side mapping (`electron/services/boundaryDetection.ts::mapSegmentationResponse`, takes `measureBy` as an input):
+* Measure By **Case**: `spliceBoundaries` = case_bbox, `scaleBoundaries` = same (mirrored) — there is no separate scale concept for Case watches (`AnnotationCanvas.tsx`'s own `showScaleGuides` gate already never renders scale guides for Case watches today).
+* Measure By **Dial**: `spliceBoundaries` = case_bbox, `scaleBoundaries` = dial_bbox (extracted/clamped identically to case_bbox). If `dial_bbox` is null/invalid on an otherwise-successful response, this is a genuine partial success — `scaleBoundaries` is `null`, `spliceBoundaries` still populates — not a whole-response failure.
+
+This superseded an earlier, incorrect assumption made in the first pass at 14B (case bbox → `scaleBoundaries` only, `spliceBoundaries` always `null`) — corrected before any 14C UI wiring consumed it, so no downstream rework was needed beyond `boundaryDetection.ts`, its types, its fixtures, and its tests.
+
+**Live end-to-end verification (2026-09-18):** ran the actual production `detectBoundaries()` (real `fetch`/`FormData`, not mocked) against the live endpoint with the real image, for both Measure By Case and Dial — both resolved exactly as expected (matches the values above). This closes the one gap flagged in the prior 14B report (only mocked-fetch tests + direct curl had been done before, never the real function against the real network together).
 
 Two consequences already known regardless of the eventual contract:
 
@@ -1981,12 +1993,12 @@ Three small pieces; no plugin registry, no new dependencies:
 2. Detection service in the main process — electron/services/boundaryDetection.ts (fat service): reads the image file, calls the API per the captured contract, validates and maps the response, returns a typed result. The wire format touches only this file (plus its test fixtures).
 3. One thin IPC channel — boundary:detect in new electron/ipc/boundaryHandlers.ts, registered in main.ts, typed in types/ipc.ts + types/electron.d.ts.
 
-Renderer-facing internal contract (stable regardless of wire format):
+Renderer-facing internal contract (stable regardless of wire format) — **implemented as of 14B, superseding the speculative shape originally sketched here**:
 
-* BoundaryDetectPayload { imagePath: string }
-* BoundaryDetectResult = { ok: true, spliceBoundaries: {leftBoundary, rightBoundary} | null, scaleBoundaries: {leftBoundary, rightBoundary} | null, confidence: number | null (normalized 0–1) } | { ok: false, error: string, retryable: boolean }
+* BoundaryDetectPayload { imagePath: string; measureBy: string } — measureBy is required input because the case-vs-dial mapping decision (below) depends on it; keeping that dependency inside the detection layer is what keeps AnnotationContext/AnnotationCanvas from ever needing to know bbox semantics.
+* BoundaryDetectResult = { ok: true, spliceBoundaries: {leftBoundary, rightBoundary} | null, scaleBoundaries: {leftBoundary, rightBoundary} | null, confidence: null } | { ok: false, error: string, retryable: boolean }
 
-Both pairs are optional-by-null because which pair the API predicts is the central unresolved contract question (below). The renderer plumbing is written once and works for either answer.
+Both pairs are independently nullable — not because "which pair the API predicts" is still unresolved (it is now: see the 2026-09-17 mapping correction above), but because a Measure-By-Dial detection is a legitimate partial result (`spliceBoundaries` populated from the case bbox, `scaleBoundaries` null until the API's pending dial bbox ships). confidence is unconditionally `null` (the live schema has no such field) rather than `number | null (normalized 0–1)` as originally speculated — 14A's own `BoundaryPrediction.confidence: number | null` already accommodated this without rework.
 
 ⸻
 
@@ -2062,23 +2074,23 @@ Phase 14 — Approved Execution Plan (14A–14D)
 
 14A — Provenance foundation (no API). Union widening; provenance-resolving submit (pure function + unit tests); InfoPanel provenance badges for saved annotations; session round-trip test. Gate: npx tsc --noEmit, npx vitest run; manual check — Manual-mode annotate/submit/resume behaves bit-identically; a pre-existing v4 session still resumes.
 
-14B — Contract capture + detection service. BLOCKING PREREQUISITE: the endpoint must be live. Rerun the probe, record the contract and mapping decisions into this section, save fixtures. Then: boundaryDetection.ts, boundary:detect, endpoint pref, TLS decision (real certificate strongly preferred; host-scoped pinning otherwise — never a global bypass). Gate: tsc, vitest (mapping fixtures); manual smoke call against the live API from the app's main process.
+14B — Contract capture + detection service. **DONE (2026-09-16/18).** Endpoint went live 2026-09-15; dial_bbox shipped and was verified 2026-09-18 (see the Phase 14 contract section above). Implemented: boundaryDetection.ts (mapSegmentationResponse + detectBoundaries, both case_bbox and dial_bbox extraction), boundary:detect IPC, endpoint-override prefs (prefs:load/save-boundary-endpoint), fixtures (3 real + 3 constructed edge cases), 25 tests. TLS needed no decision — real Let's Encrypt cert. Gate: tsc clean, vitest 25/25 (boundaryDetectionMapping.test.ts) + 8/8 (14A tests) green, full suite 126/127 (1 pre-existing unrelated fixture gap), production build succeeds, **and** a real live-network smoke test (the actual production `detectBoundaries()`, not mocked, against the live endpoint with the real image) passed for both Measure By Case and Dial — the one gap flagged in the prior report is now closed.
 
-14C — Automatic-mode UX. Prediction fetch/prefetch/cache, holdGuides, InfoPanel AI section with all six states, circuit breaker, stale-response guards, BatchSetup copy. Gate: tsc, vitest; manual checklist — automatic-mode happy path (accept / adjust / reject-and-redraw), API-down fallback mid-batch, resume mid-batch, re-queue of an AI-annotated SKU, and zero API calls in manual mode (verified in logs).
+14C — Automatic-mode UX. **UNBLOCKED — ready to start.** Prediction fetch/prefetch/cache (one `boundary:detect` call per SKU already yields both splice and scale predictions together — simpler than the original one-prediction assumption), holdGuides (gates both guide-init effects, since one response can seed both), InfoPanel AI section (per-boundary-type status mirroring the existing post-submission provenance badges; no confidence percentage — the live schema has none), circuit breaker, stale-response guards (reuse the existing `cancelled` cleanup-flag pattern from EditingSetup.tsx's validate effects), provenance resolved twice per submission (splice and scale independently, both via AnnotationContext's existing `resolveProvenance`), BatchSetup copy. Gate: tsc, vitest; manual checklist — automatic-mode happy path (accept / adjust / reject-and-redraw) for both Measure By Case and Dial, API-down fallback mid-batch, resume mid-batch, re-queue of an AI-annotated SKU, and zero API calls in manual mode (verified in logs).
 
 14D — Metrics + validation. Batch Details AI-assisted counts; run a real batch in both modes and record the annotation-time comparison against the success criterion; docs. Gate: tsc, vitest, recorded before/after timing note.
 
-Sub-phase ordering: 14A is implementable immediately (no API dependency); 14B is externally blocked until the endpoint deploys; 14C/14D follow in order.
+Sub-phase ordering: 14A done, 14B done (2026-09-18) — 14C is unblocked and next; 14D follows in order after 14C.
 
 ⸻
 
 Risks & Open Items
 
-1. The API is not up — 14B is externally blocked as of 2026-08-18; 14A is not.
-2. Splice vs dial mapping — the service name suggests dial coordinates → scale guides; settled only with a real payload + product decision at the 14B gate.
+1. ~~The API is not up~~ — resolved 2026-09-15, live.
+2. ~~Splice vs dial mapping~~ — **fully resolved 2026-09-18** (case_bbox → spliceBoundaries always, mirrored into scaleBoundaries for Measure By Case; Measure By Dial's scaleBoundaries comes from dial_bbox, both verified live — see the Phase 14 contract section).
 3. Session-version trap — do not bump SESSION_VERSION; a bump without migration silently deletes every resumable session.
-4. TLS — self-signed certificate on a public domain; push for a real certificate, pin as fallback, never globally bypass.
-5. Latency unknown — the hold/prefetch design assumes seconds-scale inference; if slower, prefetch depth (not the architecture) is the tuning knob.
+4. ~~TLS~~ — resolved 2026-09-15; real Let's Encrypt certificate, no pinning needed.
+5. Latency unknown — the hold/prefetch design assumes seconds-scale inference; if slower, prefetch depth (not the architecture) is the tuning knob. (One real call observed ~6.5s including network — worth revisiting the prefetch-depth assumption once 14C is built.)
 
 ⸻
 

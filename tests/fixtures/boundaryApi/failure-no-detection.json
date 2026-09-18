@@ -1,12 +1,13 @@
 {
-  "_provenance": "Real POST to https://watchdialcoord.clouddeploy.in/bbox/predict, captured 2026-09-15/16 against a synthetic (non-watch) test image, to exercise the genuine failure shape. `message` is an unstructured, apparently-internal string (a raw exception) — the mapping must never parse it for meaning, only branch on `success`.",
+  "_provenance": "Real POST to https://watchdialcoord.clouddeploy.in/bbox/predict, captured 2026-09-15/16 against a synthetic (non-watch) test image, to exercise the genuine failure shape, when the API still returned a single `bbox` field. `message` is an unstructured, apparently-internal string (a raw exception) — the mapping must never parse it for meaning, only branch on `success`. `bbox: null` renamed to `case_bbox`/`dial_bbox: null` (2026-09-18) to match the post-update schema — field-name update only, the captured failure shape itself is unchanged (a failure has no bbox of either kind, by definition).",
   "sourceImage": "synthetic (non-watch) — not a real watch photo, used only to trigger the API's real 'nothing detected' response shape",
   "imageWidth": 800,
   "imageHeight": 800,
   "response": {
     "success": false,
     "message": "attempt to get argmax of an empty sequence",
-    "bbox": null
+    "case_bbox": null,
+    "dial_bbox": null
   },
   "expected": {
     "ok": false,

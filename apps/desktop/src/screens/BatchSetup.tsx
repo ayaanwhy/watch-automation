@@ -260,7 +260,7 @@ export default function BatchSetup({ onBeginAnnotation, initialBatchName = '', h
       />
       {processingMode === 'automatic' && (
         <p className={styles.helperText}>
-          AI-driven Watch masking isn't available yet — Automatic currently behaves the same as Manual (splice boundaries are still hand-drawn during annotation).
+          AI-assisted boundary detection pre-populates guides during annotation — review and adjust as needed before submitting. Falls back to manual placement automatically if detection is unavailable.
         </p>
       )}
 

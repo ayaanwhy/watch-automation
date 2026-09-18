@@ -9,6 +9,7 @@ out/
 
 # Generated watch exports
 *;frontImage*.png
+sampledata/
 
 # Cache
 .npm-cache/
