@@ -210,4 +210,39 @@ describe('detectBoundaries — network behavior (mocked fetch, real image file)'
       expect(result.scaleBoundaries).toBeNull()
     }
   })
+
+  // Phase 15.0 — proves the module-level SingleFlightQueue wrap on
+  // detectBoundaries() itself, not just the abstract queue class in
+  // isolation (see mainProcessSingleFlightQueue.test.ts). Two calls here
+  // simulate two genuinely independent callers — e.g. Legacy's
+  // boundary:detect IPC handler and Sandbox's headless Watch runner —
+  // both invoking the same exported function with no coordination between
+  // them, exactly the scenario the earlier renderer-only fix
+  // (AnnotationContext.tsx) could not cover.
+  it('two independent callers of detectBoundaries() never have overlapping requests in flight', async () => {
+    let inFlight = 0
+    let maxConcurrent = 0
+
+    const fetchMock = vi.fn(async () => {
+      inFlight++
+      maxConcurrent = Math.max(maxConcurrent, inFlight)
+      await new Promise(r => setTimeout(r, 15))
+      inFlight--
+      return new Response(JSON.stringify({ success: true, message: 'ok', case_bbox: [10, 0, 90, 100] }), { status: 200 })
+    })
+    globalThis.fetch = fetchMock as unknown as typeof fetch
+
+    // "Caller A" (e.g. Legacy IPC handler) and "Caller B" (e.g. Sandbox
+    // headless runner) both call detectBoundaries() at essentially the
+    // same instant, with no awareness of each other.
+    const callerA = detectBoundaries(REAL_WATCH_IMAGE, 'Case')
+    const callerB = detectBoundaries(REAL_WATCH_IMAGE, 'Dial')
+
+    const [resultA, resultB] = await Promise.all([callerA, callerB])
+
+    expect(maxConcurrent, 'no two detectBoundaries() calls should ever hit fetch concurrently').toBe(1)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(resultA.ok).toBe(true)
+    expect(resultB.ok).toBe(true)
+  })
 })

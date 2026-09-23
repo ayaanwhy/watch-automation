@@ -24,7 +24,12 @@ function getRunnerPath(): string {
   return join(app.getAppPath(), '..', '..', 'preprocessing', 'UBG', 'electron_runner.py')
 }
 
-function buildArgs(runnerPath: string, payload: PreprocessStartPayload): string[] {
+// Exported (Phase 15.1) purely so a regression test can prove Legacy's
+// real runner arg-building has no bypass branch for the Sandbox-only
+// 'None' preprocessing operation (Legacy's PreprocessOperation type has no
+// such value in the first place — this proves there's no runtime shortcut
+// either).
+export function buildArgs(runnerPath: string, payload: PreprocessStartPayload): string[] {
   const args: string[] = [
     runnerPath,
     '--input-dir', payload.inputDir,
@@ -70,7 +75,12 @@ function buildArgs(runnerPath: string, payload: PreprocessStartPayload): string[
   return args
 }
 
-const runner = createSubprocessRunner<PreprocessStartPayload>({
+// Exported (Phase 15.0) so the Sandbox LocalProcessingBackend can call
+// runner.start/.cancel directly, in-process — no IPC round-trip. The
+// preprocess:start handler below is a trivial passthrough (no extra
+// resolution), so the runner itself is the reusable primitive here, unlike
+// ring-bracelet/earring which need a wrapping function (see those files).
+export const runner = createSubprocessRunner<PreprocessStartPayload>({
   label: 'preprocess',
   stageType: 'preprocessing',
   eventChannel: 'preprocess:event',

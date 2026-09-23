@@ -25,6 +25,7 @@ import {
 } from '../components/batch/batchDisplay'
 import { joinPath } from '../lib/paths'
 import { formatProcessingMode } from '../constants/processingMode'
+import { formatPreprocessingOperations } from '../constants/preprocessingOperations'
 import type { BatchDetailRecord, BatchMode, StageRecord } from '../types/batch'
 import type { PreprocessDonePayload } from '../types/ipc'
 import type { PreprocessingImageState } from '../context/PreprocessingJobContext'
@@ -83,19 +84,6 @@ const PREPROCESSING_CONFIG_FIELDS: [string, string, string | undefined][] = [
   ['preset', 'Preset', undefined],
 ]
 
-// Phase 10A — operations is stored as an array (['background_removal', 'upscale']);
-// a plain String(value) would render it as a comma-joined raw string, so it
-// gets a small dedicated label instead of the generic readConfigValue path.
-const OPERATION_LABELS: Record<string, string> = {
-  background_removal: 'Background Removal',
-  upscale: 'Upscaling',
-}
-
-function formatOperations(value: unknown): string | null {
-  if (!Array.isArray(value) || value.length === 0) return null
-  return value.map(op => OPERATION_LABELS[op as string] ?? String(op)).join(' + ')
-}
-
 // Phase 11.5B — preset is stored as its lowercase name ('fast' | 'balanced' |
 // 'quality'); displayed capitalized to match the Preprocessing screen's Select.
 const PRESET_LABELS: Record<string, string> = {
@@ -150,7 +138,7 @@ function ConfigGrid({
   const entries: { label: string; value: string; suffix: string }[] = []
   for (const [key, label, suffix] of fields) {
     const value =
-      key === 'operations'     ? formatOperations(config[key]) :
+      key === 'operations'     ? formatPreprocessingOperations(config[key], config['scaleFactor']) :
       key === 'preset'         ? formatPreset(config[key], config['presetVersion']) :
       key === 'processingMode' ? formatProcessingMode(config[key]) :
       readConfigValue(config, key)
@@ -613,18 +601,45 @@ export default function BatchDetails({
                 </div>
                 <StageTiming stage={watchStage} />
                 {watchSession ? (
-                  <div className={styles.metaRow}>
-                    <span>{watchSession.annotations.length} matched</span>
-                    <span>
-                      {watchSession.annotations.filter(a => a.status === 'annotated').length} annotated
-                    </span>
-                    <span>
-                      {watchSession.processingQueue.filter(q => q.status === 'complete').length} exported
-                    </span>
-                    {watchSession.processingQueue.some(q => q.status === 'failed') && (
-                      <span>{watchSession.processingQueue.filter(q => q.status === 'failed').length} failed</span>
-                    )}
-                  </div>
+                  <>
+                    <div className={styles.metaRow}>
+                      <span>{watchSession.annotations.length} matched</span>
+                      <span>
+                        {watchSession.annotations.filter(a => a.status === 'annotated').length} annotated
+                      </span>
+                      <span>
+                        {watchSession.processingQueue.filter(q => q.status === 'complete').length} exported
+                      </span>
+                      {watchSession.processingQueue.some(q => q.status === 'failed') && (
+                        <span>{watchSession.processingQueue.filter(q => q.status === 'failed').length} failed</span>
+                      )}
+                    </div>
+                    {/* AI-assisted annotation metrics (Phase 14D) — derived
+                        entirely from each annotation's already-persisted
+                        spliceBoundaries.source at render time, no new
+                        data-model field. Counted off spliceBoundaries
+                        specifically (not scaleBoundaries) since it's the one
+                        boundary pair present for every annotated SKU
+                        regardless of Measure By; a Dial SKU's scale
+                        provenance can independently differ but this row is
+                        the single top-level "how was this batch annotated"
+                        signal the success criterion calls for. */}
+                    {(() => {
+                      const annotated = watchSession.annotations.filter(
+                        (a): a is typeof a & { spliceBoundaries: NonNullable<typeof a.spliceBoundaries> } =>
+                          a.status === 'annotated' && a.spliceBoundaries !== null,
+                      )
+                      if (annotated.length === 0) return null
+                      const aiAccepted = annotated.filter(a => a.spliceBoundaries.source === 'ai').length
+                      const aiAdjusted = annotated.filter(a => a.spliceBoundaries.source === 'ai-adjusted').length
+                      const manual = annotated.filter(a => a.spliceBoundaries.source === 'manual').length
+                      return (
+                        <div className={styles.metaRow}>
+                          <span>AI accepted {aiAccepted} · adjusted {aiAdjusted} · manual {manual}</span>
+                        </div>
+                      )
+                    })()}
+                  </>
                 ) : (
                   <div className={styles.metaRow}>
                     <span>Session details unavailable.</span>

@@ -108,7 +108,11 @@ function buildArgs(runnerPath: string, payload: ResolvedEarringStartPayload): st
   return args
 }
 
-const runner = createSubprocessRunner<ResolvedEarringStartPayload>({
+// Exported (Phase 15.0) so the Sandbox LocalProcessingBackend can call
+// runner.cancel directly — starting a job needs the extra metadata/splits/
+// shadow-profile resolution below (startEarringJob), so this alone isn't
+// the whole reusable start primitive.
+export const runner = createSubprocessRunner<ResolvedEarringStartPayload>({
   label: 'earring',
   stageType: 'editing',
   eventChannel: 'earring:event',
@@ -161,42 +165,50 @@ const runner = createSubprocessRunner<ResolvedEarringStartPayload>({
   },
 })
 
+// Extracted (Phase 15.0) from the earring:start handler body so the Sandbox
+// LocalProcessingBackend can call the exact same resolution + start logic
+// directly, in-process, without going through ipcMain merely to get back
+// into main. Behavior is unchanged — the handler below now just calls this.
+export async function startEarringJob(payload: EarringStartPayload): Promise<EarringStartResult> {
+  let sidecar: Record<string, EarringType>
+  try {
+    sidecar = resolveEarringTypes(payload.metadataFilePath, payload.inputDir)
+  } catch (err) {
+    logger.error('earring:start — failed to resolve metadata/classification', err)
+    return { ok: false, error: err instanceof Error ? err.message : String(err) }
+  }
+
+  let sidecarPath: string
+  try {
+    sidecarPath = await writeMetadataSidecar(sidecar)
+  } catch (err) {
+    logger.error('earring:start — failed to write metadata sidecar', err)
+    return { ok: false, error: 'Failed to prepare metadata for the runner.' }
+  }
+
+  let splitsSidecarPath: string
+  try {
+    const splits = await resolveHoopSplits(payload.batchId)
+    splitsSidecarPath = await writeSplitsSidecar(splits)
+  } catch (err) {
+    logger.error('earring:start — failed to prepare hoop splits sidecar', err)
+    return { ok: false, error: 'Failed to prepare Hoop split data for the runner.' }
+  }
+
+  let shadowProfileSidecarPath: string
+  try {
+    shadowProfileSidecarPath = await writeShadowProfileSidecar()
+  } catch (err) {
+    logger.error('earring:start — failed to write shadow profile sidecar', err)
+    return { ok: false, error: 'Failed to prepare shadow profile data for the runner.' }
+  }
+
+  return runner.start({ ...payload, metadataSidecarPath: sidecarPath, splitsSidecarPath, shadowProfileSidecarPath })
+}
+
 export function registerEarringHandlers(): void {
   ipcMain.handle('earring:start', async (_event, payload: EarringStartPayload): Promise<EarringStartResult> => {
-    let sidecar: Record<string, EarringType>
-    try {
-      sidecar = resolveEarringTypes(payload.metadataFilePath, payload.inputDir)
-    } catch (err) {
-      logger.error('earring:start — failed to resolve metadata/classification', err)
-      return { ok: false, error: err instanceof Error ? err.message : String(err) }
-    }
-
-    let sidecarPath: string
-    try {
-      sidecarPath = await writeMetadataSidecar(sidecar)
-    } catch (err) {
-      logger.error('earring:start — failed to write metadata sidecar', err)
-      return { ok: false, error: 'Failed to prepare metadata for the runner.' }
-    }
-
-    let splitsSidecarPath: string
-    try {
-      const splits = await resolveHoopSplits(payload.batchId)
-      splitsSidecarPath = await writeSplitsSidecar(splits)
-    } catch (err) {
-      logger.error('earring:start — failed to prepare hoop splits sidecar', err)
-      return { ok: false, error: 'Failed to prepare Hoop split data for the runner.' }
-    }
-
-    let shadowProfileSidecarPath: string
-    try {
-      shadowProfileSidecarPath = await writeShadowProfileSidecar()
-    } catch (err) {
-      logger.error('earring:start — failed to write shadow profile sidecar', err)
-      return { ok: false, error: 'Failed to prepare shadow profile data for the runner.' }
-    }
-
-    return runner.start({ ...payload, metadataSidecarPath: sidecarPath, splitsSidecarPath, shadowProfileSidecarPath })
+    return startEarringJob(payload)
   })
 
   ipcMain.handle('earring:cancel', async (_event, payload: { jobId: string }): Promise<{ ok: boolean }> => {

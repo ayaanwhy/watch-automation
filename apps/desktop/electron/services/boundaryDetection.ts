@@ -39,9 +39,21 @@ import sharp from 'sharp'
 import { logger } from '../logger'
 import { MIN_GUIDE_SEPARATION } from '../../src/types/annotation'
 import type { BoundaryDetectResult, BoundaryPredictionPair } from '../../src/types/ipc'
+import { SingleFlightQueue } from './singleFlightQueue'
 
 const DEFAULT_ENDPOINT = 'https://watchdialcoord.clouddeploy.in'
 const REQUEST_TIMEOUT_MS = 10_000
+
+// Phase 15.0 — the one authoritative arbiter for every boundary-detection
+// request in this app, module-level so it's shared by every caller
+// regardless of process boundary crossed to get here: Legacy's
+// boundary:detect IPC handler calls detectBoundaries() below, and Sandbox's
+// headless Watch runner (main-process, no IPC round-trip needed since it's
+// already in this process) calls the exact same exported function — both
+// funnel through this one queue. See singleFlightQueue.ts's own doc comment
+// for why the earlier, renderer-only fix (AnnotationContext.tsx) wasn't
+// sufficient once a non-renderer caller exists.
+const detectionQueue = new SingleFlightQueue()
 
 interface SegmentationResponse {
   success: boolean
@@ -124,11 +136,24 @@ async function postPredict(endpoint: string, imageBuffer: Buffer): Promise<Respo
   }
 }
 
+// Public entry point — every caller goes through the single-flight queue,
+// never calls detectBoundariesOnce directly. The queue guarantees this
+// specific call won't overlap any other in-flight detection request,
+// app-wide, regardless of which caller (Legacy IPC, Sandbox headless
+// runner) enqueued it or in what order.
+export function detectBoundaries(
+  imagePath: string,
+  measureBy: string,
+  endpointOverride?: string | null,
+): Promise<BoundaryDetectResult> {
+  return detectionQueue.run(() => detectBoundariesOnce(imagePath, measureBy, endpointOverride))
+}
+
 // One transparent retry on a network-level failure only (connection error,
 // timeout) — never on a well-formed success:false response, which is a
 // normal "no detection" outcome, not a fault. This is distinct from 14C's
 // later user-facing Retry button (a fresh, user-initiated call).
-export async function detectBoundaries(
+async function detectBoundariesOnce(
   imagePath: string,
   measureBy: string,
   endpointOverride?: string | null,

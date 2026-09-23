@@ -46,7 +46,11 @@ function buildArgs(runnerPath: string, payload: ResolvedRingBraceletStartPayload
   return args
 }
 
-const runner = createSubprocessRunner<ResolvedRingBraceletStartPayload>({
+// Exported (Phase 15.0) so the Sandbox LocalProcessingBackend can call
+// runner.cancel directly — starting a job needs the extra shadow-profile
+// resolution below (startRingBraceletJob), so this alone isn't the whole
+// reusable start primitive.
+export const runner = createSubprocessRunner<ResolvedRingBraceletStartPayload>({
   label: 'ring-bracelet',
   stageType: 'editing',
   eventChannel: 'ring-bracelet:event',
@@ -89,17 +93,26 @@ const runner = createSubprocessRunner<ResolvedRingBraceletStartPayload>({
   },
 })
 
+// Extracted (Phase 15.0) from the ring-bracelet:start handler body so the
+// Sandbox LocalProcessingBackend can call the exact same resolution + start
+// logic directly, in-process, without going through ipcMain merely to get
+// back into main. Behavior is unchanged — the handler below now just calls
+// this.
+export async function startRingBraceletJob(payload: RingBraceletStartPayload): Promise<RingBraceletStartResult> {
+  let shadowProfileSidecarPath: string
+  try {
+    shadowProfileSidecarPath = await writeShadowProfileSidecar()
+  } catch (err) {
+    logger.error('ring-bracelet:start — failed to write shadow profile sidecar', err)
+    return { ok: false, error: 'Failed to prepare shadow profile data for the runner.' }
+  }
+
+  return runner.start({ ...payload, shadowProfileSidecarPath })
+}
+
 export function registerRingBraceletHandlers(): void {
   ipcMain.handle('ring-bracelet:start', async (_event, payload: RingBraceletStartPayload): Promise<RingBraceletStartResult> => {
-    let shadowProfileSidecarPath: string
-    try {
-      shadowProfileSidecarPath = await writeShadowProfileSidecar()
-    } catch (err) {
-      logger.error('ring-bracelet:start — failed to write shadow profile sidecar', err)
-      return { ok: false, error: 'Failed to prepare shadow profile data for the runner.' }
-    }
-
-    return runner.start({ ...payload, shadowProfileSidecarPath })
+    return startRingBraceletJob(payload)
   })
 
   // Cooperative only, same rationale as preprocess:cancel even though

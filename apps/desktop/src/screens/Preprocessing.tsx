@@ -15,6 +15,7 @@ import { usePreprocessingFolders } from '../hooks/usePreprocessingFolders'
 import { useProductType } from '../hooks/useProductType'
 import { usePreprocessingJob } from '../context/PreprocessingJobContext'
 import { PREPROCESSING_PRESET_OPTIONS, isPresetModified } from '../constants/preprocessingPresets'
+import { shouldSuppressUpscaleFromCombinedLabel } from '../constants/preprocessingOperations'
 import type { BatchMode } from '../types/batch'
 import type { PreprocessOperation, ProductType, UpscaleFactor } from '../types/ipc'
 import styles from './Preprocessing.module.css'
@@ -202,8 +203,18 @@ export default function Preprocessing({ initialBatchName = '', onCreateBatch, on
     }
   })
 
+  // Phase 15.1 — "both" combined with a None upscale factor is a no-op
+  // upscale step, so the summary drops "+ Upscaling" from the label rather
+  // than implying it did something. The dropdown's own choice labels
+  // (OPERATIONS_OPTIONS, below) are untouched — those name the choice being
+  // picked, not the resolved outcome.
+  const operationsLabel =
+    opsChoice === 'both' && shouldSuppressUpscaleFromCombinedLabel(OPERATIONS_BY_CHOICE.both, upscale.scaleFactor)
+      ? 'Background Removal'
+      : OPERATIONS_OPTIONS.find(o => o.value === opsChoice)?.label ?? ''
+
   const summaryItems: ConsoleSummaryItem[] = [
-    { label: 'Operations', value: OPERATIONS_OPTIONS.find(o => o.value === opsChoice)?.label ?? '' },
+    { label: 'Operations', value: operationsLabel },
     ...(opsChoice !== 'background_removal'
       ? [{ label: 'Upscale Factor', value: UPSCALE_OPTIONS.find(o => o.value === upscale.scaleFactor)?.label ?? '' }]
       : []),
