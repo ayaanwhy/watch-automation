@@ -1,7 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import styles from './SegmentedControl.module.css'
 
-export interface SegmentedOption<T extends string> {
+// Widened to string | number (Phase 15.2) so a numeric option set (e.g.
+// Sandbox's RotationDegrees) can use this component directly rather than
+// stringifying and re-parsing values at the call site — the exact same
+// widening SnapSlider.tsx's own generic already made for UpscaleFactor.
+// Nothing in this component's implementation is string-specific.
+export interface SegmentedOption<T extends string | number> {
   value: T
   label: string
   // Visible but not selectable — mirrors Select.tsx's SelectOption.disabled
@@ -11,7 +16,7 @@ export interface SegmentedOption<T extends string> {
 
 export type SegmentedControlVariant = 'tile' | 'pill'
 
-interface SegmentedControlProps<T extends string> {
+interface SegmentedControlProps<T extends string | number> {
   label?: string
   options: SegmentedOption<T>[]
   value: T
@@ -43,7 +48,7 @@ interface SegmentedControlProps<T extends string> {
 // app's signature." Kept graphite (surface-3 thumb, not accent) per the
 // violet restraint rules — "Filters... all graphite" — the motion carries
 // the affordance, not the color.
-export function SegmentedControl<T extends string>({
+export function SegmentedControl<T extends string | number>({
   label,
   options,
   value,

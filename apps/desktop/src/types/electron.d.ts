@@ -69,6 +69,7 @@ import type {
   ShadowProfileDefinition,
   ShadowProfileDefinitions,
 } from '../constants/shadowProfiles'
+import type { SandboxTemporaryBatchDetail, SandboxTemporaryBatchSummary } from '../sandbox/types/sandboxTemporaryBatch'
 
 declare global {
   interface Window {
@@ -160,6 +161,11 @@ declare global {
       invoke(channel: 'boundary:detect', payload: BoundaryDetectPayload): Promise<BoundaryDetectResult>
       invoke(channel: 'prefs:load-boundary-endpoint'): Promise<string | null>
       invoke(channel: 'prefs:save-boundary-endpoint', payload: string | null): Promise<void>
+
+      // Sandbox Temporary Batch access (Phase 15.2) — read-only, backed by
+      // MockSandboxApiClient for now (see electron/sandbox/sandboxApiClient.ts).
+      invoke(channel: 'sandbox:list-temporary-batches'): Promise<SandboxTemporaryBatchSummary[]>
+      invoke(channel: 'sandbox:get-temporary-batch-detail', payload: { id: string }): Promise<SandboxTemporaryBatchDetail | null>
     }
   }
 }

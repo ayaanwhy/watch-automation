@@ -23,6 +23,9 @@ import { ToastProvider } from './components/ui/ToastHost'
 import { CommandPalette } from './components/shell/CommandPalette'
 import { JobCompletionToasts } from './components/shell/JobCompletionToasts'
 import { AppearanceEffects } from './components/shell/AppearanceEffects'
+import { SandboxWorkflowProvider } from './sandbox/context/SandboxWorkflowContext'
+import SandboxDashboard from './sandbox/screens/SandboxDashboard'
+import SandboxUniversalConfiguration from './sandbox/screens/SandboxUniversalConfiguration'
 import type { BatchState } from './types/annotation'
 import type { SessionFile } from './types/session'
 import type { AppView, EditingProduct } from './types/navigation'
@@ -554,6 +557,17 @@ export default function App() {
     }
     if (view === 'settings') return <Settings />
 
+    // Sandbox (Phase 15.2) — its own state (selected Temporary Batch,
+    // in-progress Universal Configuration) lives entirely in
+    // SandboxWorkflowContext, consumed directly by these screens; App.tsx
+    // only routes to them, mirroring every other view branch here.
+    if (view === 'sandboxDashboard') {
+      return <SandboxDashboard onContinue={() => setView('sandboxConfiguration')} />
+    }
+    if (view === 'sandboxConfiguration') {
+      return <SandboxUniversalConfiguration onBack={() => setView('sandboxDashboard')} />
+    }
+
     if (view === 'batchDetails' && openBatchId) {
       return (
         <BatchDetails
@@ -698,24 +712,26 @@ export default function App() {
       <PreprocessingJobProvider>
         <RingBraceletJobProvider>
           <EarringJobProvider>
-            <PreprocessingBatchSync onBatchUpdated={setPreprocessBatch} />
-            <RingBraceletBatchSync onBatchUpdated={setEditingBatch} />
-            <EarringBatchSync onBatchUpdated={setEditingBatch} />
-            <JobCompletionToasts preprocessBatch={preprocessBatch} editingBatch={editingBatch} onOpenBatch={handleOpenBatch} />
-            <AppearanceEffects />
-            <AppShell
-              view={view}
-              editingProduct={view === 'editing' ? editingProduct : null}
-              onNavigate={navigate}
-              preprocessBatch={preprocessBatch}
-              editingBatch={editingBatch}
-              onOpenBatch={handleOpenBatch}
-              freezeAmbient={freezeAmbient}
-            >
-              {renderContent()}
-            </AppShell>
-            <CommandPalette onNavigate={navigate} onOpenBatch={handleOpenBatch} />
-            {confirmDialog}
+            <SandboxWorkflowProvider>
+              <PreprocessingBatchSync onBatchUpdated={setPreprocessBatch} />
+              <RingBraceletBatchSync onBatchUpdated={setEditingBatch} />
+              <EarringBatchSync onBatchUpdated={setEditingBatch} />
+              <JobCompletionToasts preprocessBatch={preprocessBatch} editingBatch={editingBatch} onOpenBatch={handleOpenBatch} />
+              <AppearanceEffects />
+              <AppShell
+                view={view}
+                editingProduct={view === 'editing' ? editingProduct : null}
+                onNavigate={navigate}
+                preprocessBatch={preprocessBatch}
+                editingBatch={editingBatch}
+                onOpenBatch={handleOpenBatch}
+                freezeAmbient={freezeAmbient}
+              >
+                {renderContent()}
+              </AppShell>
+              <CommandPalette onNavigate={navigate} onOpenBatch={handleOpenBatch} />
+              {confirmDialog}
+            </SandboxWorkflowProvider>
           </EarringJobProvider>
         </RingBraceletJobProvider>
       </PreprocessingJobProvider>

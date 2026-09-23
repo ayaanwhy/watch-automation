@@ -25,6 +25,13 @@ export interface SandboxApiClient {
 // Fixed, in-memory fixture data — deliberately small and clearly fake
 // (ids/names are labeled "mock-") so it can never be mistaken for a real
 // batch if it somehow surfaced in a screenshot or log.
+//
+// Extended for Phase 15.2 (Sandbox Dashboard/Universal Configuration) with
+// two more batches, covering the combinations the UI actually needs to
+// exercise: a batch spanning every currently-real pipeline (watch/ring/
+// bracelet/earring), and a batch containing only the two not-yet-available
+// product types (necklace/gemstone) so the "unavailable pipeline" state has
+// real mock data to render against, not a hardcoded UI-only fake.
 const MOCK_TEMPORARY_BATCHES: SandboxTemporaryBatchDetail[] = [
   {
     id: 'mock-temp-batch-1',
@@ -34,6 +41,27 @@ const MOCK_TEMPORARY_BATCHES: SandboxTemporaryBatchDetail[] = [
     images: [
       { sku: 'MOCK-WATCH-001', imagePath: '', productType: 'watch' },
       { sku: 'MOCK-RING-001', imagePath: '', productType: 'ring' },
+    ],
+  },
+  {
+    id: 'mock-temp-batch-2',
+    name: 'Mock Temporary Batch 2 — Mixed Editing',
+    productTypes: ['ring', 'bracelet', 'earring'],
+    imageCount: 3,
+    images: [
+      { sku: 'MOCK-RING-002', imagePath: '', productType: 'ring' },
+      { sku: 'MOCK-BRACELET-001', imagePath: '', productType: 'bracelet' },
+      { sku: 'MOCK-EARRING-001', imagePath: '', productType: 'earring' },
+    ],
+  },
+  {
+    id: 'mock-temp-batch-3',
+    name: 'Mock Temporary Batch 3 — Necklace & Gemstone',
+    productTypes: ['necklace', 'gemstone'],
+    imageCount: 2,
+    images: [
+      { sku: 'MOCK-NECKLACE-001', imagePath: '', productType: 'necklace' },
+      { sku: 'MOCK-GEMSTONE-001', imagePath: '', productType: 'gemstone' },
     ],
   },
 ]

@@ -1,0 +1,18 @@
+.arrow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--space-1) 0;
+  color: var(--text-3);
+}
+
+.stem {
+  width: 1px;
+  height: var(--space-4);
+  background: var(--hairline-strong);
+}
+
+.chevron {
+  opacity: 0.7;
+}

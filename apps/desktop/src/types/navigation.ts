@@ -14,7 +14,21 @@
 // recent batches). 'preprocessing' never shows a running job inline anymore;
 // opening or starting one navigates to this view instead, whose own Back
 // returns to 'preprocessing', not 'home'.
-export type AppView = 'home' | 'preprocessing' | 'preprocessingWorkspace' | 'editing' | 'settings' | 'batchDetails'
+// 'sandboxDashboard'/'sandboxConfiguration' (Phase 15.2) — Sandbox's own
+// top-level workflow, architecturally isolated from every Legacy view
+// above. Sandbox's actual state (selected Temporary Batch, in-progress
+// Universal Configuration) lives in its own SandboxWorkflowContext
+// (src/sandbox/context/), never here — these two values exist only so the
+// one shared App.tsx router can reach Sandbox's screens at all.
+export type AppView =
+  | 'home'
+  | 'preprocessing'
+  | 'preprocessingWorkspace'
+  | 'editing'
+  | 'settings'
+  | 'batchDetails'
+  | 'sandboxDashboard'
+  | 'sandboxConfiguration'
 
 // Which product the shared Editing setup screen is currently configuring.
 // Sidebar shortcuts (Watches/Rings/Bracelets/Earrings) each preselect one;

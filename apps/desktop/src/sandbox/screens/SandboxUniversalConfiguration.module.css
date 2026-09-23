@@ -1,0 +1,10 @@
+.backRow {
+  margin-bottom: var(--space-5);
+}
+
+.emptyWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+}

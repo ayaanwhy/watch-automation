@@ -13,6 +13,7 @@ import { registerEarringHandlers } from './ipc/earringHandlers'
 import { registerShadowPreviewHandlers } from './ipc/shadowPreviewHandlers'
 import { registerThumbnailHandlers } from './ipc/thumbnailHandlers'
 import { registerBoundaryHandlers } from './ipc/boundaryHandlers'
+import { registerSandboxHandlers } from './ipc/sandboxHandlers'
 import { reconcileBatchesOnStartup } from './services/batchRegistry'
 import { hydratePresetDefinitions } from './services/preprocessingPresetDefinitions'
 import { hydrateShadowProfileDefinitions } from './services/shadowProfileDefinitions'
@@ -84,6 +85,7 @@ app.whenReady().then(async () => {
   registerShadowPreviewHandlers()
   registerThumbnailHandlers()
   registerBoundaryHandlers()
+  registerSandboxHandlers()
   createWindow()
 
   app.on('activate', () => {

@@ -1,4 +1,4 @@
-import { LayoutDashboard, Layers, Settings as SettingsIcon } from 'lucide-react'
+import { LayoutDashboard, Layers, Settings as SettingsIcon, FlaskConical, SlidersHorizontal } from 'lucide-react'
 import type { ReactNode } from 'react'
 import type { AppView, EditingProduct } from '../../types/navigation'
 import type { BatchDetailRecord } from '../../types/batch'
@@ -96,6 +96,26 @@ export function Sidebar({ view, editingProduct, onNavigate, preprocessBatch, edi
             </button>
           )
         })}
+      </div>
+
+      {/* Sandbox (Phase 15.2) — architecturally isolated top-level mode, one
+          "Editing" entry (Universal Configuration), never per-product
+          entries like the Legacy Editing group above. Legacy's own groups
+          above are untouched. */}
+      <div className={styles.sectionLabel}>Sandbox</div>
+      <div className={styles.group}>
+        <NavButton
+          label="Dashboard"
+          icon={FlaskConical}
+          active={view === 'sandboxDashboard'}
+          onClick={() => onNavigate('sandboxDashboard')}
+        />
+        <NavButton
+          label="Editing"
+          icon={SlidersHorizontal}
+          active={view === 'sandboxConfiguration'}
+          onClick={() => onNavigate('sandboxConfiguration')}
+        />
       </div>
 
       <div className={styles.spacer} />

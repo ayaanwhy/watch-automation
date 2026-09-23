@@ -95,3 +95,15 @@ export function NecklaceGlyph(props: ProductGlyphProps) {
     </GlyphBase>
   )
 }
+
+// Faceted gem — table + crown facets, on the same stroke grid as the other
+// product glyphs (Phase 15.2, Sandbox's sixth product type).
+export function GemstoneGlyph(props: ProductGlyphProps) {
+  return (
+    <GlyphBase {...props}>
+      <path d="M7 9h10l-5 12L7 9z" />
+      <path d="M4.5 9L7 4h10l2.5 5" />
+      <path d="M7 9l2.5-5M17 9l-2.5-5M9.5 4l1 5M14.5 4l-1 5" />
+    </GlyphBase>
+  )
+}
