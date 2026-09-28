@@ -11,12 +11,17 @@
 // service's /openapi.json, already known to exist from Phase 14's real
 // probes).
 import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises'
-import { app } from 'electron'
+import { engineDataDir } from './engine/runtime'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { loadBoundaryEndpoint } from '../services/boundaryEndpointPrefs'
+import { resolvePostProcessingPython, resolvePreprocessingPython } from '../services/pythonResolver'
 import { sandboxApiClient } from './sandboxApiClient'
+import { SANDBOX_PRODUCT_AVAILABILITY } from '../../src/sandbox/types/sandboxProduct'
+import { validateSandboxUniversalConfig } from '../../src/sandbox/types/sandboxUniversalConfig'
 import type { SandboxPreflightCheckResult, SandboxPreflightReport, SandboxPreflightStatus } from '../../src/sandbox/types/sandboxPreflight'
+import type { SandboxTemporaryBatchDetail } from '../../src/sandbox/types/sandboxTemporaryBatch'
+import type { SandboxUniversalConfig } from '../../src/sandbox/types/sandboxUniversalConfig'
 
 const DEFAULT_WATCH_ENDPOINT = 'https://watchdialcoord.clouddeploy.in'
 const CHECK_TIMEOUT_MS = 5_000
@@ -47,7 +52,7 @@ function result(id: string, label: string, status: SandboxPreflightStatus, detai
 // read-only-mounted or permission-restricted userData dir is caught before
 // a real SandboxRun create fails on it.
 const sandboxRunStorageCheck = makeCheck('sandboxRunStorage', 'Sandbox run storage is writable', async (id, label) => {
-  const dir = join(app.getPath('userData'), 'sandbox-runs')
+  const dir = join(engineDataDir(), 'sandbox-runs')
   const probePath = join(dir, `.preflight-${randomUUID()}.tmp`)
   try {
     await mkdir(dir, { recursive: true })
@@ -103,6 +108,46 @@ const sandboxApiClientCheck = makeCheck('sandboxApiClient', 'Sandbox API client 
   }
 })
 
+// Final hardening phase — real post-processing (imageResizeNew,
+// compressorNew, makeCompareRB, autoMCFF, removeShadows,
+// autoMeasurementCalculator) needs a Python interpreter with Pillow (see
+// scriptSubprocess.ts/pythonResolver.ts). Every configured product runs
+// compressorNew compulsorily, so this is relevant to any run with at least
+// one available product — checked here so a missing interpreter is caught
+// before preprocessing/editing run at all, not silently discovered only
+// after a full (possibly slow) pipeline reaches its very last stage.
+// Narrowly scoped to the one baseline every real script shares (Pillow);
+// per-script extras (pandas/openpyxl for autoMeasurementCalculator) are
+// checked by that adapter itself at run time (Phase 15.7 section 4 —
+// capability is per-script, not one global gate this check should
+// over-claim).
+const postProcessingCapabilityCheck = makeCheck(
+  'postProcessingCapability',
+  'Post-processing runtime available (Python + Pillow)',
+  async (id, label) => {
+    const python = await resolvePostProcessingPython()
+    return python
+      ? result(id, label, 'ok', `Resolved interpreter: ${python}`)
+      : result(id, label, 'fail', 'No Python interpreter with Pillow was found — real post-processing scripts cannot run.')
+  },
+)
+
+// Real preprocessing (Upscaling / Background Removal) runs the UBG Python
+// runner, which needs the heavier interpreter (torch/sam2/basicsr) —
+// resolved by the same mechanism the runner itself uses. Only relevant when
+// the configured operation actually includes a Python step ('none' copies
+// files and needs no interpreter).
+const preprocessingRuntimeCheck = makeCheck(
+  'preprocessingRuntime',
+  'Preprocessing runtime available (Python + torch/sam2/basicsr)',
+  async (id, label) => {
+    const python = await resolvePreprocessingPython()
+    return python
+      ? result(id, label, 'ok', `Resolved interpreter: ${python}`)
+      : result(id, label, 'fail', 'No Python interpreter with the preprocessing dependencies (torch, sam2, basicsr) was found.')
+  },
+)
+
 const CHECKS: SandboxPreflightCheck[] = [sandboxRunStorageCheck, watchEndpointReachableCheck, sandboxApiClientCheck]
 
 function worstStatus(checks: SandboxPreflightCheckResult[]): SandboxPreflightStatus {
@@ -114,5 +159,56 @@ function worstStatus(checks: SandboxPreflightCheckResult[]): SandboxPreflightSta
 
 export async function runSandboxPreflight(): Promise<SandboxPreflightReport> {
   const checks = await Promise.all(CHECKS.map(c => c.run()))
+  return { ranAt: new Date().toISOString(), checks, overall: worstStatus(checks) }
+}
+
+// Run-specific preflight (Phase 15.3) — checks only the capabilities this
+// particular SandboxRun actually needs, per the explicit requirement: the
+// Watch connectivity check only runs when the selected batch actually
+// contains Watch items, and a product-availability line is added per
+// present product type straight from the static SANDBOX_PRODUCT_AVAILABILITY
+// map — never a probe, since Necklace/Gemstone have no capability to probe
+// in the first place. Distinct from runSandboxPreflight() above (the
+// app-level "is Sandbox itself healthy" check, unrelated to any one run).
+export async function runSandboxRunPreflight(
+  batch: SandboxTemporaryBatchDetail,
+  config: SandboxUniversalConfig,
+): Promise<SandboxPreflightReport> {
+  const checks: SandboxPreflightCheckResult[] = []
+
+  checks.push(await sandboxRunStorageCheck.run())
+  checks.push(await sandboxApiClientCheck.run())
+
+  const presentProductTypes = Array.from(new Set(batch.productTypes))
+  if (presentProductTypes.includes('watch')) {
+    checks.push(await watchEndpointReachableCheck.run())
+  }
+  if (presentProductTypes.some(p => SANDBOX_PRODUCT_AVAILABILITY[p].available)) {
+    checks.push(await postProcessingCapabilityCheck.run())
+    if (config.preprocessing.operation !== 'none') checks.push(await preprocessingRuntimeCheck.run())
+  }
+
+  const configValidation = validateSandboxUniversalConfig(config, batch)
+  checks.push(
+    result(
+      'configurationValid',
+      'Configuration is valid',
+      configValidation.ok ? 'ok' : 'fail',
+      configValidation.ok ? 'Universal Configuration passed validation.' : configValidation.errors.join(' '),
+    ),
+  )
+
+  for (const productType of presentProductTypes) {
+    const availability = SANDBOX_PRODUCT_AVAILABILITY[productType]
+    checks.push(
+      result(
+        `product:${productType}`,
+        `${productType} pipeline`,
+        availability.available ? 'ok' : 'skipped',
+        availability.available ? 'Pipeline available.' : (availability.reason ?? 'No pipeline available yet.'),
+      ),
+    )
+  }
+
   return { ranAt: new Date().toISOString(), checks, overall: worstStatus(checks) }
 }

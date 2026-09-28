@@ -70,6 +70,13 @@ import type {
   ShadowProfileDefinitions,
 } from '../constants/shadowProfiles'
 import type { SandboxTemporaryBatchDetail, SandboxTemporaryBatchSummary } from '../sandbox/types/sandboxTemporaryBatch'
+import type { SandboxRunDetail, SandboxRunSummary } from '../sandbox/types/sandboxRun'
+import type { SandboxUniversalConfig } from '../sandbox/types/sandboxUniversalConfig'
+import type { SandboxProductType } from '../sandbox/types/sandboxProduct'
+import type { SandboxEditor } from '../sandbox/types/sandboxDisposition'
+import type { SandboxReviewItem, SandboxDispositionActionResult } from '../sandbox/types/sandboxReview'
+import type { AutomationError } from '../sandbox/types/automationError'
+import type { SandboxLocalTestBatchListResult } from '../sandbox/types/sandboxLocalTestBatch'
 
 declare global {
   interface Window {
@@ -166,6 +173,46 @@ declare global {
       // MockSandboxApiClient for now (see electron/sandbox/sandboxApiClient.ts).
       invoke(channel: 'sandbox:list-temporary-batches'): Promise<SandboxTemporaryBatchSummary[]>
       invoke(channel: 'sandbox:get-temporary-batch-detail', payload: { id: string }): Promise<SandboxTemporaryBatchDetail | null>
+      // DEVELOPMENT/TESTING ONLY — existing local Legacy batches as a test source.
+      invoke(channel: 'sandbox:list-local-test-batches'): Promise<SandboxLocalTestBatchListResult>
+
+      // Sandbox execution (Phase 15.3) — the renderer only starts/observes/
+      // cancels/recovers a run; the main-process orchestrator owns every
+      // actual processing call. Live progress arrives via the
+      // 'sandbox:run-updated' event below, not by polling sandbox:get-run.
+      invoke(
+        channel: 'sandbox:start-run',
+        payload: { batch: SandboxTemporaryBatchDetail; config: SandboxUniversalConfig },
+      ): Promise<{ ok: boolean; runId?: string; error?: string; failure?: AutomationError }>
+      invoke(channel: 'sandbox:cancel-run', payload: { id: string }): Promise<{ ok: boolean }>
+      invoke(channel: 'sandbox:get-run', payload: { id: string }): Promise<SandboxRunDetail | null>
+      invoke(
+        channel: 'sandbox:retry-image',
+        payload: { runId: string; productType: SandboxProductType; sku: string },
+      ): Promise<{ ok: boolean; error?: string; failure?: AutomationError }>
+      invoke(channel: 'sandbox:list-runs'): Promise<SandboxRunSummary[]>
+      on(channel: 'sandbox:run-updated', listener: (payload: SandboxRunDetail) => void): () => void
+
+      // Sandbox Final Review (Phase 15.6) — approve/reject go through
+      // sandboxReviewService.ts, which performs the QA/Manual-Editor
+      // handoff via SandboxApiClient (MockSandboxApiClient for now); the
+      // renderer never talks to that client directly.
+      invoke(channel: 'sandbox:get-review-items', payload: { id: string }): Promise<SandboxReviewItem[] | null>
+      invoke(channel: 'sandbox:list-editors'): Promise<SandboxEditor[]>
+      invoke(
+        channel: 'sandbox:approve-items',
+        payload: { runId: string; keys: { productType: SandboxProductType; sku: string }[] },
+      ): Promise<SandboxDispositionActionResult>
+      invoke(
+        channel: 'sandbox:reject-items',
+        payload: {
+          runId: string
+          keys: { productType: SandboxProductType; sku: string }[]
+          reason: string
+          instructions?: string | null
+          editor: SandboxEditor | null
+        },
+      ): Promise<SandboxDispositionActionResult>
     }
   }
 }

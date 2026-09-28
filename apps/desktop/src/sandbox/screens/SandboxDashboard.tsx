@@ -1,14 +1,19 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { FlaskConical } from 'lucide-react'
 import { ConsoleLayout } from '../../components/console/ConsoleLayout'
 import { ConsoleSummaryPanel, type ConsoleSummaryItem } from '../../components/console/ConsoleSummaryPanel'
 import { Badge } from '../../components/ui/Badge'
+import { Button } from '../../components/ui/Button'
 import { TemporaryBatchPicker } from '../components/TemporaryBatchPicker'
 import { useSandboxTemporaryBatches } from '../hooks/useSandboxTemporaryBatches'
+import { useSandboxLocalTestBatches } from '../hooks/useSandboxLocalTestBatches'
 import { useSandboxWorkflow } from '../context/SandboxWorkflowContext'
 import { SANDBOX_PRODUCT_GLYPHS, SANDBOX_PRODUCT_LABELS, sortSandboxProductTypes } from '../constants/productDisplay'
 import { SANDBOX_PRODUCT_AVAILABILITY } from '../types/sandboxProduct'
+import type { SandboxRunSummary } from '../types/sandboxRun'
 import styles from './SandboxDashboard.module.css'
+
+const NON_TERMINAL_RUN_STATUSES = new Set(['draft', 'validating', 'running'])
 
 interface SandboxDashboardProps {
   // Navigates to Universal Configuration once a batch has actually been
@@ -27,12 +32,53 @@ interface SandboxDashboardProps {
 // (see SandboxWorkflowContext.selectBatch).
 export default function SandboxDashboard({ onContinue }: SandboxDashboardProps) {
   const { batches, loading, error, refetch } = useSandboxTemporaryBatches()
-  const { selectedBatch, selectBatch } = useSandboxWorkflow()
+  const { selectedBatch, selectBatch, resumeRun } = useSandboxWorkflow()
+  // DEVELOPMENT/TESTING ONLY — existing local Legacy batches as a test source.
+  const local = useSandboxLocalTestBatches()
+  const [localOpen, setLocalOpen] = useState(selectedBatch?.id.startsWith('local-legacy:') ?? false)
   const [selectedId, setSelectedId] = useState<string | null>(selectedBatch?.id ?? null)
   const [starting, setStarting] = useState(false)
   const [startError, setStartError] = useState<string | null>(null)
+  const [resumableRun, setResumableRun] = useState<SandboxRunSummary | null>(null)
+  const [resuming, setResuming] = useState(false)
 
-  const selectedSummary = batches.find(b => b.id === selectedId) ?? null
+  // Interrupted/reloaded run recovery (Phase 15.3) — a renderer reload
+  // loses in-memory state but never the persisted SandboxRun (see
+  // sandboxRunRegistry.ts's atomic writes), so on mount this checks
+  // whether one was still in flight and offers to resume watching it,
+  // rather than the operator having no way back into it.
+  useEffect(() => {
+    let cancelled = false
+    void window.api.invoke('sandbox:list-runs').then(runs => {
+      if (cancelled) return
+      setResumableRun(runs.find(r => NON_TERMINAL_RUN_STATUSES.has(r.status)) ?? null)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  async function handleResume() {
+    if (!resumableRun) return
+    setResuming(true)
+    try {
+      const detail = await window.api.invoke('sandbox:get-temporary-batch-detail', { id: resumableRun.temporaryBatchId })
+      if (!detail) return
+      selectBatch(detail)
+      await resumeRun(resumableRun.id)
+      onContinue()
+    } finally {
+      setResuming(false)
+    }
+  }
+
+  const localBatches = local.result?.batches ?? []
+  const selectedSummary = [...batches, ...localBatches].find(b => b.id === selectedId) ?? null
+
+  function toggleLocal() {
+    if (!localOpen && !local.result) local.load()
+    setLocalOpen(open => !open)
+  }
 
   async function handleStartAutomation() {
     if (!selectedId) return
@@ -65,13 +111,23 @@ export default function SandboxDashboard({ onContinue }: SandboxDashboardProps) 
       title="Sandbox"
       subtitle="Fully automated processing — select a Temporary Batch to configure and run."
       headerExtra={
-        <div className={styles.contextBanner}>
-          <FlaskConical size={16} strokeWidth={1.5} aria-hidden="true" />
-          <span>
-            Sandbox is isolated from your regular batches. Nothing here reads or writes Legacy Input/Output
-            folders — batches come from the Sandbox source directly.
-          </span>
-        </div>
+        <>
+          <div className={styles.contextBanner}>
+            <FlaskConical size={16} strokeWidth={1.5} aria-hidden="true" />
+            <span>
+              Sandbox is isolated from your regular batches. Nothing here reads or writes Legacy Input/Output
+              folders — batches come from the Sandbox source directly.
+            </span>
+          </div>
+          {resumableRun && (
+            <div className={styles.contextBanner}>
+              <span>"{resumableRun.title}" is still in progress.</span>
+              <Button size="sm" variant="secondary" onClick={handleResume} loading={resuming}>
+                Resume
+              </Button>
+            </div>
+          )}
+        </>
       }
       summary={
         <ConsoleSummaryPanel
@@ -109,6 +165,45 @@ export default function SandboxDashboard({ onContinue }: SandboxDashboardProps) 
         onSelect={setSelectedId}
         onRetry={refetch}
       />
+
+      <div className={styles.localTestSection}>
+        <div className={styles.localTestHeader}>
+          <Badge tone="warning">Local test data</Badge>
+          <span>
+            Development/testing only — use an existing local Legacy batch as the test input. The Legacy batch is only
+            read; the run processes its own copy in the Sandbox workspace.
+          </span>
+          <Button size="sm" variant="secondary" onClick={toggleLocal}>
+            {localOpen ? 'Hide' : 'Use Local Batch for Testing'}
+          </Button>
+        </div>
+        {localOpen && (
+          <>
+            <TemporaryBatchPicker
+              batches={localBatches}
+              loading={local.loading}
+              error={local.error}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+              onRetry={local.load}
+              emptyMessage="No usable local Legacy batches were found."
+              describe={b => `${b.legacyStatus} · ${new Date(b.createdAt).toLocaleDateString()}`}
+            />
+            {local.result && local.result.hidden.length > 0 && (
+              <details className={styles.localHidden}>
+                <summary>{local.result.hidden.length} Legacy batch(es) can't be used as a source</summary>
+                <ul>
+                  {local.result.hidden.map((h, i) => (
+                    <li key={`${h.name}-${i}`}>
+                      {h.name} — {h.reason}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </>
+        )}
+      </div>
     </ConsoleLayout>
   )
 }

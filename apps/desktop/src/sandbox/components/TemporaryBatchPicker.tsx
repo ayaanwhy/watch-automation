@@ -5,13 +5,17 @@ import type { SandboxTemporaryBatchSummary } from '../types/sandboxTemporaryBatc
 import { SANDBOX_PRODUCT_GLYPHS, sortSandboxProductTypes } from '../constants/productDisplay'
 import styles from './TemporaryBatchPicker.module.css'
 
-interface TemporaryBatchPickerProps {
-  batches: SandboxTemporaryBatchSummary[]
+interface TemporaryBatchPickerProps<T extends SandboxTemporaryBatchSummary> {
+  batches: T[]
   loading: boolean
   error: string | null
   selectedId: string | null
   onSelect: (id: string) => void
   onRetry: () => void
+  // Optional extra line of facts under a batch's image count (used by the
+  // development-only local test source to show status/date).
+  describe?: (batch: T) => string | null
+  emptyMessage?: string
 }
 
 // The Sandbox batch picker (Phase 15.2) — lists Temporary Batches sourced
@@ -20,7 +24,16 @@ interface TemporaryBatchPickerProps {
 // fields are intentionally empty (no real files back them), so this shows
 // only what the API contract actually provides — name, product types,
 // image count.
-export function TemporaryBatchPicker({ batches, loading, error, selectedId, onSelect, onRetry }: TemporaryBatchPickerProps) {
+export function TemporaryBatchPicker<T extends SandboxTemporaryBatchSummary>({
+  batches,
+  loading,
+  error,
+  selectedId,
+  onSelect,
+  onRetry,
+  describe,
+  emptyMessage,
+}: TemporaryBatchPickerProps<T>) {
   if (loading) {
     return <div className={styles.loadingRow}>Loading Temporary Batches…</div>
   }
@@ -35,7 +48,7 @@ export function TemporaryBatchPicker({ batches, loading, error, selectedId, onSe
     return (
       <EmptyState
         icon={PackageSearch}
-        message="No Temporary Batches are available right now."
+        message={emptyMessage ?? "No Temporary Batches are available right now."}
         actionLabel="Retry"
         onAction={onRetry}
       />
@@ -57,6 +70,7 @@ export function TemporaryBatchPicker({ batches, loading, error, selectedId, onSe
               <span className={styles.itemMeta}>
                 {batch.imageCount} image{batch.imageCount === 1 ? '' : 's'}
               </span>
+              {describe && describe(batch) && <span className={styles.itemMeta}>{describe(batch)}</span>}
             </div>
             <div className={styles.glyphRow}>
               {sortSandboxProductTypes(batch.productTypes).map(productType => {

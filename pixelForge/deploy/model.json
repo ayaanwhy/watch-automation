@@ -1,0 +1,17 @@
+{
+  "architecture": "ring_unet_v1",
+  "release": "v13_ownership_v3_w12",
+  "source_checkpoint": "epoch_003.pt (provenance only; not packaged)",
+  "checkpoint_sha256": "ea59eac7a10ad20532c7483bf11c659e7e9145670ae2f0aec963890f732a4ed6",
+  "epoch": 3,
+  "size": 384,
+  "matte_iou": 0.9909289479255676,
+  "back_iou": 0.9203182458877563,
+  "family_back_iou": 0.9308472474416097,
+  "halo_iou": 0.9676031470298767,
+  "init_checkpoint": "v6_final/best.pt (provenance only; not packaged)",
+  "validation_strict_holdout": false,
+  "pretraining_overlap_designs": 12,
+  "onnx_sha256": "fb44a8ca59e63cc546473d9d701ca95cac1b900c692981f395083121f125d139",
+  "onnx_max_abs_error": 2.1338462829589844e-05
+}

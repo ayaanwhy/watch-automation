@@ -163,6 +163,29 @@
   color: var(--review-flag);
 }
 
+/* Multi-select checkbox (Phase 15.6) — top-left, the one corner statusDot/
+   flagIcon don't already use. Only rendered when a caller opts in. */
+.checkbox {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 15px;
+  height: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-6);
+  border: 1.5px solid var(--hairline-strong);
+  background: var(--media-scrim);
+  color: var(--on-accent);
+  cursor: pointer;
+}
+
+.checkboxChecked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
 .name {
   position: absolute;
   left: 0;

@@ -94,11 +94,10 @@ describe('resolveSelectedScripts', () => {
 })
 
 describe('SANDBOX_PRODUCT_AVAILABILITY — unavailable Necklace/Gemstone capability state', () => {
-  it('Necklace and Gemstone are explicitly unavailable with a reason', () => {
+  it('Necklace is explicitly unavailable with a reason; Gemstone is a supported product type (item-level metadata decides runnability)', () => {
     expect(SANDBOX_PRODUCT_AVAILABILITY.necklace.available).toBe(false)
     expect(SANDBOX_PRODUCT_AVAILABILITY.necklace.reason).toBeTruthy()
-    expect(SANDBOX_PRODUCT_AVAILABILITY.gemstone.available).toBe(false)
-    expect(SANDBOX_PRODUCT_AVAILABILITY.gemstone.reason).toBeTruthy()
+    expect(SANDBOX_PRODUCT_AVAILABILITY.gemstone.available).toBe(true)
   })
 
   it('Watch, Ring, Bracelet, and Earring are all available', () => {

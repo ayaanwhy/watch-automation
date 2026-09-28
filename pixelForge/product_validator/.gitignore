@@ -1,0 +1,8 @@
+data/*
+!data/.gitkeep
+review/*
+!review/.gitkeep
+runs/
+exports/
+*.onnx
+__pycache__/

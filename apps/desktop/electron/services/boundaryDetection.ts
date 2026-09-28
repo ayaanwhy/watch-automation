@@ -55,6 +55,38 @@ const REQUEST_TIMEOUT_MS = 10_000
 // sufficient once a non-renderer caller exists.
 const detectionQueue = new SingleFlightQueue()
 
+// Structured failure classification for callers that need to react to WHY a
+// detection failed (the automation engine's error model) without ever
+// inspecting the free-text `error`/`message` strings. Kept as a side channel
+// keyed by the result object itself so BoundaryDetectResult's shape — which
+// Legacy's IPC/renderer and its tests depend on — is byte-for-byte
+// unchanged.
+export type DetectionFailureReason =
+  | 'image_unreadable'
+  | 'network'
+  | 'timeout'
+  | 'http_error'
+  | 'malformed_response'
+  | 'no_detection'
+  | 'implausible'
+
+export interface DetectionFailureInfo {
+  reason: DetectionFailureReason
+  httpStatus?: number
+  attempts?: number
+}
+
+const failureInfo = new WeakMap<object, DetectionFailureInfo>()
+
+function failed(result: Extract<BoundaryDetectResult, { ok: false }>, info: DetectionFailureInfo): BoundaryDetectResult {
+  failureInfo.set(result, info)
+  return result
+}
+
+export function getDetectionFailureInfo(result: BoundaryDetectResult): DetectionFailureInfo | null {
+  return result.ok ? null : (failureInfo.get(result) ?? null)
+}
+
 interface SegmentationResponse {
   success: boolean
   message: string
@@ -92,14 +124,14 @@ export function mapSegmentationResponse(
   measureBy: string,
 ): BoundaryDetectResult {
   if (!parsed.success || !isFiniteQuad(parsed.case_bbox)) {
-    return { ok: false, error: 'No boundaries detected for this image.', retryable: false }
+    return failed({ ok: false, error: 'No boundaries detected for this image.', retryable: false }, { reason: 'no_detection' })
   }
 
   const [caseX1, , caseX2] = parsed.case_bbox
   const caseBoundary = clampPair(caseX1, caseX2, imageWidth)
   if (caseBoundary === null) {
     logger.warn(`boundary-detection — rejected implausible case bbox [${caseX1},${caseX2}] for image width ${imageWidth}`)
-    return { ok: false, error: 'Detected boundaries were implausible.', retryable: false }
+    return failed({ ok: false, error: 'Detected boundaries were implausible.', retryable: false }, { reason: 'implausible' })
   }
 
   // Dial watches use dial_bbox for scaleBoundaries (extracted/clamped the
@@ -169,7 +201,7 @@ async function detectBoundariesOnce(
     imageWidth = metadata.width
   } catch (err) {
     logger.warn(`boundary-detection — failed to read image ${imagePath}`, err)
-    return { ok: false, error: 'Could not read the image file for detection.', retryable: false }
+    return failed({ ok: false, error: 'Could not read the image file for detection.', retryable: false }, { reason: 'image_unreadable' })
   }
 
   let response: Response | null = null
@@ -185,16 +217,19 @@ async function detectBoundariesOnce(
   if (response === null) {
     const aborted = lastNetworkError instanceof Error && lastNetworkError.name === 'AbortError'
     logger.warn(`boundary-detection — request failed after retry (${aborted ? 'timeout' : 'network'})`, lastNetworkError)
-    return {
-      ok: false,
-      error: aborted ? 'Detection request timed out.' : 'Could not reach the detection service.',
-      retryable: true,
-    }
+    return failed(
+      {
+        ok: false,
+        error: aborted ? 'Detection request timed out.' : 'Could not reach the detection service.',
+        retryable: true,
+      },
+      { reason: aborted ? 'timeout' : 'network', attempts: 2 },
+    )
   }
 
   if (!response.ok) {
     logger.warn(`boundary-detection — HTTP ${response.status} from detection service`)
-    return { ok: false, error: `Detection service returned an error (HTTP ${response.status}).`, retryable: true }
+    return failed({ ok: false, error: `Detection service returned an error (HTTP ${response.status}).`, retryable: true }, { reason: 'http_error', httpStatus: response.status })
   }
 
   let parsed: SegmentationResponse
@@ -202,7 +237,7 @@ async function detectBoundariesOnce(
     parsed = await response.json()
   } catch (err) {
     logger.warn('boundary-detection — response was not valid JSON', err)
-    return { ok: false, error: 'Detection service returned an unreadable response.', retryable: true }
+    return failed({ ok: false, error: 'Detection service returned an unreadable response.', retryable: true }, { reason: 'malformed_response' })
   }
 
   return mapSegmentationResponse(parsed, imageWidth, measureBy)

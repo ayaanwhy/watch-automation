@@ -122,3 +122,68 @@ export async function resolvePreprocessingPython(): Promise<string | null> {
   logger.warn('preprocess:resolve — no suitable Python interpreter found')
   return null
 }
+
+// Phase 15.7 — Sandbox's real post-processing scripts (postProcessing/*/
+// runner.py) need only Pillow, not the heavyweight torch/sam2/basicsr stack
+// Preprocessing's interpreter is validated against. Deliberately a SEPARATE
+// resolver/cache from resolvePreprocessingPython above: a machine with
+// Pillow but no torch/sam2/basicsr (or vice versa) is a real, plausible
+// state, and conflating the two would make Post Processing's own
+// availability depend on an unrelated capability it doesn't need. Shares
+// staticCandidates()/resolveViaPath()/fileExists() — same discovery order,
+// different validation.
+let _postProcessingCached: string | undefined
+
+async function validatePostProcessing(pythonPath: string): Promise<boolean> {
+  try {
+    await execFileAsync(pythonPath, ['-c', 'import PIL'], { timeout: 30_000 })
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Discover and validate a Python interpreter with Pillow available, for
+ * Sandbox's real post-processing scripts. autoMeasurementCalculator's own
+ * additional pandas/openpyxl requirement is checked separately by its own
+ * adapter — capability is per-script, not one global gate (Phase 15.7
+ * section 4's explicit requirement).
+ */
+export async function resolvePostProcessingPython(): Promise<string | null> {
+  if (_postProcessingCached !== undefined) return _postProcessingCached
+
+  for (const path of staticCandidates()) {
+    if (!await fileExists(path)) continue
+    if (await validatePostProcessing(path)) {
+      logger.info(`postprocess:resolve — resolved: ${path}`)
+      _postProcessingCached = path
+      return path
+    }
+  }
+
+  const whichPath = await resolveViaPath()
+  if (whichPath && await fileExists(whichPath) && await validatePostProcessing(whichPath)) {
+    logger.info(`postprocess:resolve — resolved via which: ${whichPath}`)
+    _postProcessingCached = whichPath
+    return whichPath
+  }
+
+  logger.warn('postprocess:resolve — no suitable Python interpreter found (Pillow not available)')
+  return null
+}
+
+/**
+ * Additional capability check beyond Pillow — used only by adapters (today:
+ * autoMeasurementCalculator) whose real script also needs pandas/openpyxl
+ * for spreadsheet output. Never cached: this is a one-off per-adapter
+ * check, not a shared resolution path.
+ */
+export async function checkPythonModules(pythonPath: string, modules: string[]): Promise<boolean> {
+  try {
+    await execFileAsync(pythonPath, ['-c', `import ${modules.join(', ')}`], { timeout: 30_000 })
+    return true
+  } catch {
+    return false
+  }
+}

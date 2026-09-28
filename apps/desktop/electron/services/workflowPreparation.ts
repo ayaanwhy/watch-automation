@@ -42,7 +42,13 @@ async function findSourceImages(sourceDir: string): Promise<string[]> {
 // trim() (a fuzzy corner-color-similarity heuristic), this responds only to
 // alpha, matching "outermost non-transparent pixel" exactly.
 // Returns null when the image has no non-transparent pixels at all.
-async function computeAlphaBoundingBox(
+//
+// Exported (Phase 15.3) so Sandbox's own trim/rotate/resize step
+// (electron/sandbox/sandboxPreprocessingPipeline.ts) can reuse this exact
+// algorithm instead of reimplementing alpha-bounds trimming — the only
+// change this export makes; the function's own behavior/signature is
+// untouched.
+export async function computeAlphaBoundingBox(
   inputPath: string
 ): Promise<{ left: number; top: number; width: number; height: number } | null> {
   const { data, info } = await sharp(inputPath)
@@ -73,7 +79,13 @@ async function computeAlphaBoundingBox(
 // Bounded-concurrency map — large batches at 4x upscale can hold tens of MB
 // of raw pixel data per in-flight image, so unbounded Promise.all could spike
 // memory unnecessarily.
-async function mapWithConcurrency<T>(
+//
+// Exported (Phase 15.3) so Sandbox's own trim/rotate/resize step
+// (electron/sandbox/sandboxPreprocessingPipeline.ts) can reuse the same
+// bounded-concurrency discipline for its own per-image sharp operations,
+// instead of an unbounded Promise.all over a whole product's images —
+// same memory-spike rationale applies there too, not a new concern.
+export async function mapWithConcurrency<T>(
   items: T[],
   limit: number,
   fn: (item: T) => Promise<void>

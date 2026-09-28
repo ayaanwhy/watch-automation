@@ -1,0 +1,5147 @@
+{
+  "schema_version": 1,
+  "name": "buchroeders-ultimate-v1",
+  "source_page": "https://brdiamonds.com/pages/custom-engagement-ring?stage=Select+Setting&sort=PRICE-ASC&rconfigShow=true&currentSKU=3644575a38494a5536304c324e4555&ringRegion=us",
+  "defaults": {
+    "Center diamond type": "Lab-grown",
+    "Center stone size": "1 ct",
+    "Ring head metal": "14K White Gold",
+    "Side setting": "U-Pave",
+    "Side stones type": "Diamond",
+    "Side stones length": "1/2",
+    "Mounting metal": "14K White Gold"
+  },
+  "coverage": {
+    "core_shape_head_mounting": 441,
+    "size_extremes": 98,
+    "side_setting_colour_length": 41,
+    "metal_colour_pairs": 16,
+    "natural_shape_checks": 7,
+    "curated_high_risk": 3
+  },
+  "cases": [
+    {
+      "id": "core-round-4-prongs-single",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-round-4-prongs-double",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-round-4-prongs-double-twist",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-round-4-prongs-knife-edge",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-round-4-prongs-square-edge",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-round-4-prongs-tapered",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-round-4-prongs-contemporary",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-round-4-prongs-hidden-halo",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-round-4-prongs-split",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-round-basket-single",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-round-basket-double",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-round-basket-double-twist",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-round-basket-knife-edge",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-round-basket-square-edge",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-round-basket-tapered",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-round-basket-contemporary",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-round-basket-hidden-halo",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-round-basket-split",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-round-peg-head-single",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-round-peg-head-double",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-round-peg-head-double-twist",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-round-peg-head-knife-edge",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-round-peg-head-square-edge",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-round-peg-head-tapered",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-round-peg-head-contemporary",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-round-peg-head-hidden-halo",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-round-peg-head-split",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-round-pave-single",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Pave",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-round-pave-double",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Pave",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-round-pave-double-twist",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Pave",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-round-pave-knife-edge",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Pave",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-round-pave-square-edge",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Pave",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-round-pave-tapered",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Pave",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-round-pave-contemporary",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Pave",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-round-pave-hidden-halo",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Pave",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-round-pave-split",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Pave",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-round-single-halo-single",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-round-single-halo-double",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-round-single-halo-double-twist",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-round-single-halo-knife-edge",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-round-single-halo-square-edge",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-round-single-halo-tapered",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-round-single-halo-contemporary",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-round-single-halo-hidden-halo",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-round-single-halo-split",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-round-crown-single",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Crown",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-round-crown-double",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Crown",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-round-crown-double-twist",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Crown",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-round-crown-knife-edge",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Crown",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-round-crown-square-edge",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Crown",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-round-crown-tapered",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Crown",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-round-crown-contemporary",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Crown",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-round-crown-hidden-halo",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Crown",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-round-crown-split",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Crown",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-round-flower-halo-single",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-round-flower-halo-double",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-round-flower-halo-double-twist",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-round-flower-halo-knife-edge",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-round-flower-halo-square-edge",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-round-flower-halo-tapered",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-round-flower-halo-contemporary",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-round-flower-halo-hidden-halo",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-round-flower-halo-split",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-oval-4-prongs-single",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-oval-4-prongs-double",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-oval-4-prongs-double-twist",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-oval-4-prongs-knife-edge",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-oval-4-prongs-square-edge",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-oval-4-prongs-tapered",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-oval-4-prongs-contemporary",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-oval-4-prongs-hidden-halo",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-oval-4-prongs-split",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-oval-basket-single",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Basket",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-oval-basket-double",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Basket",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-oval-basket-double-twist",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Basket",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-oval-basket-knife-edge",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Basket",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-oval-basket-square-edge",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Basket",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-oval-basket-tapered",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Basket",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-oval-basket-contemporary",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Basket",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-oval-basket-hidden-halo",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Basket",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-oval-basket-split",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Basket",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-oval-peg-head-single",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-oval-peg-head-double",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-oval-peg-head-double-twist",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-oval-peg-head-knife-edge",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-oval-peg-head-square-edge",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-oval-peg-head-tapered",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-oval-peg-head-contemporary",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-oval-peg-head-hidden-halo",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-oval-peg-head-split",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-oval-pave-single",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Pave",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-oval-pave-double",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Pave",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-oval-pave-double-twist",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Pave",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-oval-pave-knife-edge",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Pave",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-oval-pave-square-edge",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Pave",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-oval-pave-tapered",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Pave",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-oval-pave-contemporary",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Pave",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-oval-pave-hidden-halo",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Pave",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-oval-pave-split",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Pave",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-oval-single-halo-single",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-oval-single-halo-double",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-oval-single-halo-double-twist",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-oval-single-halo-knife-edge",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-oval-single-halo-square-edge",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-oval-single-halo-tapered",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-oval-single-halo-contemporary",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-oval-single-halo-hidden-halo",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-oval-single-halo-split",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-oval-crown-single",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Crown",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-oval-crown-double",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Crown",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-oval-crown-double-twist",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Crown",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-oval-crown-knife-edge",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Crown",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-oval-crown-square-edge",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Crown",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-oval-crown-tapered",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Crown",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-oval-crown-contemporary",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Crown",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-oval-crown-hidden-halo",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Crown",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-oval-crown-split",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Crown",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-oval-flower-halo-single",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-oval-flower-halo-double",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-oval-flower-halo-double-twist",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-oval-flower-halo-knife-edge",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-oval-flower-halo-square-edge",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-oval-flower-halo-tapered",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-oval-flower-halo-contemporary",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-oval-flower-halo-hidden-halo",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-oval-flower-halo-split",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-cushion-4-prongs-single",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-cushion-4-prongs-double",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-cushion-4-prongs-double-twist",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-cushion-4-prongs-knife-edge",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-cushion-4-prongs-square-edge",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-cushion-4-prongs-tapered",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-cushion-4-prongs-contemporary",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-cushion-4-prongs-hidden-halo",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-cushion-4-prongs-split",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-cushion-basket-single",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Basket",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-cushion-basket-double",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Basket",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-cushion-basket-double-twist",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Basket",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-cushion-basket-knife-edge",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Basket",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-cushion-basket-square-edge",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Basket",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-cushion-basket-tapered",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Basket",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-cushion-basket-contemporary",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Basket",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-cushion-basket-hidden-halo",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Basket",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-cushion-basket-split",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Basket",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-cushion-peg-head-single",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-cushion-peg-head-double",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-cushion-peg-head-double-twist",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-cushion-peg-head-knife-edge",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-cushion-peg-head-square-edge",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-cushion-peg-head-tapered",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-cushion-peg-head-contemporary",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-cushion-peg-head-hidden-halo",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-cushion-peg-head-split",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-cushion-pave-single",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Pave",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-cushion-pave-double",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Pave",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-cushion-pave-double-twist",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Pave",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-cushion-pave-knife-edge",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Pave",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-cushion-pave-square-edge",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Pave",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-cushion-pave-tapered",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Pave",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-cushion-pave-contemporary",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Pave",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-cushion-pave-hidden-halo",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Pave",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-cushion-pave-split",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Pave",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-cushion-single-halo-single",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-cushion-single-halo-double",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-cushion-single-halo-double-twist",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-cushion-single-halo-knife-edge",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-cushion-single-halo-square-edge",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-cushion-single-halo-tapered",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-cushion-single-halo-contemporary",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-cushion-single-halo-hidden-halo",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-cushion-single-halo-split",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-cushion-crown-single",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Crown",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-cushion-crown-double",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Crown",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-cushion-crown-double-twist",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Crown",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-cushion-crown-knife-edge",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Crown",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-cushion-crown-square-edge",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Crown",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-cushion-crown-tapered",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Crown",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-cushion-crown-contemporary",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Crown",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-cushion-crown-hidden-halo",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Crown",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-cushion-crown-split",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Crown",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-cushion-flower-halo-single",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-cushion-flower-halo-double",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-cushion-flower-halo-double-twist",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-cushion-flower-halo-knife-edge",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-cushion-flower-halo-square-edge",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-cushion-flower-halo-tapered",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-cushion-flower-halo-contemporary",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-cushion-flower-halo-hidden-halo",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-cushion-flower-halo-split",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-princess-4-prongs-single",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-princess-4-prongs-double",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-princess-4-prongs-double-twist",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-princess-4-prongs-knife-edge",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-princess-4-prongs-square-edge",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-princess-4-prongs-tapered",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-princess-4-prongs-contemporary",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-princess-4-prongs-hidden-halo",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-princess-4-prongs-split",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-princess-basket-single",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Basket",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-princess-basket-double",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Basket",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-princess-basket-double-twist",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Basket",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-princess-basket-knife-edge",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Basket",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-princess-basket-square-edge",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Basket",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-princess-basket-tapered",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Basket",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-princess-basket-contemporary",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Basket",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-princess-basket-hidden-halo",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Basket",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-princess-basket-split",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Basket",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-princess-peg-head-single",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-princess-peg-head-double",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-princess-peg-head-double-twist",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-princess-peg-head-knife-edge",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-princess-peg-head-square-edge",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-princess-peg-head-tapered",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-princess-peg-head-contemporary",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-princess-peg-head-hidden-halo",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-princess-peg-head-split",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-princess-pave-single",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Pave",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-princess-pave-double",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Pave",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-princess-pave-double-twist",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Pave",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-princess-pave-knife-edge",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Pave",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-princess-pave-square-edge",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Pave",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-princess-pave-tapered",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Pave",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-princess-pave-contemporary",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Pave",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-princess-pave-hidden-halo",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Pave",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-princess-pave-split",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Pave",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-princess-single-halo-single",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-princess-single-halo-double",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-princess-single-halo-double-twist",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-princess-single-halo-knife-edge",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-princess-single-halo-square-edge",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-princess-single-halo-tapered",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-princess-single-halo-contemporary",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-princess-single-halo-hidden-halo",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-princess-single-halo-split",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-princess-crown-single",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Crown",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-princess-crown-double",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Crown",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-princess-crown-double-twist",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Crown",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-princess-crown-knife-edge",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Crown",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-princess-crown-square-edge",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Crown",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-princess-crown-tapered",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Crown",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-princess-crown-contemporary",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Crown",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-princess-crown-hidden-halo",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Crown",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-princess-crown-split",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Crown",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-princess-flower-halo-single",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-princess-flower-halo-double",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-princess-flower-halo-double-twist",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-princess-flower-halo-knife-edge",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-princess-flower-halo-square-edge",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-princess-flower-halo-tapered",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-princess-flower-halo-contemporary",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-princess-flower-halo-hidden-halo",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-princess-flower-halo-split",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-pear-4-prongs-single",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-pear-4-prongs-double",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-pear-4-prongs-double-twist",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-pear-4-prongs-knife-edge",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-pear-4-prongs-square-edge",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-pear-4-prongs-tapered",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-pear-4-prongs-contemporary",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-pear-4-prongs-hidden-halo",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-pear-4-prongs-split",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-pear-basket-single",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Basket",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-pear-basket-double",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Basket",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-pear-basket-double-twist",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Basket",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-pear-basket-knife-edge",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Basket",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-pear-basket-square-edge",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Basket",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-pear-basket-tapered",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Basket",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-pear-basket-contemporary",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Basket",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-pear-basket-hidden-halo",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Basket",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-pear-basket-split",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Basket",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-pear-peg-head-single",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-pear-peg-head-double",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-pear-peg-head-double-twist",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-pear-peg-head-knife-edge",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-pear-peg-head-square-edge",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-pear-peg-head-tapered",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-pear-peg-head-contemporary",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-pear-peg-head-hidden-halo",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-pear-peg-head-split",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-pear-pave-single",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Pave",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-pear-pave-double",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Pave",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-pear-pave-double-twist",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Pave",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-pear-pave-knife-edge",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Pave",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-pear-pave-square-edge",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Pave",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-pear-pave-tapered",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Pave",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-pear-pave-contemporary",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Pave",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-pear-pave-hidden-halo",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Pave",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-pear-pave-split",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Pave",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-pear-single-halo-single",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-pear-single-halo-double",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-pear-single-halo-double-twist",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-pear-single-halo-knife-edge",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-pear-single-halo-square-edge",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-pear-single-halo-tapered",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-pear-single-halo-contemporary",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-pear-single-halo-hidden-halo",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-pear-single-halo-split",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-pear-crown-single",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Crown",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-pear-crown-double",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Crown",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-pear-crown-double-twist",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Crown",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-pear-crown-knife-edge",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Crown",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-pear-crown-square-edge",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Crown",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-pear-crown-tapered",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Crown",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-pear-crown-contemporary",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Crown",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-pear-crown-hidden-halo",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Crown",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-pear-crown-split",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Crown",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-pear-flower-halo-single",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-pear-flower-halo-double",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-pear-flower-halo-double-twist",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-pear-flower-halo-knife-edge",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-pear-flower-halo-square-edge",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-pear-flower-halo-tapered",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-pear-flower-halo-contemporary",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-pear-flower-halo-hidden-halo",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-pear-flower-halo-split",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-emerald-4-prongs-single",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-emerald-4-prongs-double",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-emerald-4-prongs-double-twist",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-emerald-4-prongs-knife-edge",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-emerald-4-prongs-square-edge",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-emerald-4-prongs-tapered",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-emerald-4-prongs-contemporary",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-emerald-4-prongs-hidden-halo",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-emerald-4-prongs-split",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-emerald-basket-single",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Basket",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-emerald-basket-double",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Basket",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-emerald-basket-double-twist",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Basket",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-emerald-basket-knife-edge",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Basket",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-emerald-basket-square-edge",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Basket",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-emerald-basket-tapered",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Basket",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-emerald-basket-contemporary",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Basket",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-emerald-basket-hidden-halo",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Basket",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-emerald-basket-split",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Basket",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-emerald-peg-head-single",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-emerald-peg-head-double",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-emerald-peg-head-double-twist",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-emerald-peg-head-knife-edge",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-emerald-peg-head-square-edge",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-emerald-peg-head-tapered",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-emerald-peg-head-contemporary",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-emerald-peg-head-hidden-halo",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-emerald-peg-head-split",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-emerald-pave-single",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Pave",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-emerald-pave-double",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Pave",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-emerald-pave-double-twist",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Pave",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-emerald-pave-knife-edge",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Pave",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-emerald-pave-square-edge",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Pave",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-emerald-pave-tapered",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Pave",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-emerald-pave-contemporary",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Pave",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-emerald-pave-hidden-halo",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Pave",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-emerald-pave-split",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Pave",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-emerald-single-halo-single",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-emerald-single-halo-double",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-emerald-single-halo-double-twist",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-emerald-single-halo-knife-edge",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-emerald-single-halo-square-edge",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-emerald-single-halo-tapered",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-emerald-single-halo-contemporary",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-emerald-single-halo-hidden-halo",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-emerald-single-halo-split",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-emerald-crown-single",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Crown",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-emerald-crown-double",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Crown",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-emerald-crown-double-twist",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Crown",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-emerald-crown-knife-edge",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Crown",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-emerald-crown-square-edge",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Crown",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-emerald-crown-tapered",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Crown",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-emerald-crown-contemporary",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Crown",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-emerald-crown-hidden-halo",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Crown",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-emerald-crown-split",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Crown",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-emerald-flower-halo-single",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-emerald-flower-halo-double",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-emerald-flower-halo-double-twist",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-emerald-flower-halo-knife-edge",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-emerald-flower-halo-square-edge",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-emerald-flower-halo-tapered",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-emerald-flower-halo-contemporary",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-emerald-flower-halo-hidden-halo",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-emerald-flower-halo-split",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-marquise-4-prongs-single",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-marquise-4-prongs-double",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-marquise-4-prongs-double-twist",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-marquise-4-prongs-knife-edge",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-marquise-4-prongs-square-edge",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-marquise-4-prongs-tapered",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-marquise-4-prongs-contemporary",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-marquise-4-prongs-hidden-halo",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-marquise-4-prongs-split",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-marquise-basket-single",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Basket",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-marquise-basket-double",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Basket",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-marquise-basket-double-twist",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Basket",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-marquise-basket-knife-edge",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Basket",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-marquise-basket-square-edge",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Basket",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-marquise-basket-tapered",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Basket",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-marquise-basket-contemporary",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Basket",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-marquise-basket-hidden-halo",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Basket",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-marquise-basket-split",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Basket",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-marquise-peg-head-single",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-marquise-peg-head-double",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-marquise-peg-head-double-twist",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-marquise-peg-head-knife-edge",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-marquise-peg-head-square-edge",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-marquise-peg-head-tapered",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-marquise-peg-head-contemporary",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-marquise-peg-head-hidden-halo",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-marquise-peg-head-split",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-marquise-pave-single",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Pave",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-marquise-pave-double",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Pave",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-marquise-pave-double-twist",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Pave",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-marquise-pave-knife-edge",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Pave",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-marquise-pave-square-edge",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Pave",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-marquise-pave-tapered",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Pave",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-marquise-pave-contemporary",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Pave",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-marquise-pave-hidden-halo",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Pave",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-marquise-pave-split",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Pave",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-marquise-single-halo-single",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-marquise-single-halo-double",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-marquise-single-halo-double-twist",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-marquise-single-halo-knife-edge",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-marquise-single-halo-square-edge",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-marquise-single-halo-tapered",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-marquise-single-halo-contemporary",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-marquise-single-halo-hidden-halo",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-marquise-single-halo-split",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-marquise-crown-single",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Crown",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-marquise-crown-double",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Crown",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-marquise-crown-double-twist",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Crown",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-marquise-crown-knife-edge",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Crown",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-marquise-crown-square-edge",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Crown",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-marquise-crown-tapered",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Crown",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-marquise-crown-contemporary",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Crown",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-marquise-crown-hidden-halo",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Crown",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-marquise-crown-split",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Crown",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "core-marquise-flower-halo-single",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "core-marquise-flower-halo-double",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Double"
+      }
+    },
+    {
+      "id": "core-marquise-flower-halo-double-twist",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Double Twist"
+      }
+    },
+    {
+      "id": "core-marquise-flower-halo-knife-edge",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Knife Edge"
+      }
+    },
+    {
+      "id": "core-marquise-flower-halo-square-edge",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Square Edge"
+      }
+    },
+    {
+      "id": "core-marquise-flower-halo-tapered",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Tapered"
+      }
+    },
+    {
+      "id": "core-marquise-flower-halo-contemporary",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Contemporary"
+      }
+    },
+    {
+      "id": "core-marquise-flower-halo-hidden-halo",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Hidden Halo"
+      }
+    },
+    {
+      "id": "core-marquise-flower-halo-split",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Split"
+      }
+    },
+    {
+      "id": "extreme-round-4-prongs-0-25-ct",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-round-4-prongs-10-ct",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-round-basket-0-25-ct",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-round-basket-10-ct",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-round-peg-head-0-25-ct",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-round-peg-head-10-ct",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-round-pave-0-25-ct",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Pave",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-round-pave-10-ct",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Pave",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-round-single-halo-0-25-ct",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-round-single-halo-10-ct",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-round-crown-0-25-ct",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Crown",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-round-crown-10-ct",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Crown",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-round-flower-halo-0-25-ct",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-round-flower-halo-10-ct",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-oval-4-prongs-0-25-ct",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-oval-4-prongs-10-ct",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-oval-basket-0-25-ct",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-oval-basket-10-ct",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-oval-peg-head-0-25-ct",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-oval-peg-head-10-ct",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-oval-pave-0-25-ct",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Pave",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-oval-pave-10-ct",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Pave",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-oval-single-halo-0-25-ct",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-oval-single-halo-10-ct",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-oval-crown-0-25-ct",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Crown",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-oval-crown-10-ct",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Crown",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-oval-flower-halo-0-25-ct",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-oval-flower-halo-10-ct",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-cushion-4-prongs-0-25-ct",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-cushion-4-prongs-10-ct",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-cushion-basket-0-25-ct",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-cushion-basket-10-ct",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-cushion-peg-head-0-25-ct",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-cushion-peg-head-10-ct",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-cushion-pave-0-25-ct",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Pave",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-cushion-pave-10-ct",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Pave",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-cushion-single-halo-0-25-ct",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-cushion-single-halo-10-ct",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-cushion-crown-0-25-ct",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Crown",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-cushion-crown-10-ct",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Crown",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-cushion-flower-halo-0-25-ct",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-cushion-flower-halo-10-ct",
+      "selections": {
+        "Center stone shape": "Cushion",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-princess-4-prongs-0-25-ct",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-princess-4-prongs-10-ct",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-princess-basket-0-25-ct",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-princess-basket-10-ct",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-princess-peg-head-0-25-ct",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-princess-peg-head-10-ct",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-princess-pave-0-25-ct",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Pave",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-princess-pave-10-ct",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Pave",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-princess-single-halo-0-25-ct",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-princess-single-halo-10-ct",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-princess-crown-0-25-ct",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Crown",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-princess-crown-10-ct",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Crown",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-princess-flower-halo-0-25-ct",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-princess-flower-halo-10-ct",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-pear-4-prongs-0-25-ct",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-pear-4-prongs-10-ct",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-pear-basket-0-25-ct",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-pear-basket-10-ct",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-pear-peg-head-0-25-ct",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-pear-peg-head-10-ct",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-pear-pave-0-25-ct",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Pave",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-pear-pave-10-ct",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Pave",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-pear-single-halo-0-25-ct",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-pear-single-halo-10-ct",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-pear-crown-0-25-ct",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Crown",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-pear-crown-10-ct",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Crown",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-pear-flower-halo-0-25-ct",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-pear-flower-halo-10-ct",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-emerald-4-prongs-0-25-ct",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-emerald-4-prongs-10-ct",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-emerald-basket-0-25-ct",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-emerald-basket-10-ct",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-emerald-peg-head-0-25-ct",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-emerald-peg-head-10-ct",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-emerald-pave-0-25-ct",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Pave",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-emerald-pave-10-ct",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Pave",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-emerald-single-halo-0-25-ct",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-emerald-single-halo-10-ct",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-emerald-crown-0-25-ct",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Crown",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-emerald-crown-10-ct",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Crown",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-emerald-flower-halo-0-25-ct",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-emerald-flower-halo-10-ct",
+      "selections": {
+        "Center stone shape": "Emerald",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-marquise-4-prongs-0-25-ct",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-marquise-4-prongs-10-ct",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-marquise-basket-0-25-ct",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-marquise-basket-10-ct",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-marquise-peg-head-0-25-ct",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-marquise-peg-head-10-ct",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Peg Head",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-marquise-pave-0-25-ct",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Pave",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-marquise-pave-10-ct",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Pave",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-marquise-single-halo-0-25-ct",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-marquise-single-halo-10-ct",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-marquise-crown-0-25-ct",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Crown",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-marquise-crown-10-ct",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Crown",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "extreme-marquise-flower-halo-0-25-ct",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Single",
+        "Center stone size": "0.25 ct"
+      }
+    },
+    {
+      "id": "extreme-marquise-flower-halo-10-ct",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Single",
+        "Center stone size": "10 ct"
+      }
+    },
+    {
+      "id": "side-u-pave-diamond-1-2",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "U-Pave",
+        "Side stones type": "Diamond",
+        "Side stones length": "1/2"
+      }
+    },
+    {
+      "id": "side-u-pave-diamond-3-4",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "U-Pave",
+        "Side stones type": "Diamond",
+        "Side stones length": "3/4"
+      }
+    },
+    {
+      "id": "side-u-pave-alt-sapphire-1-2",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "U-Pave",
+        "Side stones type": "Alt. Sapphire",
+        "Side stones length": "1/2"
+      }
+    },
+    {
+      "id": "side-u-pave-alt-sapphire-3-4",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "U-Pave",
+        "Side stones type": "Alt. Sapphire",
+        "Side stones length": "3/4"
+      }
+    },
+    {
+      "id": "side-u-pave-alt-emerald-1-2",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "U-Pave",
+        "Side stones type": "Alt. Emerald",
+        "Side stones length": "1/2"
+      }
+    },
+    {
+      "id": "side-u-pave-alt-emerald-3-4",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "U-Pave",
+        "Side stones type": "Alt. Emerald",
+        "Side stones length": "3/4"
+      }
+    },
+    {
+      "id": "side-u-pave-alt-ruby-1-2",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "U-Pave",
+        "Side stones type": "Alt. Ruby",
+        "Side stones length": "1/2"
+      }
+    },
+    {
+      "id": "side-u-pave-alt-ruby-3-4",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "U-Pave",
+        "Side stones type": "Alt. Ruby",
+        "Side stones length": "3/4"
+      }
+    },
+    {
+      "id": "side-channel-diamond-1-2",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "Channel",
+        "Side stones type": "Diamond",
+        "Side stones length": "1/2"
+      }
+    },
+    {
+      "id": "side-channel-diamond-3-4",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "Channel",
+        "Side stones type": "Diamond",
+        "Side stones length": "3/4"
+      }
+    },
+    {
+      "id": "side-channel-alt-sapphire-1-2",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "Channel",
+        "Side stones type": "Alt. Sapphire",
+        "Side stones length": "1/2"
+      }
+    },
+    {
+      "id": "side-channel-alt-sapphire-3-4",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "Channel",
+        "Side stones type": "Alt. Sapphire",
+        "Side stones length": "3/4"
+      }
+    },
+    {
+      "id": "side-channel-alt-emerald-1-2",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "Channel",
+        "Side stones type": "Alt. Emerald",
+        "Side stones length": "1/2"
+      }
+    },
+    {
+      "id": "side-channel-alt-emerald-3-4",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "Channel",
+        "Side stones type": "Alt. Emerald",
+        "Side stones length": "3/4"
+      }
+    },
+    {
+      "id": "side-channel-alt-ruby-1-2",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "Channel",
+        "Side stones type": "Alt. Ruby",
+        "Side stones length": "1/2"
+      }
+    },
+    {
+      "id": "side-channel-alt-ruby-3-4",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "Channel",
+        "Side stones type": "Alt. Ruby",
+        "Side stones length": "3/4"
+      }
+    },
+    {
+      "id": "side-prong-diamond-1-2",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "Prong",
+        "Side stones type": "Diamond",
+        "Side stones length": "1/2"
+      }
+    },
+    {
+      "id": "side-prong-diamond-3-4",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "Prong",
+        "Side stones type": "Diamond",
+        "Side stones length": "3/4"
+      }
+    },
+    {
+      "id": "side-prong-alt-sapphire-1-2",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "Prong",
+        "Side stones type": "Alt. Sapphire",
+        "Side stones length": "1/2"
+      }
+    },
+    {
+      "id": "side-prong-alt-sapphire-3-4",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "Prong",
+        "Side stones type": "Alt. Sapphire",
+        "Side stones length": "3/4"
+      }
+    },
+    {
+      "id": "side-prong-alt-emerald-1-2",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "Prong",
+        "Side stones type": "Alt. Emerald",
+        "Side stones length": "1/2"
+      }
+    },
+    {
+      "id": "side-prong-alt-emerald-3-4",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "Prong",
+        "Side stones type": "Alt. Emerald",
+        "Side stones length": "3/4"
+      }
+    },
+    {
+      "id": "side-prong-alt-ruby-1-2",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "Prong",
+        "Side stones type": "Alt. Ruby",
+        "Side stones length": "1/2"
+      }
+    },
+    {
+      "id": "side-prong-alt-ruby-3-4",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "Prong",
+        "Side stones type": "Alt. Ruby",
+        "Side stones length": "3/4"
+      }
+    },
+    {
+      "id": "side-bead-diamond-1-2",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "Bead",
+        "Side stones type": "Diamond",
+        "Side stones length": "1/2"
+      }
+    },
+    {
+      "id": "side-bead-diamond-3-4",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "Bead",
+        "Side stones type": "Diamond",
+        "Side stones length": "3/4"
+      }
+    },
+    {
+      "id": "side-bead-alt-sapphire-1-2",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "Bead",
+        "Side stones type": "Alt. Sapphire",
+        "Side stones length": "1/2"
+      }
+    },
+    {
+      "id": "side-bead-alt-sapphire-3-4",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "Bead",
+        "Side stones type": "Alt. Sapphire",
+        "Side stones length": "3/4"
+      }
+    },
+    {
+      "id": "side-bead-alt-emerald-1-2",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "Bead",
+        "Side stones type": "Alt. Emerald",
+        "Side stones length": "1/2"
+      }
+    },
+    {
+      "id": "side-bead-alt-emerald-3-4",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "Bead",
+        "Side stones type": "Alt. Emerald",
+        "Side stones length": "3/4"
+      }
+    },
+    {
+      "id": "side-bead-alt-ruby-1-2",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "Bead",
+        "Side stones type": "Alt. Ruby",
+        "Side stones length": "1/2"
+      }
+    },
+    {
+      "id": "side-bead-alt-ruby-3-4",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "Bead",
+        "Side stones type": "Alt. Ruby",
+        "Side stones length": "3/4"
+      }
+    },
+    {
+      "id": "side-pave-diamond-1-2",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "Pave",
+        "Side stones type": "Diamond",
+        "Side stones length": "1/2"
+      }
+    },
+    {
+      "id": "side-pave-diamond-3-4",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "Pave",
+        "Side stones type": "Diamond",
+        "Side stones length": "3/4"
+      }
+    },
+    {
+      "id": "side-pave-alt-sapphire-1-2",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "Pave",
+        "Side stones type": "Alt. Sapphire",
+        "Side stones length": "1/2"
+      }
+    },
+    {
+      "id": "side-pave-alt-sapphire-3-4",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "Pave",
+        "Side stones type": "Alt. Sapphire",
+        "Side stones length": "3/4"
+      }
+    },
+    {
+      "id": "side-pave-alt-emerald-1-2",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "Pave",
+        "Side stones type": "Alt. Emerald",
+        "Side stones length": "1/2"
+      }
+    },
+    {
+      "id": "side-pave-alt-emerald-3-4",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "Pave",
+        "Side stones type": "Alt. Emerald",
+        "Side stones length": "3/4"
+      }
+    },
+    {
+      "id": "side-pave-alt-ruby-1-2",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "Pave",
+        "Side stones type": "Alt. Ruby",
+        "Side stones length": "1/2"
+      }
+    },
+    {
+      "id": "side-pave-alt-ruby-3-4",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "Pave",
+        "Side stones type": "Alt. Ruby",
+        "Side stones length": "3/4"
+      }
+    },
+    {
+      "id": "side-none",
+      "selections": {
+        "Center stone shape": "Round",
+        "Ring head type": "Basket",
+        "Mounting type": "Single",
+        "Side setting": "None",
+        "Side stones type": null,
+        "Side stones length": null
+      }
+    },
+    {
+      "id": "metal-14k-white-gold-14k-white-gold",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Tapered",
+        "Ring head metal": "14K White Gold",
+        "Mounting metal": "14K White Gold"
+      }
+    },
+    {
+      "id": "metal-14k-white-gold-14k-yellow-gold",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Tapered",
+        "Ring head metal": "14K White Gold",
+        "Mounting metal": "14K Yellow Gold"
+      }
+    },
+    {
+      "id": "metal-14k-white-gold-14k-rose-gold",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Tapered",
+        "Ring head metal": "14K White Gold",
+        "Mounting metal": "14K Rose Gold"
+      }
+    },
+    {
+      "id": "metal-14k-white-gold-platinum",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Tapered",
+        "Ring head metal": "14K White Gold",
+        "Mounting metal": "Platinum"
+      }
+    },
+    {
+      "id": "metal-14k-yellow-gold-14k-white-gold",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Tapered",
+        "Ring head metal": "14K Yellow Gold",
+        "Mounting metal": "14K White Gold"
+      }
+    },
+    {
+      "id": "metal-14k-yellow-gold-14k-yellow-gold",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Tapered",
+        "Ring head metal": "14K Yellow Gold",
+        "Mounting metal": "14K Yellow Gold"
+      }
+    },
+    {
+      "id": "metal-14k-yellow-gold-14k-rose-gold",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Tapered",
+        "Ring head metal": "14K Yellow Gold",
+        "Mounting metal": "14K Rose Gold"
+      }
+    },
+    {
+      "id": "metal-14k-yellow-gold-platinum",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Tapered",
+        "Ring head metal": "14K Yellow Gold",
+        "Mounting metal": "Platinum"
+      }
+    },
+    {
+      "id": "metal-14k-rose-gold-14k-white-gold",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Tapered",
+        "Ring head metal": "14K Rose Gold",
+        "Mounting metal": "14K White Gold"
+      }
+    },
+    {
+      "id": "metal-14k-rose-gold-14k-yellow-gold",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Tapered",
+        "Ring head metal": "14K Rose Gold",
+        "Mounting metal": "14K Yellow Gold"
+      }
+    },
+    {
+      "id": "metal-14k-rose-gold-14k-rose-gold",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Tapered",
+        "Ring head metal": "14K Rose Gold",
+        "Mounting metal": "14K Rose Gold"
+      }
+    },
+    {
+      "id": "metal-14k-rose-gold-platinum",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Tapered",
+        "Ring head metal": "14K Rose Gold",
+        "Mounting metal": "Platinum"
+      }
+    },
+    {
+      "id": "metal-platinum-14k-white-gold",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Tapered",
+        "Ring head metal": "Platinum",
+        "Mounting metal": "14K White Gold"
+      }
+    },
+    {
+      "id": "metal-platinum-14k-yellow-gold",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Tapered",
+        "Ring head metal": "Platinum",
+        "Mounting metal": "14K Yellow Gold"
+      }
+    },
+    {
+      "id": "metal-platinum-14k-rose-gold",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Tapered",
+        "Ring head metal": "Platinum",
+        "Mounting metal": "14K Rose Gold"
+      }
+    },
+    {
+      "id": "metal-platinum-platinum",
+      "selections": {
+        "Center stone shape": "Oval",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Tapered",
+        "Ring head metal": "Platinum",
+        "Mounting metal": "Platinum"
+      }
+    },
+    {
+      "id": "natural-round",
+      "selections": {
+        "Center diamond type": "Natural",
+        "Center stone shape": "Round",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "natural-oval",
+      "selections": {
+        "Center diamond type": "Natural",
+        "Center stone shape": "Oval",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "natural-cushion",
+      "selections": {
+        "Center diamond type": "Natural",
+        "Center stone shape": "Cushion",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "natural-princess",
+      "selections": {
+        "Center diamond type": "Natural",
+        "Center stone shape": "Princess",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "natural-pear",
+      "selections": {
+        "Center diamond type": "Natural",
+        "Center stone shape": "Pear",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "natural-emerald",
+      "selections": {
+        "Center diamond type": "Natural",
+        "Center stone shape": "Emerald",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "natural-marquise",
+      "selections": {
+        "Center diamond type": "Natural",
+        "Center stone shape": "Marquise",
+        "Ring head type": "4 Prongs",
+        "Mounting type": "Single"
+      }
+    },
+    {
+      "id": "risk-marquise-flower-hidden-emerald-10ct",
+      "selections": {
+        "Center stone shape": "Marquise",
+        "Center stone size": "10 ct",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Hidden Halo",
+        "Side stones type": "Alt. Emerald",
+        "Side stones length": "3/4",
+        "Ring head metal": "14K Rose Gold",
+        "Mounting metal": "Platinum"
+      }
+    },
+    {
+      "id": "risk-pear-flower-split-ruby-10ct",
+      "selections": {
+        "Center stone shape": "Pear",
+        "Center stone size": "10 ct",
+        "Ring head type": "Flower Halo",
+        "Mounting type": "Split",
+        "Side stones type": "Alt. Ruby",
+        "Side stones length": "3/4",
+        "Ring head metal": "14K White Gold",
+        "Mounting metal": "14K Rose Gold"
+      }
+    },
+    {
+      "id": "risk-princess-single-halo-double-sapphire-025ct",
+      "selections": {
+        "Center stone shape": "Princess",
+        "Center stone size": "0.25 ct",
+        "Ring head type": "Single Halo",
+        "Mounting type": "Double",
+        "Side stones type": "Alt. Sapphire",
+        "Side stones length": "1/2",
+        "Ring head metal": "14K Yellow Gold",
+        "Mounting metal": "14K White Gold"
+      }
+    }
+  ]
+}

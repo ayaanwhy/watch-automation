@@ -45,9 +45,20 @@ export function findAdjacentImage(
 
 interface ThumbnailGridProps {
   images: ThumbnailGridImage[]
-  inputDir: string
+  // Every existing caller passes a shared directory all `images[].name`
+  // live in. Optional (default '') since Phase 15.6's Sandbox Final Review
+  // instead supplies getSourcePath below (its review items span several
+  // different directories, one per product).
+  inputDir?: string
+  // Overrides the default joinPath(inputDir, name) source-path computation
+  // — omitted by every existing caller (unchanged behavior).
+  getSourcePath?: (image: ThumbnailGridImage) => string
   selectedImage: string | null
   onSelect: (name: string) => void
+  // Multi-select (Phase 15.6) — both omitted by every existing caller,
+  // which renders no checkboxes and behaves exactly as before.
+  checkedNames?: Set<string>
+  onToggleCheck?: (name: string) => void
 }
 
 const CELL_SIZE = 92
@@ -62,7 +73,15 @@ const BUFFER_ROWS = 3
 // Column count and row placement are recomputed from the container's actual
 // size via ResizeObserver, mirroring the pattern already established by
 // AnnotationCanvas for responsive layout.
-export function ThumbnailGrid({ images, inputDir, selectedImage, onSelect }: ThumbnailGridProps) {
+export function ThumbnailGrid({
+  images,
+  inputDir = '',
+  getSourcePath,
+  selectedImage,
+  onSelect,
+  checkedNames,
+  onToggleCheck,
+}: ThumbnailGridProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [containerWidth, setContainerWidth] = useState(0)
   const [containerHeight, setContainerHeight] = useState(0)
@@ -121,7 +140,7 @@ export function ThumbnailGrid({ images, inputDir, selectedImage, onSelect }: Thu
           const index = startIndex + i
           const row = Math.floor(index / columns)
           const col = index % columns
-          const sourcePath = joinPath(inputDir, img.name)
+          const sourcePath = getSourcePath ? getSourcePath(img) : joinPath(inputDir, img.name)
           return (
             <ThumbnailCell
               key={img.name}
@@ -132,6 +151,8 @@ export function ThumbnailGrid({ images, inputDir, selectedImage, onSelect }: Thu
               src={getThumbSrc(sourcePath, toFileUrl(sourcePath))}
               selected={img.name === selectedImage}
               onClick={() => onSelect(img.name)}
+              checked={checkedNames?.has(img.name)}
+              onToggleCheck={onToggleCheck ? () => onToggleCheck(img.name) : undefined}
               style={{
                 top: row * rowHeight,
                 left: col * (CELL_SIZE + GAP),

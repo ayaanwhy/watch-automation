@@ -26,6 +26,7 @@ import { AppearanceEffects } from './components/shell/AppearanceEffects'
 import { SandboxWorkflowProvider } from './sandbox/context/SandboxWorkflowContext'
 import SandboxDashboard from './sandbox/screens/SandboxDashboard'
 import SandboxUniversalConfiguration from './sandbox/screens/SandboxUniversalConfiguration'
+import SandboxFinalReview from './sandbox/screens/SandboxFinalReview'
 import type { BatchState } from './types/annotation'
 import type { SessionFile } from './types/session'
 import type { AppView, EditingProduct } from './types/navigation'
@@ -565,7 +566,15 @@ export default function App() {
       return <SandboxDashboard onContinue={() => setView('sandboxConfiguration')} />
     }
     if (view === 'sandboxConfiguration') {
-      return <SandboxUniversalConfiguration onBack={() => setView('sandboxDashboard')} />
+      return (
+        <SandboxUniversalConfiguration
+          onBack={() => setView('sandboxDashboard')}
+          onReview={() => setView('sandboxFinalReview')}
+        />
+      )
+    }
+    if (view === 'sandboxFinalReview') {
+      return <SandboxFinalReview onBack={() => setView('sandboxConfiguration')} />
     }
 
     if (view === 'batchDetails' && openBatchId) {

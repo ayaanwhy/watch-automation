@@ -25,6 +25,30 @@ import type {
 import { applyStagePatch, createBatchDetail, recompute, summarize } from './batchModel'
 import { countsFromImages } from './subprocessProtocol'
 
+// Serializes every write to this registry (added Phase 15.5) —
+// index.json is one shared file, and createBatch/updateStage/renameBatch/
+// setBatchMode/deleteBatch each do a real read-modify-write cycle against
+// it. This was never exercised concurrently until Sandbox's orchestrator
+// (Phase 15.3+) started running multiple product pipelines in parallel,
+// each independently calling createBatch/updateStage for its own
+// underlying Legacy Batch — two of those landing at the same instant could
+// race two concurrent writeIndex() calls against the same
+// index.json.tmp, and the loser's rename() failed outright (a real
+// failure a Phase 15.5 test surfaced, not a hypothetical). Legacy's own
+// single-batch-at-a-time UI never triggered this before, but the
+// underlying registry function was never actually safe against it either.
+// Mirrors sandboxRunRegistry.ts's identical fix (Phase 15.3), applied here
+// since the same class of bug exists in this file too.
+let writeQueue: Promise<unknown> = Promise.resolve()
+function serializeWrite<T>(fn: () => Promise<T>): Promise<T> {
+  const result = writeQueue.then(fn, fn)
+  writeQueue = result.then(
+    () => undefined,
+    () => undefined,
+  )
+  return result
+}
+
 interface BatchIndex {
   version: number
   nextSeq: number
@@ -210,31 +234,33 @@ export async function createBatch(params: {
   title?: string
   mode?: BatchMode
 }): Promise<BatchDetailRecord> {
-  await mkdir(batchesDir(), { recursive: true })
-  const index = await readIndex()
-  const mode: BatchMode = params.mode ?? 'production'
-  const seq = mode === 'testing' ? index.nextTestSeq : index.nextSeq
-  const id = `batch-${Date.now()}-${randomUUID().slice(0, 8)}`
-  const now = new Date().toISOString()
+  return serializeWrite(async () => {
+    await mkdir(batchesDir(), { recursive: true })
+    const index = await readIndex()
+    const mode: BatchMode = params.mode ?? 'production'
+    const seq = mode === 'testing' ? index.nextTestSeq : index.nextSeq
+    const id = `batch-${Date.now()}-${randomUUID().slice(0, 8)}`
+    const now = new Date().toISOString()
 
-  const detail = createBatchDetail({
-    id,
-    seq,
-    sourceDir: params.sourceDir,
-    pipeline: params.pipeline,
-    title: params.title,
-    mode,
-    now,
+    const detail = createBatchDetail({
+      id,
+      seq,
+      sourceDir: params.sourceDir,
+      pipeline: params.pipeline,
+      title: params.title,
+      mode,
+      now,
+    })
+
+    await atomicWriteJson(detailPath(id), detail)
+    if (mode === 'testing') index.nextTestSeq = seq + 1
+    else index.nextSeq = seq + 1
+    upsertSummary(index, detail)
+    await writeIndex(index)
+
+    logger.info(`batch-registry — created ${id} (${detail.title}, mode=${mode}, pipeline=[${params.pipeline.join(', ')}])`)
+    return detail
   })
-
-  await atomicWriteJson(detailPath(id), detail)
-  if (mode === 'testing') index.nextTestSeq = seq + 1
-  else index.nextSeq = seq + 1
-  upsertSummary(index, detail)
-  await writeIndex(index)
-
-  logger.info(`batch-registry — created ${id} (${detail.title}, mode=${mode}, pipeline=[${params.pipeline.join(', ')}])`)
-  return detail
 }
 
 export async function listBatches(): Promise<BatchSummaryRecord[]> {
@@ -265,14 +291,16 @@ export async function updateStage(
   stageType: StageType,
   patch: StagePatch,
 ): Promise<BatchDetailRecord | null> {
-  const detail = await getBatch(id)
-  if (!detail) return null
-  const updated = applyStagePatch(detail, stageType, patch, new Date().toISOString())
-  await atomicWriteJson(detailPath(id), updated)
-  const index = await readIndex()
-  upsertSummary(index, updated)
-  await writeIndex(index)
-  return updated
+  return serializeWrite(async () => {
+    const detail = await getBatch(id)
+    if (!detail) return null
+    const updated = applyStagePatch(detail, stageType, patch, new Date().toISOString())
+    await atomicWriteJson(detailPath(id), updated)
+    const index = await readIndex()
+    upsertSummary(index, updated)
+    await writeIndex(index)
+    return updated
+  })
 }
 
 // Manual QA review (Phase 11.5E) — toggles one image's needsFixing flag and
@@ -331,14 +359,16 @@ export async function setHoopSplit(
 }
 
 export async function renameBatch(id: string, title: string): Promise<BatchDetailRecord | null> {
-  const detail = await getBatch(id)
-  if (!detail) return null
-  const updated = recompute({ ...detail, title: title.trim() || detail.title }, new Date().toISOString())
-  await atomicWriteJson(detailPath(id), updated)
-  const index = await readIndex()
-  upsertSummary(index, updated)
-  await writeIndex(index)
-  return updated
+  return serializeWrite(async () => {
+    const detail = await getBatch(id)
+    if (!detail) return null
+    const updated = recompute({ ...detail, title: title.trim() || detail.title }, new Date().toISOString())
+    await atomicWriteJson(detailPath(id), updated)
+    const index = await readIndex()
+    upsertSummary(index, updated)
+    await writeIndex(index)
+    return updated
+  })
 }
 
 // Testing/Production is editable after creation (Phase 10F correction) —
@@ -347,14 +377,16 @@ export async function renameBatch(id: string, title: string): Promise<BatchDetai
 // counter sequence was not requested and would risk its own gaps/collisions,
 // so it's left alone.
 export async function setBatchMode(id: string, mode: BatchMode): Promise<BatchDetailRecord | null> {
-  const detail = await getBatch(id)
-  if (!detail) return null
-  const updated = recompute({ ...detail, mode }, new Date().toISOString())
-  await atomicWriteJson(detailPath(id), updated)
-  const index = await readIndex()
-  upsertSummary(index, updated)
-  await writeIndex(index)
-  return updated
+  return serializeWrite(async () => {
+    const detail = await getBatch(id)
+    if (!detail) return null
+    const updated = recompute({ ...detail, mode }, new Date().toISOString())
+    await atomicWriteJson(detailPath(id), updated)
+    const index = await readIndex()
+    upsertSummary(index, updated)
+    await writeIndex(index)
+    return updated
+  })
 }
 
 // Finds the batch a Watch stage already belongs to, identified by the exact
@@ -425,15 +457,17 @@ export async function findEditingBatch(
 // never touches generated outputs or any user asset, which the registry
 // never wrote to in the first place.
 export async function deleteBatch(id: string): Promise<boolean> {
-  const index = await readIndex()
-  const existed = index.batches.some(b => b.id === id)
-  index.batches = index.batches.filter(b => b.id !== id)
-  await writeIndex(index)
-  try {
-    await unlink(detailPath(id))
-  } catch {
-    // Detail file already gone — fine, the index entry is what mattered.
-  }
-  logger.info(`batch-registry — deleted ${id}`)
-  return existed
+  return serializeWrite(async () => {
+    const index = await readIndex()
+    const existed = index.batches.some(b => b.id === id)
+    index.batches = index.batches.filter(b => b.id !== id)
+    await writeIndex(index)
+    try {
+      await unlink(detailPath(id))
+    } catch {
+      // Detail file already gone — fine, the index entry is what mattered.
+    }
+    logger.info(`batch-registry — deleted ${id}`)
+    return existed
+  })
 }

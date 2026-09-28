@@ -1,0 +1,11 @@
+{
+  "dataset_id": "sidd707/jewelry-design-dataset",
+  "dataset_url": "https://huggingface.co/datasets/sidd707/jewelry-design-dataset",
+  "revision": "57a3f0389d55f3d42f4637a76a773bbd64514f37",
+  "archive": "dataset.zip",
+  "archive_bytes": 405591935,
+  "archive_sha256": "efa16ab76505bcb3302e628ce2bc680d6bbc4f3dd6d6a2edfe96ee8cb0312940",
+  "declared_license": "MIT",
+  "permission_note": "The project owner stated on 2026-09-02 that permission to use this dataset had been obtained.",
+  "handling": "Keep images below product_validator/data, retain this source record, review ring_best labels, and treat bracelet/earring_best/necklace as non-ring jewellery negatives."
+}

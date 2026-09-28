@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "captured_at": "2026-09-04",
+  "branch": "ring-segmentation-v2",
+  "git_base": "1493f4ffdeceec1ac88d3e0015faf7f25fda3cee",
+  "freeze": {
+    "path": "ring_v2/artifacts/production-freeze-20260904-sealed",
+    "complete": true,
+    "file_count": 98,
+    "content_manifest_sha256": "b2981ddc1acb32b93236f9a81efc293193ff244de2383185ec255a271d6bedb6",
+    "model_onnx_sha256": "fb44a8ca59e63cc546473d9d701ca95cac1b900c692981f395083121f125d139",
+    "ownership_refiner_onnx_sha256": "803b83a64a6f13d3e1e9717c5d0a13765502f2f8b7859499b0ed86d9de2afcba",
+    "smoke_cases": [
+      "core-round-4-prongs-single",
+      "core-princess-flower-halo-double",
+      "side-bead-alt-ruby-1-2",
+      "extreme-marquise-basket-10-ct"
+    ]
+  },
+  "live_deployment": {
+    "base_url": "https://pixelforge.clouddeploy.in",
+    "provider": "CPUExecutionProvider",
+    "host": {
+      "os": "Ubuntu 24.04.4 LTS",
+      "kernel": "6.17.0-1021-azure",
+      "architecture": "x86_64",
+      "virtual_cpus": 4,
+      "cpu_model": "AMD EPYC 9V74 80-Core Processor",
+      "ram_gib": 15,
+      "swap_gib": 0,
+      "gpu": null
+    },
+    "container": {
+      "image": "jewelsense-api:local",
+      "image_digest": "sha256:beb4da0d959ed53e12ac9f31087a394feb11908c8587e7c3339d02050134ccef",
+      "restart_policy": "unless-stopped",
+      "captured_memory_mib": 630.9,
+      "python": "3.11.16",
+      "packages": {
+        "fastapi": "0.115.6",
+        "numpy": "1.26.4",
+        "onnxruntime": "1.29.0",
+        "opencv-python-headless": "4.11.0.86",
+        "protobuf": "4.25.8",
+        "python-multipart": "0.0.20",
+        "uvicorn": "0.34.0"
+      }
+    },
+    "eight_smoke_requests_ms": {
+      "server_min": 1145.8,
+      "server_max": 1398.0,
+      "caller_wall_min": 1675.604,
+      "caller_wall_max": 1981.408
+    }
+  },
+  "local_cuda_reference": {
+    "gpu": "NVIDIA GeForce RTX 3050 6GB Laptop GPU",
+    "providers": [
+      "CUDAExecutionProvider",
+      "CPUExecutionProvider"
+    ],
+    "eight_smoke_requests_ms": {
+      "server_min": 660.5,
+      "server_max": 1066.4,
+      "caller_wall_min": 668.699,
+      "caller_wall_max": 1074.44
+    },
+    "historical_585_case_benchmark_ms": {
+      "mean": 645.0,
+      "median": 641.6
+    }
+  },
+  "rollback_verification": {
+    "live_to_local_cpu_compatible": true,
+    "local_cpu_to_cuda_compatible": true,
+    "partition_integrity": true,
+    "worst_live_to_cpu_visible_changed_fraction": 0.000502,
+    "worst_live_to_cpu_visible_rgba_mae_u8": 0.02212675,
+    "compatibility_limits": {
+      "comparison_space": "source-canvas-premultiplied-rgba",
+      "max_changed_fraction": 0.0025,
+      "max_rgba_mae_u8": 0.1
+    }
+  },
+  "known_defects": [
+    {
+      "id": "production-request-nondeterminism",
+      "cause_evidence": "Resetting cv2 RNG before each direct request makes repeated arrays identical; current GrabCut contour refinement consumes mutable RNG state.",
+      "production_action": "Preserve as frozen baseline behavior.",
+      "v2_gate": "Repeated identical requests must have exact output hashes."
+    }
+  ]
+}

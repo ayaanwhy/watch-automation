@@ -3,29 +3,34 @@ import { ConsoleLayout } from '../../components/console/ConsoleLayout'
 import { ConsoleSummaryPanel, type ConsoleSummaryItem } from '../../components/console/ConsoleSummaryPanel'
 import { Button } from '../../components/ui/Button'
 import { EmptyState } from '../../components/ui/EmptyState'
-import { useToast } from '../../components/ui/ToastHost'
 import { useSandboxWorkflow } from '../context/SandboxWorkflowContext'
 import { sortSandboxProductTypes } from '../constants/productDisplay'
 import { validateSandboxUniversalConfig } from '../types/sandboxUniversalConfig'
+import { normalizeSandboxTemporaryBatch, summarizeSandboxProductValidation } from '../lib/normalizeSandboxProductData'
 import type { SandboxProductType } from '../types/sandboxProduct'
 import { PreprocessingConfigSection } from '../components/PreprocessingConfigSection'
 import { EditingConfigSection } from '../components/EditingConfigSection'
 import { PostProcessingConfigSection } from '../components/PostProcessingConfigSection'
 import { StageArrow } from '../components/StageArrow'
+import { SandboxRunPanel } from '../components/SandboxRunPanel'
 import styles from './SandboxUniversalConfiguration.module.css'
 
 interface SandboxUniversalConfigurationProps {
   onBack: () => void
+  onReview: () => void
 }
 
-// Sandbox's configuration screen (Phase 15.2) — Preprocessing -> Editing ->
-// Post Processing, one Universal Configuration covering every product type
-// present in the selected Temporary Batch. Configuration only: "Review
-// Configuration" never starts processing (that's 15.3's execution
-// orchestrator, not built yet) — it only validates and acknowledges.
-export default function SandboxUniversalConfiguration({ onBack }: SandboxUniversalConfigurationProps) {
-  const { selectedBatch, config, updateConfig } = useSandboxWorkflow()
-  const { showToast } = useToast()
+// Sandbox's configuration screen (Phase 15.2, wired to real execution in
+// Phase 15.3) — Preprocessing -> Editing -> Post Processing, one Universal
+// Configuration covering every product type present in the selected
+// Temporary Batch. "Start Processing" now really does validate, preflight,
+// create the SandboxRun, and begin execution (electron/sandbox/
+// sandboxOrchestrator.ts) — only that one explicit action does; navigating
+// here never does. Once a run is active for this batch, the editable form
+// is replaced by SandboxRunPanel's unified progress view — editing a
+// configuration that's already executing wouldn't mean anything.
+export default function SandboxUniversalConfiguration({ onBack, onReview }: SandboxUniversalConfigurationProps) {
+  const { selectedBatch, config, updateConfig, activeRun, startRunError, starting, startRun, cancelRun, clearActiveRun, retryImage } = useSandboxWorkflow()
 
   if (!selectedBatch || !config) {
     return (
@@ -42,6 +47,13 @@ export default function SandboxUniversalConfiguration({ onBack }: SandboxUnivers
 
   const productTypes = sortSandboxProductTypes(selectedBatch.productTypes)
   const validation = validateSandboxUniversalConfig(config, selectedBatch)
+  const runForThisBatch = activeRun && activeRun.temporaryBatchId === selectedBatch.id ? activeRun : null
+
+  // Phase 15.5 — the one small inline status this phase adds: per-product
+  // data-readiness, computed from the same normalization boundary the
+  // orchestrator itself consumes (never re-derived ad hoc here).
+  const normalizedBatch = normalizeSandboxTemporaryBatch(selectedBatch)
+  const validationSummaries = summarizeSandboxProductValidation(normalizedBatch.items)
 
   function handleToggleScript(productType: SandboxProductType, scriptId: string, enabled: boolean) {
     updateConfig(prev => ({
@@ -53,12 +65,34 @@ export default function SandboxUniversalConfiguration({ onBack }: SandboxUnivers
     }))
   }
 
-  function handleReviewConfiguration() {
-    if (!validation.ok) return
-    showToast({
-      title: 'Configuration ready',
-      description: 'Automatic execution is not available yet — this configuration is saved for when Phase 15.3 adds it.',
-    })
+  if (runForThisBatch) {
+    return (
+      <ConsoleLayout
+        title="Universal Configuration"
+        subtitle={`${selectedBatch.name} is executing.`}
+        headerExtra={
+          <div className={styles.backRow}>
+            <Button variant="ghost" size="sm" onClick={onBack}>
+              ← Back to Dashboard
+            </Button>
+          </div>
+        }
+        summary={<div />}
+      >
+        <SandboxRunPanel
+          run={runForThisBatch}
+          onCancel={cancelRun}
+          onReview={onReview}
+          onRetryImage={retryImage}
+          // A fresh run with the same batch + configuration; the previous
+          // run stays in the registry untouched.
+          onRetry={() => {
+            clearActiveRun()
+            void startRun()
+          }}
+        />
+      </ConsoleLayout>
+    )
   }
 
   const summaryItems: ConsoleSummaryItem[] = [
@@ -70,7 +104,7 @@ export default function SandboxUniversalConfiguration({ onBack }: SandboxUnivers
   return (
     <ConsoleLayout
       title="Universal Configuration"
-      subtitle={`Configuring ${selectedBatch.name} — nothing executes until a later phase.`}
+      subtitle={`Configuring ${selectedBatch.name}.`}
       headerExtra={
         <div className={styles.backRow}>
           <Button variant="ghost" size="sm" onClick={onBack}>
@@ -81,10 +115,11 @@ export default function SandboxUniversalConfiguration({ onBack }: SandboxUnivers
       summary={
         <ConsoleSummaryPanel
           items={summaryItems}
-          onStart={handleReviewConfiguration}
-          startLabel="Review Configuration"
+          onStart={startRun}
+          startLabel="Start Processing"
           canStart={validation.ok}
-          error={validation.errors[0] ?? null}
+          starting={starting}
+          error={startRunError ?? validation.errors[0] ?? null}
         />
       }
     >
@@ -93,7 +128,11 @@ export default function SandboxUniversalConfiguration({ onBack }: SandboxUnivers
         onChange={preprocessing => updateConfig(prev => ({ ...prev, preprocessing }))}
       />
       <StageArrow />
-      <EditingConfigSection productTypes={productTypes} editingByProduct={config.editingByProduct} />
+      <EditingConfigSection
+        productTypes={productTypes}
+        editingByProduct={config.editingByProduct}
+        validationSummaries={validationSummaries}
+      />
       <StageArrow />
       <PostProcessingConfigSection
         productTypes={productTypes}

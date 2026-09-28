@@ -33,6 +33,7 @@ import { BrowserWindow } from 'electron'
 import { access, stat } from 'node:fs/promises'
 import { spawn } from 'node:child_process'
 import { dirname } from 'node:path'
+import { EventEmitter } from 'node:events'
 import type { ChildProcess } from 'node:child_process'
 import { resolvePreprocessingPython, validatePythonPath } from './pythonResolver'
 import { updateStage } from './batchRegistry'
@@ -47,7 +48,20 @@ import type { StageImageRecord, StagePatch, StageType } from '../../src/types/ba
 // never goes this long without a single stdout line.
 const DEFAULT_INACTIVITY_TIMEOUT_MS = 60_000
 
+// Phase 15.3 — a main-process-observable counterpart to notifyAllWindows'
+// renderer broadcast, added so the Sandbox orchestrator (main process, no
+// BrowserWindow of its own to listen through) can await a real job's
+// completion without going through IPC to a renderer and back (explicitly
+// prohibited — "do not route main-process execution through renderer
+// IPC"). Emits on the exact same channel string notifyAllWindows already
+// sends to windows on, so no new channel vocabulary exists — a listener
+// here sees precisely what a renderer's window.api.on(channel, ...) would.
+// Renderer behavior is completely unchanged: notifyAllWindows still sends
+// to every window exactly as before, this is purely additive.
+export const mainProcessJobEvents = new EventEmitter()
+
 export function notifyAllWindows(channel: string, payload: unknown): void {
+  mainProcessJobEvents.emit(channel, payload)
   for (const win of BrowserWindow.getAllWindows()) {
     win.webContents.send(channel, payload)
   }
@@ -101,6 +115,9 @@ export interface DonePayload {
   totalDurationMs: number
   cancelledByUser: boolean
   spawnError?: string
+  // Additive (automation engine) — see PreprocessDonePayload in types/ipc.ts.
+  failureKind?: 'spawn' | 'timeout'
+  fatalError?: string
 }
 
 export interface RunnerConfig<TPayload extends BasePayload> {
@@ -190,6 +207,7 @@ export function createSubprocessRunner<TPayload extends BasePayload>(
       totalDurationMs: job.totalDurationMs,
       cancelledByUser: false,
       spawnError: message,
+      failureKind: 'timeout',
     }
     notifyAllWindows(config.doneChannel, donePayload)
   }
@@ -387,6 +405,7 @@ export function createSubprocessRunner<TPayload extends BasePayload>(
           failed: job.failed,
           totalDurationMs: job.totalDurationMs,
           cancelledByUser,
+          ...(job.fatalError ? { fatalError: job.fatalError } : {}),
         }
         notifyAllWindows(config.doneChannel, donePayload)
 
@@ -422,6 +441,7 @@ export function createSubprocessRunner<TPayload extends BasePayload>(
           totalDurationMs: job.totalDurationMs,
           cancelledByUser: false,
           spawnError: err.message,
+          failureKind: 'spawn',
         }
         notifyAllWindows(config.doneChannel, donePayload)
       })

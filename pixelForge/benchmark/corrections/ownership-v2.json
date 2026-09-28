@@ -1,0 +1,34 @@
+{
+  "version": "ownership-v2",
+  "status": "rejected",
+  "description": "Rejected experiment. User review established that detached shoulder rails belong to front; the back layer must contain only the single continuous lower band. Do not use these labels for training or promotion.",
+  "snapshot": "benchmark/snapshots/buchroeders-ultimate-v1-20260827-v5-1000",
+  "report": "benchmark/results/buchroeders-ultimate-v1-20260827-v5-1000/0b002e61c8b7dc9a/report.json",
+  "rules": [
+    {
+      "case_ids": [
+        "core-cushion-crown-contemporary"
+      ],
+      "design_id": "br-core-cushion-crown-contemporary-v2",
+      "operation": {
+        "type": "mirror_secondary_back_component"
+      },
+      "note": "Mirror the exact thin hidden rail already found by v6; do not include the surrounding shoulder face."
+    },
+    {
+      "case_id_regex": "^side-(bead|channel)-(diamond|alt-sapphire|alt-emerald|alt-ruby)-(1-2|3-4)$",
+      "design_id_template": "br-{case_id}-hidden-rails-v2",
+      "operation": {
+        "type": "add_symmetric_polygons",
+        "left_polygon_normalized": [
+          [0.320, 0.517],
+          [0.390, 0.494],
+          [0.394, 0.503],
+          [0.348, 0.519],
+          [0.321, 0.523]
+        ]
+      },
+      "note": "Assign only the narrow triangular support rail below the centre setting to back; preserve the full shoulder face in front."
+    }
+  ]
+}

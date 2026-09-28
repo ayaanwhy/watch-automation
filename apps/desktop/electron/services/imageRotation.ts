@@ -12,10 +12,9 @@ export type RotateImageResult =
   | { ok: true; width: number; height: number }
   | { ok: false; error: string }
 
-// Output is always written as PNG regardless of the input format, since
-// transparency in the newly-exposed corners (45°/-45°/135°/-135°) requires
-// an alpha-capable format — callers should pass an outputPath ending in
-// .png.
+// Output is always written as PNG regardless of the input format (alpha
+// is preserved/ensured for the transparent-background product images this
+// runs on) — callers should pass an outputPath ending in .png.
 export async function rotateImage(
   inputPath: string,
   outputPath: string,
@@ -34,12 +33,10 @@ export async function rotateImage(
       return { ok: true, width: metadata.width, height: metadata.height }
     }
 
-    // ensureAlpha() guarantees an alpha channel exists to composite the
-    // transparent background into, even for a source with none (e.g. an
-    // opaque JPEG). sharp's rotate(angle) computes the full rotated
-    // bounding box itself and expands the canvas to it — no dimension is
-    // hardcoded or precomputed here; the actual output geometry is read
-    // back from sharp's own result below.
+    // ensureAlpha() guarantees an alpha channel exists, even for a source
+    // with none (e.g. an opaque JPEG). Quarter-turns are lossless pixel
+    // remaps: 90°/270° swap width and height, 180° keeps them — the actual
+    // output geometry is read back from sharp's own result below.
     const info = await sharp(inputPath)
       .ensureAlpha()
       .rotate(degrees, { background: { r: 0, g: 0, b: 0, alpha: 0 } })

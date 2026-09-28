@@ -1,10 +1,9 @@
 import { Card } from '../../components/ui/Card'
 import { SegmentedControl } from '../../components/ui/SegmentedControl'
+import { Select } from '../../components/ui/Select'
 import { SnapSlider } from '../../components/SnapSlider'
 import { ROTATION_OPTIONS } from '../../constants/rotation'
-import { shouldSuppressUpscaleFromCombinedLabel } from '../../constants/preprocessingOperations'
-import type { UpscaleFactor } from '../../types/ipc'
-import type { SandboxPreprocessOperationChoice, SandboxPreprocessingConfig } from '../types/sandboxUniversalConfig'
+import type { SandboxPreprocessOperationChoice, SandboxPreprocessingConfig, SandboxUpscaleFactor } from '../types/sandboxUniversalConfig'
 import styles from './ConfigSection.module.css'
 
 interface PreprocessingConfigSectionProps {
@@ -21,10 +20,9 @@ const OPERATION_OPTIONS: { value: SandboxPreprocessOperationChoice; label: strin
   { value: 'none', label: 'None' },
 ]
 
-// Same 1x-renamed-to-"None" convention as Legacy's Preprocessing screen
-// (Phase 11.5F) — the underlying value is still UpscaleFactor's 1.
-const UPSCALE_OPTIONS: { value: UpscaleFactor; label: string }[] = [
-  { value: 1, label: 'None' },
+// Real factors only — upscaling is switched on/off by the Operation choice
+// above, not by a "None" factor.
+const UPSCALE_OPTIONS: { value: SandboxUpscaleFactor; label: string }[] = [
   { value: 2, label: '2×' },
   { value: 4, label: '4×' },
 ]
@@ -40,15 +38,12 @@ const DEFAULT_RESIZE_HEIGHT = 1000
 // only stores configuration — nothing here executes it (that's 15.3).
 export function PreprocessingConfigSection({ config, onChange }: PreprocessingConfigSectionProps) {
   const includesUpscale = config.operation === 'both' || config.operation === 'upscale'
-  const showsCombinedLabel = config.operation === 'both'
-  const suppressUpscaleNote =
-    showsCombinedLabel && shouldSuppressUpscaleFromCombinedLabel(['background_removal', 'upscale'], config.upscaleFactor)
 
   return (
     <Card className={styles.card}>
       <h3 className={styles.title}>Preprocessing</h3>
 
-      <SegmentedControl
+      <Select
         label="Operation"
         options={OPERATION_OPTIONS}
         value={config.operation}
@@ -68,9 +63,6 @@ export function PreprocessingConfigSection({ config, onChange }: PreprocessingCo
         onChange={upscaleFactor => onChange({ ...config, upscaleFactor })}
         disabled={!includesUpscale}
       />
-      {suppressUpscaleNote && (
-        <p className={styles.note}>Upscale Factor is None — this will display as "Background Removal" only.</p>
-      )}
 
       <label className={styles.checkboxRow}>
         <input type="checkbox" checked={config.trim} onChange={e => onChange({ ...config, trim: e.target.checked })} />

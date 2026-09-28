@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "protected_files": {
+    "deploy/model.onnx": "fb44a8ca59e63cc546473d9d701ca95cac1b900c692981f395083121f125d139",
+    "deploy/ownership_refiner.onnx": "803b83a64a6f13d3e1e9717c5d0a13765502f2f8b7859499b0ed86d9de2afcba"
+  }
+}

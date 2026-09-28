@@ -268,6 +268,13 @@ export interface PreprocessDonePayload {
   totalDurationMs: number
   cancelledByUser: boolean
   spawnError?: string
+  // Additive (automation engine): WHY the runner ended abnormally, so callers
+  // never have to interpret spawnError's free text. 'spawn' = the process
+  // could not be launched; 'timeout' = it went unresponsive and was released.
+  failureKind?: 'spawn' | 'timeout'
+  // The runner's own fatal message (Python crash, missing dependency, ...) —
+  // technical detail only.
+  fatalError?: string
 }
 
 export interface PreprocessResolveResult {
@@ -482,6 +489,13 @@ export interface RingBraceletDonePayload {
   totalDurationMs: number
   cancelledByUser: boolean
   spawnError?: string
+  // Additive (automation engine): WHY the runner ended abnormally, so callers
+  // never have to interpret spawnError's free text. 'spawn' = the process
+  // could not be launched; 'timeout' = it went unresponsive and was released.
+  failureKind?: 'spawn' | 'timeout'
+  // The runner's own fatal message (Python crash, missing dependency, ...) —
+  // technical detail only.
+  fatalError?: string
 }
 
 // Ring and Bracelet remember separate last-used folders (product-keyed,
@@ -569,6 +583,13 @@ export interface EarringDonePayload {
   totalDurationMs: number
   cancelledByUser: boolean
   spawnError?: string
+  // Additive (automation engine): WHY the runner ended abnormally, so callers
+  // never have to interpret spawnError's free text. 'spawn' = the process
+  // could not be launched; 'timeout' = it went unresponsive and was released.
+  failureKind?: 'spawn' | 'timeout'
+  // The runner's own fatal message (Python crash, missing dependency, ...) —
+  // technical detail only.
+  fatalError?: string
 }
 
 // One shared slot (unlike Ring/Bracelet's product-keyed prefs) — there's

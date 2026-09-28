@@ -1,0 +1,15 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+    image: jewelsense-api:local
+    init: true
+    restart: unless-stopped
+    ports:
+      - "${JEWELSENSE_PORT:-8200}:8200"
+    environment:
+      RING_THREADS: "${RING_THREADS:-4}"
+      WEB_CONCURRENCY: "1"
+    security_opt:
+      - no-new-privileges:true

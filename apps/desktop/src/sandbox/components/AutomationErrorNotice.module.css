@@ -1,0 +1,60 @@
+.notice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  background: var(--surface-1);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-10);
+  font-size: var(--text-label);
+  color: var(--text-2);
+}
+
+.compact {
+  padding: var(--space-2) var(--space-3);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--danger);
+  font-weight: var(--weight-medium);
+}
+
+.where {
+  flex: 1;
+}
+
+.retry {
+  font-weight: var(--weight-regular);
+  color: var(--text-3);
+}
+
+.message {
+  margin: 0;
+  color: var(--text-1);
+}
+
+.action {
+  margin: 0;
+  color: var(--text-2);
+}
+
+.details summary {
+  cursor: pointer;
+  color: var(--text-3);
+}
+
+.details pre {
+  margin: var(--space-1) 0 0;
+  padding: var(--space-2);
+  max-height: 160px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--font-mono, monospace);
+  font-size: var(--text-caption);
+  background: var(--surface-2);
+  border-radius: var(--radius-6);
+}

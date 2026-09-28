@@ -1,0 +1,214 @@
+{
+  "schema_version": 1,
+  "selection_id": "ring-v2-editor-agreement-40-v1",
+  "label_contract": "ring-v2-label-contract-draft-20260904",
+  "seed": 20260904,
+  "source_scope": "buchroeders configurator 585-case production snapshot",
+  "coverage_limits": [
+    "The source universe contains upright front renders on a clean white catalogue plate; it has no deliberate real-shadow stress cases.",
+    "The source universe has no verified tilted/side-view, bypass/open-ended, or three-stone designs.",
+    "This agreement set can establish annotation reproducibility only for the configurator-render distribution; missing production styles require a supplementary native-source agreement set before broad release claims."
+  ],
+  "cases": [
+    {
+      "case_id": "core-round-4-prongs-single",
+      "category": "core",
+      "focus": ["plain-solitaire", "thin-prongs", "baseline-topology"]
+    },
+    {
+      "case_id": "core-oval-basket-double",
+      "category": "core",
+      "focus": ["oval", "basket", "double-shank"]
+    },
+    {
+      "case_id": "core-cushion-peg-head-contemporary",
+      "category": "core",
+      "focus": ["cushion", "peg-head", "contemporary-shank"]
+    },
+    {
+      "case_id": "core-princess-pave-hidden-halo",
+      "category": "core",
+      "focus": ["princess", "pave-head", "hidden-halo", "small-components"]
+    },
+    {
+      "case_id": "core-pear-single-halo-split",
+      "category": "core",
+      "focus": ["pear-tip", "single-halo", "split-shank", "multi-component-risk"]
+    },
+    {
+      "case_id": "core-emerald-crown-double-twist",
+      "category": "core",
+      "focus": ["emerald", "crown", "double-twist", "open-gaps"]
+    },
+    {
+      "case_id": "core-marquise-flower-halo-knife-edge",
+      "category": "core",
+      "focus": ["marquise-tips", "flower-halo", "knife-edge", "thin-structure"]
+    },
+    {
+      "case_id": "core-round-flower-halo-split",
+      "category": "core",
+      "focus": ["flower-halo", "split-shank", "openings", "small-stones"]
+    },
+    {
+      "case_id": "core-pear-crown-hidden-halo",
+      "category": "core",
+      "focus": ["pear-tip", "crown", "hidden-halo", "head-occlusion"]
+    },
+    {
+      "case_id": "core-princess-flower-halo-double",
+      "category": "core",
+      "focus": ["flower-halo", "double-shank", "lower-head-seam"]
+    },
+    {
+      "case_id": "core-emerald-pave-square-edge",
+      "category": "core",
+      "focus": ["emerald-corners", "pave", "square-edge", "pale-edge"]
+    },
+    {
+      "case_id": "core-cushion-single-halo-tapered",
+      "category": "core",
+      "focus": ["single-halo", "tapered-shank", "halo-gaps"]
+    },
+    {
+      "case_id": "core-oval-4-prongs-knife-edge",
+      "category": "core",
+      "focus": ["four-prong", "knife-edge", "thin-shank"]
+    },
+    {
+      "case_id": "core-marquise-peg-head-split",
+      "category": "core",
+      "focus": ["marquise-tips", "peg-head", "split-shank", "ownership-exception"]
+    },
+    {
+      "case_id": "core-pear-pave-double-twist",
+      "category": "core",
+      "focus": ["pear", "pave", "double-twist", "open-gaps"]
+    },
+    {
+      "case_id": "core-princess-basket-square-edge",
+      "category": "core",
+      "focus": ["princess-corners", "basket", "square-edge"]
+    },
+    {
+      "case_id": "core-round-crown-double",
+      "category": "core",
+      "focus": ["crown", "double-shank", "central-seam"]
+    },
+    {
+      "case_id": "extreme-round-4-prongs-0-25-ct",
+      "category": "extreme",
+      "focus": ["minimum-center-stone", "thin-prongs", "small-head"]
+    },
+    {
+      "case_id": "extreme-oval-basket-10-ct",
+      "category": "extreme",
+      "focus": ["maximum-center-stone", "basket", "large-occlusion"]
+    },
+    {
+      "case_id": "extreme-cushion-peg-head-0-25-ct",
+      "category": "extreme",
+      "focus": ["minimum-center-stone", "peg-head", "fine-detail"]
+    },
+    {
+      "case_id": "extreme-princess-single-halo-10-ct",
+      "category": "extreme",
+      "focus": ["maximum-center-stone", "single-halo", "large-square-head"]
+    },
+    {
+      "case_id": "extreme-pear-flower-halo-10-ct",
+      "category": "extreme",
+      "focus": ["maximum-center-stone", "flower-halo", "pointed-head", "deep-occlusion"]
+    },
+    {
+      "case_id": "extreme-emerald-crown-0-25-ct",
+      "category": "extreme",
+      "focus": ["minimum-center-stone", "crown", "small-angular-detail"]
+    },
+    {
+      "case_id": "extreme-marquise-basket-10-ct",
+      "category": "extreme",
+      "focus": ["maximum-center-stone", "marquise-tips", "basket", "deep-occlusion"]
+    },
+    {
+      "case_id": "extreme-marquise-flower-halo-0-25-ct",
+      "category": "extreme",
+      "focus": ["minimum-center-stone", "flower-halo", "tiny-repeated-detail"]
+    },
+    {
+      "case_id": "side-u-pave-alt-emerald-3-4",
+      "category": "side-setting",
+      "focus": ["u-pave", "emerald-side-stones", "long-side-run"]
+    },
+    {
+      "case_id": "side-channel-alt-sapphire-1-2",
+      "category": "side-setting",
+      "focus": ["channel", "sapphire-side-stones", "rail-edges"]
+    },
+    {
+      "case_id": "side-prong-alt-ruby-3-4",
+      "category": "side-setting",
+      "focus": ["side-prongs", "ruby-side-stones", "small-prongs"]
+    },
+    {
+      "case_id": "side-bead-alt-ruby-1-2",
+      "category": "side-setting",
+      "focus": ["bead-setting", "ruby-side-stones", "known-shoulder-gaps"]
+    },
+    {
+      "case_id": "side-pave-diamond-3-4",
+      "category": "side-setting",
+      "focus": ["pave", "diamond-side-stones", "long-thin-edge"]
+    },
+    {
+      "case_id": "side-none",
+      "category": "side-setting",
+      "focus": ["plain-side", "negative-control", "metal-edge"]
+    },
+    {
+      "case_id": "side-channel-diamond-3-4",
+      "category": "side-setting",
+      "focus": ["channel", "diamond-side-stones", "long-rail"]
+    },
+    {
+      "case_id": "side-bead-alt-emerald-3-4",
+      "category": "side-setting",
+      "focus": ["bead-setting", "emerald-side-stones", "long-side-run"]
+    },
+    {
+      "case_id": "metal-14k-yellow-gold-14k-white-gold",
+      "category": "metal",
+      "focus": ["mixed-metal", "yellow-head", "white-shank", "colour-boundary"]
+    },
+    {
+      "case_id": "metal-14k-rose-gold-14k-yellow-gold",
+      "category": "metal",
+      "focus": ["mixed-metal", "rose-head", "yellow-shank"]
+    },
+    {
+      "case_id": "metal-platinum-platinum",
+      "category": "metal",
+      "focus": ["pale-metal", "white-background", "edge-confusion"]
+    },
+    {
+      "case_id": "natural-marquise",
+      "category": "natural-stone",
+      "focus": ["natural-stone-render", "marquise-tips", "render-variation"]
+    },
+    {
+      "case_id": "natural-pear",
+      "category": "natural-stone",
+      "focus": ["natural-stone-render", "pear-tip", "render-variation"]
+    },
+    {
+      "case_id": "risk-princess-single-halo-double-sapphire-025ct",
+      "category": "curated-risk",
+      "focus": ["minimum-center-stone", "single-halo", "double-shank", "sapphire", "known-risk"]
+    },
+    {
+      "case_id": "risk-pear-flower-split-ruby-10ct",
+      "category": "curated-risk",
+      "focus": ["maximum-center-stone", "flower-halo", "split-shank", "ruby", "known-risk"]
+    }
+  ]
+}

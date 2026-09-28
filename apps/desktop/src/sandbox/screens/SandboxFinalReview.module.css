@@ -1,0 +1,142 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 0 var(--space-6) var(--space-6);
+}
+
+.emptyWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+}
+
+.filterRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.bulkBar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  margin-bottom: var(--space-3);
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-10);
+}
+
+.bulkCount {
+  font-size: var(--text-label);
+  color: var(--text-3);
+}
+
+.bulkActions {
+  display: flex;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.errorBanner {
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-3);
+  font-size: var(--text-label);
+  color: var(--danger);
+  background: var(--danger-fill);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-6);
+}
+
+.body {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: var(--space-4);
+  flex: 1;
+  min-height: 0;
+}
+
+.gridPane {
+  min-height: 0;
+  height: 100%;
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-10);
+  overflow: hidden;
+}
+
+.previewPane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 0;
+}
+
+.itemInfo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-10);
+}
+
+.itemSku {
+  font-size: var(--text-emphasized);
+  font-weight: var(--weight-medium);
+  color: var(--text-1);
+}
+
+.postProcessingNote {
+  font-size: var(--text-label);
+  color: var(--warning);
+  margin-left: var(--space-2);
+}
+
+.expandButton {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  color: var(--text-2);
+  background: transparent;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-6);
+  cursor: pointer;
+}
+
+.expandButton:hover {
+  border-color: var(--hairline-strong);
+  color: var(--text-1);
+}
+
+.previewBox {
+  flex: 1;
+  min-height: 0;
+  background: var(--stage-bg);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-10);
+  overflow: hidden;
+}
+
+.noOutput {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: var(--space-6);
+  text-align: center;
+  color: var(--text-3);
+  font-size: var(--text-body);
+}
+
+.itemActions {
+  display: flex;
+  gap: var(--space-2);
+}

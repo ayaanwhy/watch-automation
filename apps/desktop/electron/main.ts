@@ -15,6 +15,7 @@ import { registerThumbnailHandlers } from './ipc/thumbnailHandlers'
 import { registerBoundaryHandlers } from './ipc/boundaryHandlers'
 import { registerSandboxHandlers } from './ipc/sandboxHandlers'
 import { reconcileBatchesOnStartup } from './services/batchRegistry'
+import { automationEngine } from './sandbox/engine/automationEngine'
 import { hydratePresetDefinitions } from './services/preprocessingPresetDefinitions'
 import { hydrateShadowProfileDefinitions } from './services/shadowProfileDefinitions'
 import { logger, pruneOldLogs } from './logger'
@@ -62,6 +63,9 @@ app.whenReady().then(async () => {
   // this point can only mean the previous run crashed or was force-quit —
   // no subprocess for it can possibly still be alive (Phase 11E).
   await reconcileBatchesOnStartup()
+  // Jobs a previous engine process left in flight can never resume — record
+  // them truthfully as interrupted instead of leaving them 'running'.
+  await automationEngine.recoverInterruptedJobs()
   // Must resolve before createWindow() — buildArgs/buildStageConfig read
   // preset definitions synchronously when a job starts, so the in-memory
   // cache needs to already be populated before the renderer can trigger one.

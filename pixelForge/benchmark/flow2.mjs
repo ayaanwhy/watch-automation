@@ -1,0 +1,14 @@
+import { chromium } from "playwright";
+const SP = process.env.SP;
+const b = await chromium.launch();
+const p = await b.newPage({ viewport: { width: 1300, height: 980 }, deviceScaleFactor: 2 });
+const errs=[]; p.on("pageerror",e=>errs.push(String(e)));
+await p.goto("http://127.0.0.1:5182/index.html?step=diamond",{waitUntil:"networkidle"});
+await p.waitForTimeout(1200);
+const cards=await p.locator(".gemcard").count();
+await p.screenshot({path:`${SP}/step2-raw.png`});
+await p.locator('.chip:text-is("Opal")').click(); await p.waitForTimeout(500);
+const opals=await p.locator(".gemcard").count();
+await p.screenshot({path:`${SP}/step2-opal.png`});
+console.log(JSON.stringify({cards,opals,errors:errs},null,1));
+await b.close();

@@ -1,0 +1,957 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>JewelSense Segment Lab</title>
+  <style>
+    :root {
+      --page: #0b0d10;
+      --surface: #12151a;
+      --surface-2: #181c22;
+      --surface-3: #20252d;
+      --line: #2a3039;
+      --line-strong: #3a424e;
+      --text: #f4f6f8;
+      --muted: #9ba5b2;
+      --accent: #d7ad56;
+      --accent-soft: rgba(215, 173, 86, .14);
+      --good: #69d39d;
+      --warn: #f2bd63;
+      --danger: #ff7c7c;
+      --radius: 14px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: var(--page); color: var(--text); }
+    body { min-width: 320px; overflow: hidden; }
+    button, input { font: inherit; }
+    button { color: inherit; }
+    [hidden] { display: none !important; }
+
+    .app-shell {
+      height: 100dvh;
+      display: grid;
+      grid-template-rows: 58px minmax(0, 1fr);
+    }
+
+    .app-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 0 20px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(15, 18, 22, .96);
+    }
+
+    .brand { display: flex; align-items: center; gap: 11px; min-width: 0; }
+    .brand-mark {
+      width: 28px;
+      height: 28px;
+      transform: rotate(45deg);
+      border: 2px solid var(--accent);
+      border-radius: 7px;
+      box-shadow: inset 0 0 0 5px rgba(215, 173, 86, .08);
+    }
+    .brand-copy { line-height: 1.05; }
+    .brand-copy strong { display: block; letter-spacing: .01em; }
+    .brand-copy span { color: var(--muted); font-size: 11px; }
+
+    .runtime {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .runtime-dot { width: 8px; height: 8px; border-radius: 50%; background: #68717d; }
+    .runtime-dot.online { background: var(--good); box-shadow: 0 0 0 4px rgba(105, 211, 157, .1); }
+    .runtime-dot.offline { background: var(--danger); }
+
+    .workspace {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 304px minmax(0, 1fr);
+    }
+
+    .sidebar {
+      min-height: 0;
+      overflow-y: auto;
+      padding: 18px;
+      border-right: 1px solid var(--line);
+      background: var(--surface);
+    }
+    .sidebar h1 { margin: 0; font-size: 20px; letter-spacing: -.02em; }
+    .sidebar > p { margin: 8px 0 20px; color: var(--muted); font-size: 13px; line-height: 1.55; }
+
+    .field-label {
+      display: block;
+      margin-bottom: 8px;
+      color: #cbd1d8;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    .type-switch {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5px;
+      padding: 4px;
+      margin-bottom: 14px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      background: #0d1014;
+    }
+    .type-switch button {
+      min-height: 40px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .type-switch button[aria-pressed="true"] {
+      background: var(--surface-3);
+      color: var(--text);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, .25);
+    }
+
+    .drop-zone {
+      display: grid;
+      place-items: center;
+      min-height: 178px;
+      padding: 18px;
+      border: 1px dashed #49515d;
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, .018);
+      text-align: center;
+      cursor: pointer;
+      outline: none;
+      transition: border-color .16s ease, background .16s ease, transform .16s ease;
+    }
+    .drop-zone:hover, .drop-zone:focus-visible, .drop-zone.dragging {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+    .drop-zone.dragging { transform: scale(.99); }
+    .upload-icon {
+      display: grid;
+      place-items: center;
+      width: 48px;
+      height: 48px;
+      margin: 0 auto 12px;
+      border-radius: 50%;
+      background: var(--surface-3);
+      color: var(--accent);
+      font-size: 24px;
+      line-height: 1;
+    }
+    .drop-zone strong { display: block; margin-bottom: 5px; font-size: 14px; }
+    .drop-zone span { color: var(--muted); font-size: 12px; line-height: 1.45; }
+
+    .file-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      margin-top: 12px;
+      padding: 10px 11px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface-2);
+    }
+    .file-copy { min-width: 0; }
+    .file-name { overflow: hidden; color: #e9edf1; font-size: 12px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+    .file-meta { margin-top: 3px; color: var(--muted); font-size: 11px; }
+    .icon-button {
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: transparent;
+      cursor: pointer;
+    }
+    .icon-button:hover { border-color: var(--line-strong); background: var(--surface-3); }
+
+    .primary-button {
+      width: 100%;
+      min-height: 44px;
+      margin-top: 12px;
+      border: 1px solid #e0bd73;
+      border-radius: 10px;
+      background: linear-gradient(180deg, #e0ba68, #c99b3f);
+      color: #17130b;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 8px 22px rgba(201, 155, 63, .12);
+    }
+    .primary-button:hover:not(:disabled) { filter: brightness(1.06); }
+    .primary-button:disabled { cursor: not-allowed; filter: grayscale(.65); opacity: .48; }
+    .primary-button.busy { color: transparent; position: relative; }
+    .primary-button.busy::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      width: 18px;
+      height: 18px;
+      margin: auto;
+      border: 2px solid rgba(23, 19, 11, .3);
+      border-top-color: #17130b;
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error-message {
+      margin-top: 12px;
+      padding: 10px 11px;
+      border: 1px solid rgba(255, 124, 124, .35);
+      border-radius: 9px;
+      background: rgba(255, 124, 124, .08);
+      color: #ffb0b0;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .tips {
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.55;
+    }
+    .tips strong { color: #d7dce2; }
+
+    .review-area {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      background: #0f1216;
+    }
+
+    .review-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 56px;
+      padding: 9px 14px;
+      border-bottom: 1px solid var(--line);
+      background: var(--surface);
+    }
+    .toolbar-group { display: flex; align-items: center; gap: 7px; min-width: 0; }
+    .toolbar-label { margin-right: 2px; color: var(--muted); font-size: 11px; }
+    .tool-button {
+      min-height: 32px;
+      padding: 0 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface-2);
+      color: #ccd2d9;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .tool-button:hover { border-color: var(--line-strong); }
+    .tool-button[aria-pressed="true"] { border-color: #73623e; background: var(--accent-soft); color: #f0d9a8; }
+    .zoom-button { width: 32px; padding: 0; font-size: 16px; }
+    .zoom-value { min-width: 40px; color: var(--muted); font-size: 11px; text-align: center; }
+    .zoom-range { width: 96px; accent-color: var(--accent); }
+
+    .result-summary {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-width: 0;
+      margin-left: auto;
+      overflow: hidden;
+    }
+    .chip {
+      max-width: 180px;
+      padding: 5px 8px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 11px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .chip.good { border-color: rgba(105, 211, 157, .3); color: var(--good); }
+    .chip.warn { border-color: rgba(242, 189, 99, .35); color: var(--warn); }
+
+    .viewer-grid {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-rows: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      padding: 8px;
+    }
+    .viewer-grid.gem-mode { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: minmax(0, 1fr); }
+
+    .viewer-card {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: 38px minmax(0, 1fr);
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      background: var(--surface);
+    }
+    .viewer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 0 10px 0 12px;
+      border-bottom: 1px solid var(--line);
+      background: var(--surface-2);
+    }
+    .viewer-title { min-width: 0; font-size: 12px; font-weight: 750; }
+    .viewer-subtitle { margin-left: 6px; color: var(--muted); font-size: 10px; font-weight: 500; }
+    .download-button {
+      min-height: 26px;
+      padding: 0 8px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .download-button:hover:not(:disabled) { border-color: var(--accent); color: #f0d9a8; }
+    .download-button:disabled { cursor: default; opacity: .35; }
+
+    .image-stage {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: auto;
+      background: #202020;
+    }
+    .review-area[data-background="checker"] .image-stage {
+      background-color: #f0f0f0;
+      background-image:
+        linear-gradient(45deg, #c9c9c9 25%, transparent 25%),
+        linear-gradient(-45deg, #c9c9c9 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #c9c9c9 75%),
+        linear-gradient(-45deg, transparent 75%, #c9c9c9 75%);
+      background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+      background-size: 16px 16px;
+    }
+    .review-area[data-background="white"] .image-stage { background: #fff; }
+
+    .image-stage img {
+      display: block;
+      flex: 0 0 auto;
+      width: 100%;
+      height: auto;
+      image-rendering: auto;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+    .image-stage img.fit { width: auto; max-width: 100%; max-height: 100%; }
+    .empty-label {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      color: #6f7884;
+      font-size: 12px;
+      text-align: center;
+      pointer-events: none;
+    }
+    .image-stage.has-image .empty-label { display: none; }
+
+    @media (max-width: 980px) {
+      body { overflow: auto; }
+      .app-shell { height: auto; min-height: 100dvh; }
+      .workspace { grid-template-columns: 1fr; }
+      .sidebar { overflow: visible; border-right: 0; border-bottom: 1px solid var(--line); }
+      .sidebar > p { max-width: 680px; }
+      .drop-zone { min-height: 130px; }
+      .review-area { min-height: 720px; }
+    }
+
+    @media (max-width: 720px) {
+      .app-header { padding: 0 13px; }
+      .runtime span { display: none; }
+      .review-toolbar { align-items: flex-start; flex-wrap: wrap; }
+      .result-summary { width: 100%; margin-left: 0; order: 3; }
+      .viewer-grid, .viewer-grid.gem-mode { grid-template-columns: 1fr; grid-template-rows: none; }
+      .viewer-card { min-height: 340px; }
+      .review-area { min-height: 1480px; }
+      .viewer-grid.gem-mode + * { min-height: 0; }
+      .viewer-grid.gem-mode { min-height: 740px; }
+      .zoom-range { width: 76px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true"></div>
+        <div class="brand-copy">
+          <strong>JewelSense</strong>
+          <span>Segment Lab</span>
+        </div>
+      </div>
+      <div class="runtime" title="Backend runtime">
+        <span id="runtime-dot" class="runtime-dot"></span>
+        <span id="runtime-text">Checking backend…</span>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <aside class="sidebar">
+        <h1>Remove the background</h1>
+        <p>Upload a catalogue ring or a single gemstone. Rings return full, front and back layers ready for try-on.</p>
+
+        <span class="field-label">Asset type</span>
+        <div class="type-switch" role="group" aria-label="Asset type">
+          <button id="mode-ring" type="button" aria-pressed="true">Ring</button>
+          <button id="mode-gem" type="button" aria-pressed="false">Gemstone</button>
+        </div>
+
+        <input id="file-input" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+        <div id="drop-zone" class="drop-zone" role="button" tabindex="0" aria-label="Choose or drop an image">
+          <div>
+            <div class="upload-icon" aria-hidden="true">↑</div>
+            <strong>Drop an image here</strong>
+            <span>or click to browse<br>PNG, JPEG or WebP · up to 30 MB</span>
+          </div>
+        </div>
+
+        <div id="file-card" class="file-card" hidden>
+          <div class="file-copy">
+            <div id="file-name" class="file-name"></div>
+            <div id="file-meta" class="file-meta"></div>
+          </div>
+          <button id="clear-file" class="icon-button" type="button" aria-label="Remove selected image">×</button>
+        </div>
+
+        <button id="segment-button" class="primary-button" type="button" disabled>Segment image</button>
+        <div id="error-message" class="error-message" role="alert" hidden></div>
+
+        <div class="tips">
+          <strong>Best results:</strong> use the original 1000px catalogue render on a plain background. Select Gemstone only for one loose stone; gemstone mode returns a single transparent cutout.
+        </div>
+      </aside>
+
+      <section id="review-area" class="review-area" data-background="dark" aria-busy="false">
+        <div class="review-toolbar">
+          <div class="toolbar-group" role="group" aria-label="Preview background">
+            <span class="toolbar-label">Background</span>
+            <button class="tool-button background-button" type="button" data-background="dark" aria-pressed="true">Dark</button>
+            <button class="tool-button background-button" type="button" data-background="checker" aria-pressed="false">Checker</button>
+            <button class="tool-button background-button" type="button" data-background="white" aria-pressed="false">White</button>
+          </div>
+
+          <div class="toolbar-group" aria-label="Preview zoom">
+            <button id="zoom-out" class="tool-button zoom-button" type="button" aria-label="Zoom out">−</button>
+            <button id="zoom-fit" class="tool-button" type="button">Fit</button>
+            <button id="zoom-in" class="tool-button zoom-button" type="button" aria-label="Zoom in">+</button>
+            <input id="zoom-range" class="zoom-range" type="range" min="25" max="400" step="25" value="100" aria-label="Zoom percentage">
+            <span id="zoom-value" class="zoom-value">Fit</span>
+          </div>
+
+          <div id="result-summary" class="result-summary" aria-live="polite">
+            <span class="chip">Select an image to begin</span>
+          </div>
+        </div>
+
+        <div id="viewer-grid" class="viewer-grid">
+          <article class="viewer-card" data-card="original">
+            <header class="viewer-header">
+              <div class="viewer-title">Original <span class="viewer-subtitle">source</span></div>
+            </header>
+            <div class="image-stage">
+              <img id="image-original" class="fit" alt="Original upload" hidden>
+              <div class="empty-label">Your source image appears here</div>
+            </div>
+          </article>
+
+          <article class="viewer-card" data-card="full">
+            <header class="viewer-header">
+              <div class="viewer-title"><span id="full-title">Full segmentation</span> <span class="viewer-subtitle">transparent PNG</span></div>
+              <button class="download-button" type="button" data-download="full" disabled>Download</button>
+            </header>
+            <div class="image-stage">
+              <img id="image-full" class="fit" alt="Full segmentation" hidden>
+              <div class="empty-label">Full cutout</div>
+            </div>
+          </article>
+
+          <article id="front-card" class="viewer-card" data-card="front">
+            <header class="viewer-header">
+              <div class="viewer-title">Front layer <span class="viewer-subtitle">above hand</span></div>
+              <button class="download-button" type="button" data-download="front" disabled>Download</button>
+            </header>
+            <div class="image-stage">
+              <img id="image-front" class="fit" alt="Front ring layer" hidden>
+              <div class="empty-label">Front layer</div>
+            </div>
+          </article>
+
+          <article id="back-card" class="viewer-card" data-card="back">
+            <header class="viewer-header">
+              <div class="viewer-title">Back layer <span class="viewer-subtitle">behind hand</span></div>
+              <button class="download-button" type="button" data-download="back" disabled>Download</button>
+            </header>
+            <div class="image-stage">
+              <img id="image-back" class="fit" alt="Back ring layer" hidden>
+              <div class="empty-label">Back layer</div>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const MAX_FILE_BYTES = 30 * 1024 * 1024;
+      const state = {
+        mode: "ring",
+        file: null,
+        sourceUrl: null,
+        outputUrls: {},
+        outputMasks: {},
+        fit: true,
+        zoom: 100,
+        request: null,
+      };
+
+      const byId = (id) => document.getElementById(id);
+      const elements = {
+        runtimeDot: byId("runtime-dot"),
+        runtimeText: byId("runtime-text"),
+        modeRing: byId("mode-ring"),
+        modeGem: byId("mode-gem"),
+        input: byId("file-input"),
+        dropZone: byId("drop-zone"),
+        fileCard: byId("file-card"),
+        fileName: byId("file-name"),
+        fileMeta: byId("file-meta"),
+        clearFile: byId("clear-file"),
+        segmentButton: byId("segment-button"),
+        error: byId("error-message"),
+        reviewArea: byId("review-area"),
+        viewerGrid: byId("viewer-grid"),
+        frontCard: byId("front-card"),
+        backCard: byId("back-card"),
+        fullTitle: byId("full-title"),
+        summary: byId("result-summary"),
+        zoomRange: byId("zoom-range"),
+        zoomValue: byId("zoom-value"),
+      };
+
+      const imageElements = {
+        original: byId("image-original"),
+        full: byId("image-full"),
+        front: byId("image-front"),
+        back: byId("image-back"),
+      };
+
+      function formatBytes(bytes) {
+        if (bytes < 1024) return `${bytes} B`;
+        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+      }
+
+      function fileStem(name) {
+        return (name.replace(/\.[^.]+$/, "") || "jewelry")
+          .replace(/[^a-z0-9_-]+/gi, "-")
+          .replace(/^-+|-+$/g, "") || "jewelry";
+      }
+
+      function showError(message) {
+        elements.error.textContent = message;
+        elements.error.hidden = false;
+      }
+
+      function connectionError() {
+        if (window.location.protocol === "file:") {
+          return "The frontend was opened as a local file. Start the backend, then open http://127.0.0.1:8200/ instead.";
+        }
+        return "The segmentation backend is not reachable. Check that it is running, then retry.";
+      }
+
+      function clearError() {
+        elements.error.textContent = "";
+        elements.error.hidden = true;
+      }
+
+      function setSummary(items) {
+        elements.summary.replaceChildren();
+        items.forEach(({ text, kind = "" }) => {
+          const chip = document.createElement("span");
+          chip.className = `chip ${kind}`.trim();
+          chip.textContent = text;
+          elements.summary.appendChild(chip);
+        });
+      }
+
+      function revokeOutputs() {
+        Object.values(state.outputUrls).forEach((url) => {
+          if (url.startsWith("blob:")) URL.revokeObjectURL(url);
+        });
+        Object.values(state.outputMasks).forEach((url) => {
+          if (url.startsWith("blob:")) URL.revokeObjectURL(url);
+        });
+        state.outputUrls = {};
+        state.outputMasks = {};
+      }
+
+      function clearOutputs() {
+        revokeOutputs();
+        ["full", "front", "back"].forEach((layer) => {
+          const img = imageElements[layer];
+          img.removeAttribute("src");
+          img.style.removeProperty("mask-image");
+          img.style.removeProperty("-webkit-mask-image");
+          img.style.removeProperty("mask-size");
+          img.style.removeProperty("-webkit-mask-size");
+          img.hidden = true;
+          img.closest(".image-stage").classList.remove("has-image");
+          const button = document.querySelector(`[data-download="${layer}"]`);
+          button.disabled = true;
+        });
+        setSummary([{ text: state.file ? "Ready to segment" : "Select an image to begin" }]);
+      }
+
+      function showLayer(layer, url, maskUrl = null) {
+        state.outputUrls[layer] = url;
+        if (maskUrl) state.outputMasks[layer] = maskUrl;
+        const img = imageElements[layer];
+        img.src = url;
+        img.style.maskImage = maskUrl ? `url("${maskUrl}")` : "none";
+        img.style.webkitMaskImage = maskUrl ? `url("${maskUrl}")` : "none";
+        img.style.maskSize = maskUrl ? "100% 100%" : "auto";
+        img.style.webkitMaskSize = maskUrl ? "100% 100%" : "auto";
+        img.hidden = false;
+        img.closest(".image-stage").classList.add("has-image");
+        document.querySelector(`[data-download="${layer}"]`).disabled = false;
+        applyZoom();
+      }
+
+      function setMode(mode) {
+        if (mode !== "ring" && mode !== "gem") return;
+        if (state.request) state.request.abort();
+        state.mode = mode;
+        elements.modeRing.setAttribute("aria-pressed", String(mode === "ring"));
+        elements.modeGem.setAttribute("aria-pressed", String(mode === "gem"));
+        elements.frontCard.hidden = mode === "gem";
+        elements.backCard.hidden = mode === "gem";
+        elements.viewerGrid.classList.toggle("gem-mode", mode === "gem");
+        elements.fullTitle.textContent = mode === "gem" ? "Gemstone cutout" : "Full segmentation";
+        elements.segmentButton.textContent = mode === "gem" ? "Segment gemstone" : "Segment ring";
+        clearError();
+        clearOutputs();
+      }
+
+      async function imageDimensions(file) {
+        if ("createImageBitmap" in window) {
+          const bitmap = await createImageBitmap(file);
+          const result = [bitmap.width, bitmap.height];
+          bitmap.close();
+          return result;
+        }
+        return new Promise((resolve, reject) => {
+          const url = URL.createObjectURL(file);
+          const image = new Image();
+          image.onload = () => {
+            URL.revokeObjectURL(url);
+            resolve([image.naturalWidth, image.naturalHeight]);
+          };
+          image.onerror = () => {
+            URL.revokeObjectURL(url);
+            reject(new Error("Could not inspect image dimensions"));
+          };
+          image.src = url;
+        });
+      }
+
+      async function selectFile(file) {
+        clearError();
+        if (!file) return;
+        if (!file.type.startsWith("image/")) {
+          showError("Choose a PNG, JPEG or WebP image.");
+          return;
+        }
+        if (file.size > MAX_FILE_BYTES) {
+          showError("That image is larger than 30 MB.");
+          return;
+        }
+
+        if (state.request) state.request.abort();
+        clearOutputs();
+        if (state.sourceUrl) URL.revokeObjectURL(state.sourceUrl);
+        state.file = file;
+        state.sourceUrl = URL.createObjectURL(file);
+        imageElements.original.src = state.sourceUrl;
+        imageElements.original.hidden = false;
+        imageElements.original.closest(".image-stage").classList.add("has-image");
+        elements.fileName.textContent = file.name;
+        elements.fileMeta.textContent = formatBytes(file.size);
+        elements.fileCard.hidden = false;
+        elements.dropZone.hidden = true;
+        elements.segmentButton.disabled = false;
+        applyZoom();
+
+        try {
+          const [width, height] = await imageDimensions(file);
+          if (state.file === file) {
+            elements.fileMeta.textContent = `${width} × ${height} · ${formatBytes(file.size)}`;
+          }
+        } catch (_) {
+          // The backend remains the authority on whether the image decodes.
+        }
+      }
+
+      function clearFile() {
+        if (state.request) state.request.abort();
+        if (state.sourceUrl) URL.revokeObjectURL(state.sourceUrl);
+        state.sourceUrl = null;
+        state.file = null;
+        elements.input.value = "";
+        imageElements.original.removeAttribute("src");
+        imageElements.original.hidden = true;
+        imageElements.original.closest(".image-stage").classList.remove("has-image");
+        elements.fileCard.hidden = true;
+        elements.dropZone.hidden = false;
+        elements.segmentButton.disabled = true;
+        clearError();
+        clearOutputs();
+      }
+
+      function parseError(response, fallback) {
+        return response.text().then((body) => {
+          try {
+            const parsed = JSON.parse(body);
+            return parsed.detail || fallback;
+          } catch (_) {
+            return body || fallback;
+          }
+        });
+      }
+
+      async function segment() {
+        if (!state.file || state.request) return;
+        clearError();
+        clearOutputs();
+        const controller = new AbortController();
+        state.request = controller;
+        const modeAtStart = state.mode;
+        const fileAtStart = state.file;
+        const form = new FormData();
+        form.append("file", fileAtStart, fileAtStart.name);
+        elements.segmentButton.disabled = true;
+        elements.segmentButton.classList.add("busy");
+        elements.reviewArea.setAttribute("aria-busy", "true");
+        setSummary([{ text: `Segmenting ${modeAtStart === "ring" ? "ring" : "gemstone"}…` }]);
+        const started = performance.now();
+
+        try {
+          if (modeAtStart === "ring") {
+            const response = await fetch("/segment?compact=1", { method: "POST", body: form, signal: controller.signal });
+            if (!response.ok) throw new Error(await parseError(response, "Ring segmentation failed"));
+            const result = await response.json();
+            if (state.file !== fileAtStart || state.mode !== modeAtStart) return;
+            const fullUrl = `data:image/png;base64,${result.full}`;
+            showLayer("full", fullUrl);
+            showLayer("front", fullUrl, `data:image/png;base64,${result.front_mask}`);
+            showLayer("back", fullUrl, `data:image/png;base64,${result.back_mask}`);
+            const endToEndMs = Math.round(performance.now() - started);
+            const summary = [
+              { text: `${result.source_width} × ${result.source_height} source` },
+              { text: `${result.crop.width} × ${result.crop.height} crop` },
+              { text: `${result.ms} ms server`, kind: "good" },
+              { text: `${endToEndMs} ms total` },
+              { text: `${Math.round(result.back_fraction * 100)}% back layer` },
+            ];
+            if (result.low_resolution_input) summary.push({ text: "Low-resolution input", kind: "warn" });
+            if (result.needs_review) summary.push({ text: "Layer split needs review", kind: "warn" });
+            setSummary(summary);
+          } else {
+            const response = await fetch("/segment-gem", { method: "POST", body: form, signal: controller.signal });
+            if (!response.ok) throw new Error(await parseError(response, "Gemstone segmentation failed"));
+            const cropWidth = response.headers.get("X-Crop-Width");
+            const cropHeight = response.headers.get("X-Crop-Height");
+            const blob = await response.blob();
+            if (state.file !== fileAtStart || state.mode !== modeAtStart) return;
+            showLayer("full", URL.createObjectURL(blob));
+            const summary = [
+              { text: "Transparent PNG", kind: "good" },
+              { text: `${Math.round(performance.now() - started)} ms` },
+            ];
+            if (cropWidth && cropHeight) summary.splice(1, 0, {
+              text: `${cropWidth} × ${cropHeight} crop`,
+            });
+            setSummary(summary);
+          }
+        } catch (error) {
+          if (error.name !== "AbortError") {
+            const message = error instanceof TypeError && /fetch/i.test(error.message)
+              ? connectionError()
+              : (error.message || "Segmentation failed. Check the backend and try again.");
+            showError(message);
+            setSummary([{ text: "Segmentation failed", kind: "warn" }]);
+          }
+        } finally {
+          if (state.request === controller) {
+            state.request = null;
+            elements.segmentButton.disabled = !state.file;
+            elements.segmentButton.classList.remove("busy");
+            elements.reviewArea.setAttribute("aria-busy", "false");
+          }
+        }
+      }
+
+      function applyZoom() {
+        Object.values(imageElements).forEach((img) => {
+          img.classList.toggle("fit", state.fit);
+          img.style.width = state.fit ? "" : `${state.zoom}%`;
+        });
+        elements.zoomRange.value = String(state.zoom);
+        elements.zoomValue.textContent = state.fit ? "Fit" : `${state.zoom}%`;
+      }
+
+      function setZoom(value) {
+        state.fit = false;
+        state.zoom = Math.max(25, Math.min(400, Math.round(value / 25) * 25));
+        applyZoom();
+      }
+
+      function triggerDownload(url, layer) {
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = `${fileStem(state.file.name)}-${state.mode === "gem" ? "cutout" : layer}.png`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+      }
+
+      async function downloadLayer(layer) {
+        const url = state.outputUrls[layer];
+        if (!url || !state.file) return;
+        const maskUrl = state.outputMasks[layer];
+        if (!maskUrl) {
+          triggerDownload(url, layer);
+          return;
+        }
+
+        const source = imageElements[layer];
+        if (source.decode) await source.decode();
+        const mask = new Image();
+        mask.src = maskUrl;
+        if (mask.decode) await mask.decode();
+        const canvas = document.createElement("canvas");
+        canvas.width = source.naturalWidth;
+        canvas.height = source.naturalHeight;
+        const context = canvas.getContext("2d");
+        context.drawImage(source, 0, 0);
+        context.globalCompositeOperation = "destination-in";
+        context.drawImage(mask, 0, 0, canvas.width, canvas.height);
+        const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+        if (!blob) throw new Error("Could not prepare the layer download");
+        const downloadUrl = URL.createObjectURL(blob);
+        triggerDownload(downloadUrl, layer);
+        setTimeout(() => URL.revokeObjectURL(downloadUrl), 0);
+      }
+
+      async function checkHealth() {
+        try {
+          const response = await fetch("/health", { cache: "no-store" });
+          if (!response.ok) throw new Error("Backend unavailable");
+          const health = await response.json();
+          const provider = (health.providers && health.providers[0] || "runtime")
+            .replace("ExecutionProvider", "");
+          elements.runtimeDot.className = "runtime-dot online";
+          elements.runtimeText.textContent = `${provider} · ${health.model}`;
+        } catch (_) {
+          elements.runtimeDot.className = "runtime-dot offline";
+          elements.runtimeText.textContent = "Backend unavailable";
+          if (window.location.protocol === "file:" && !state.file) {
+            showError(connectionError());
+          }
+        }
+      }
+
+      elements.modeRing.addEventListener("click", () => setMode("ring"));
+      elements.modeGem.addEventListener("click", () => setMode("gem"));
+      elements.dropZone.addEventListener("click", () => elements.input.click());
+      elements.dropZone.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          elements.input.click();
+        }
+      });
+      elements.input.addEventListener("change", () => selectFile(elements.input.files[0]));
+      elements.clearFile.addEventListener("click", clearFile);
+      elements.segmentButton.addEventListener("click", segment);
+
+      ["dragenter", "dragover"].forEach((name) => elements.dropZone.addEventListener(name, (event) => {
+        event.preventDefault();
+        elements.dropZone.classList.add("dragging");
+      }));
+      ["dragleave", "drop"].forEach((name) => elements.dropZone.addEventListener(name, (event) => {
+        event.preventDefault();
+        elements.dropZone.classList.remove("dragging");
+      }));
+      elements.dropZone.addEventListener("drop", (event) => selectFile(event.dataTransfer.files[0]));
+
+      document.querySelectorAll(".background-button").forEach((button) => {
+        button.addEventListener("click", () => {
+          elements.reviewArea.dataset.background = button.dataset.background;
+          document.querySelectorAll(".background-button").forEach((item) => {
+            item.setAttribute("aria-pressed", String(item === button));
+          });
+        });
+      });
+      document.querySelectorAll("[data-download]").forEach((button) => {
+        button.addEventListener("click", () => {
+          downloadLayer(button.dataset.download).catch((error) => {
+            showError(error.message || "Could not prepare the download");
+          });
+        });
+      });
+      byId("zoom-fit").addEventListener("click", () => { state.fit = true; applyZoom(); });
+      byId("zoom-in").addEventListener("click", () => setZoom(state.fit ? 125 : state.zoom + 25));
+      byId("zoom-out").addEventListener("click", () => setZoom(state.fit ? 75 : state.zoom - 25));
+      elements.zoomRange.addEventListener("input", () => setZoom(Number(elements.zoomRange.value)));
+
+      window.addEventListener("paste", (event) => {
+        const file = Array.from(event.clipboardData?.files || []).find((item) => item.type.startsWith("image/"));
+        if (file) selectFile(file);
+      });
+      window.addEventListener("beforeunload", () => {
+        if (state.sourceUrl) URL.revokeObjectURL(state.sourceUrl);
+        revokeOutputs();
+      });
+
+      setMode("ring");
+      applyZoom();
+      checkHealth();
+    })();
+  </script>
+</body>
+</html>

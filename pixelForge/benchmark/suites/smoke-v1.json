@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "name": "buchroeders-smoke-v1",
+  "source_page": "https://brdiamonds.com/pages/custom-engagement-ring?stage=Select+Setting&sort=PRICE-ASC&rconfigShow=true&currentSKU=3644575a38494a5536304c324e4555&ringRegion=us",
+  "defaults": {},
+  "cases": [
+    {
+      "id": "live-deep-link-baseline",
+      "notes": "The exact configuration supplied for the production integration test.",
+      "selections": {}
+    },
+    {
+      "id": "round-simple-white-small",
+      "selections": {
+        "Center diamond type": "Lab-grown",
+        "Center stone shape": "Round",
+        "Center stone size": "1 ct",
+        "Ring head type": "4 Prongs",
+        "Ring head metal": "14K White Gold",
+        "Mounting type": "Single",
+        "Side setting": "None",
+        "Mounting metal": "14K White Gold"
+      }
+    },
+    {
+      "id": "pear-halo-ruby-rose-large",
+      "selections": {
+        "Center diamond type": "Natural",
+        "Center stone shape": "Pear",
+        "Center stone size": "3 ct",
+        "Ring head type": "Flower Halo",
+        "Ring head metal": "18K Rose Gold",
+        "Mounting type": "Hidden Halo",
+        "Side setting": "U-Pave",
+        "Side stones type": "Alt. Ruby",
+        "Side stones length": "3/4",
+        "Mounting metal": "18K Rose Gold"
+      }
+    }
+  ]
+}

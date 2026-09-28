@@ -14,7 +14,7 @@
 // directly by whoever is driving it (the 15.3 execution orchestrator),
 // since Sandbox's workflow doesn't have Legacy's per-stage
 // currentStage/nextStage derivation to replicate.
-import { app } from 'electron'
+import { engineDataDir } from './engine/runtime'
 import { readFile, readdir, mkdir, rename } from 'node:fs/promises'
 import { join, basename } from 'node:path'
 import { randomUUID } from 'node:crypto'
@@ -22,8 +22,30 @@ import { logger } from '../logger'
 import { atomicWriteJson } from '../services/atomicFile'
 import type { SandboxRunDetail, SandboxRunSummary } from '../../src/sandbox/types/sandboxRun'
 import type { SandboxProductType } from '../../src/sandbox/types/sandboxProduct'
+import { SANDBOX_PRODUCT_AVAILABILITY } from '../../src/sandbox/types/sandboxProduct'
 
 const REGISTRY_VERSION = 1
+
+// Serializes every write to this registry (Phase 15.3) — index.json is one
+// shared file, and createSandboxRun/updateSandboxRun each do a real
+// read-modify-write cycle against it. Once Phase 15.3 started running
+// multiple SandboxRuns' product pipelines concurrently (by design — see
+// sandboxOrchestrator.ts), two of those pipelines finishing at the same
+// instant could race two concurrent writeIndex() calls against the same
+// index.json.tmp, and the loser's rename() would fail outright (a real
+// failure this surfaced, not a hypothetical). Reads (getSandboxRun,
+// listSandboxRuns) are unaffected — those don't mutate shared state.
+let writeQueue: Promise<unknown> = Promise.resolve()
+function serializeWrite<T>(fn: () => Promise<T>): Promise<T> {
+  const result = writeQueue.then(fn, fn)
+  // Swallow so one failed write doesn't permanently wedge every write
+  // after it — each caller still sees/handles its own result/rejection.
+  writeQueue = result.then(
+    () => undefined,
+    () => undefined,
+  )
+  return result
+}
 
 interface SandboxRunIndex {
   version: number
@@ -32,7 +54,7 @@ interface SandboxRunIndex {
 }
 
 function sandboxRunsDir(): string {
-  return join(app.getPath('userData'), 'sandbox-runs')
+  return join(engineDataDir(), 'sandbox-runs')
 }
 function indexPath(): string {
   return join(sandboxRunsDir(), 'index.json')
@@ -41,9 +63,11 @@ function detailPath(id: string): string {
   return join(sandboxRunsDir(), `${id}.json`)
 }
 
+// The index only needs the summary fields — the heavy per-image state (items,
+// input snapshot, dispositions, ...) lives in the detail file alone.
 function summarize(detail: SandboxRunDetail): SandboxRunSummary {
-  const { pipelines: _pipelines, universalConfig: _universalConfig, ...summary } = detail
-  return summary
+  const { id, seq, title, status, temporaryBatchId, productTypes, createdAt, updatedAt } = detail
+  return { id, seq, title, status, temporaryBatchId, productTypes, createdAt, updatedAt }
 }
 
 async function quarantineCorruptFile(path: string): Promise<void> {
@@ -129,55 +153,80 @@ export interface CreateSandboxRunInput {
   title: string
   temporaryBatchId: string
   productTypes: SandboxProductType[]
+  // Snapshot of the SandboxUniversalConfig that produced this run — an
+  // open record here too (mirrors SandboxRunDetail.universalConfig's own
+  // comment); the orchestrator's caller owns the real shape (Phase 15.2's
+  // SandboxUniversalConfig), this registry only persists it opaquely.
+  universalConfig: Record<string, unknown>
 }
 
+// Phase 15.3 — pipelines start 'unavailable' (terminal, no batch will ever
+// be created) for a product type with no processing pipeline yet
+// (Necklace/Gemstone today — see SANDBOX_PRODUCT_AVAILABILITY), 'queued'
+// otherwise. Never invents a healthy status for an unavailable product.
 export async function createSandboxRun(input: CreateSandboxRunInput): Promise<SandboxRunDetail> {
-  const index = await readIndex()
-  const now = new Date().toISOString()
-  const detail: SandboxRunDetail = {
-    id: randomUUID(),
-    seq: index.nextSeq,
-    title: input.title,
-    status: 'draft',
-    temporaryBatchId: input.temporaryBatchId,
-    productTypes: input.productTypes,
-    createdAt: now,
-    updatedAt: now,
-    pipelines: input.productTypes.map(productType => ({
-      productType,
-      batchId: null,
+  return serializeWrite(async () => {
+    const index = await readIndex()
+    const now = new Date().toISOString()
+    const detail: SandboxRunDetail = {
+      id: randomUUID(),
+      seq: index.nextSeq,
+      title: input.title,
       status: 'draft',
-      error: null,
-    })),
-    universalConfig: {},
-  }
+      temporaryBatchId: input.temporaryBatchId,
+      productTypes: input.productTypes,
+      createdAt: now,
+      updatedAt: now,
+      pipelines: input.productTypes.map(productType => ({
+        productType,
+        batchId: null,
+        status: SANDBOX_PRODUCT_AVAILABILITY[productType].available ? 'queued' : 'unavailable',
+        error: SANDBOX_PRODUCT_AVAILABILITY[productType].available ? null : (SANDBOX_PRODUCT_AVAILABILITY[productType].reason ?? null),
+        stage: null,
+        postProcessingOutputDir: null,
+        postProcessingArtifacts: [],
+        failure: null,
+        activity: null,
+      })),
+      items: [],
+      universalConfig: input.universalConfig,
+      cancelRequested: false,
+      dispositions: {},
+      handoffResults: {},
+      failure: null,
+      startedAt: null,
+      finishedAt: null,
+    }
 
-  await writeDetail(detail)
-  index.nextSeq += 1
-  index.runs = [summarize(detail), ...index.runs]
-  await writeIndex(index)
+    await writeDetail(detail)
+    index.nextSeq += 1
+    index.runs = [summarize(detail), ...index.runs]
+    await writeIndex(index)
 
-  return detail
+    return detail
+  })
 }
 
 export type SandboxRunPatch = Partial<
-  Pick<SandboxRunDetail, 'status' | 'pipelines' | 'universalConfig'>
+  Pick<SandboxRunDetail, 'status' | 'pipelines' | 'items' | 'universalConfig' | 'cancelRequested' | 'dispositions' | 'handoffResults' | 'failure' | 'startedAt' | 'finishedAt' | 'inputItems'>
 >
 
 export async function updateSandboxRun(id: string, patch: SandboxRunPatch): Promise<SandboxRunDetail | null> {
-  const existing = await getSandboxRun(id)
-  if (!existing) return null
+  return serializeWrite(async () => {
+    const existing = await getSandboxRun(id)
+    if (!existing) return null
 
-  const updated: SandboxRunDetail = {
-    ...existing,
-    ...patch,
-    updatedAt: new Date().toISOString(),
-  }
-  await writeDetail(updated)
+    const updated: SandboxRunDetail = {
+      ...existing,
+      ...patch,
+      updatedAt: new Date().toISOString(),
+    }
+    await writeDetail(updated)
 
-  const index = await readIndex()
-  index.runs = index.runs.map(r => (r.id === id ? summarize(updated) : r))
-  await writeIndex(index)
+    const index = await readIndex()
+    index.runs = index.runs.map(r => (r.id === id ? summarize(updated) : r))
+    await writeIndex(index)
 
-  return updated
+    return updated
+  })
 }

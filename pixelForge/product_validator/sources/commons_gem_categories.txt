@@ -1,0 +1,11 @@
+# Targeted cut/faceted gemstone categories. Files still require manual review.
+Faceted stones
+Brilliant cut
+Cushion cut
+Emerald cut
+Marquise cut
+Faceted rubies
+Cut emeralds
+Sapphire gems
+Topaz gems
+

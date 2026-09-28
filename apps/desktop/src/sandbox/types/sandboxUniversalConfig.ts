@@ -4,7 +4,6 @@
 // nothing here touches Legacy's Batch/Stage schema (../../types/batch.ts).
 // This phase only builds/stores/validates this configuration for the UI —
 // it is never executed (that's 15.3's orchestrator).
-import type { UpscaleFactor } from '../../types/ipc'
 import type { RotationDegrees } from '../../constants/rotation'
 import type { SandboxProductType } from './sandboxProduct'
 import { SANDBOX_PRODUCT_AVAILABILITY } from './sandboxProduct'
@@ -20,17 +19,21 @@ import { defaultPostProcessingSelection } from './sandboxPostProcessing'
 // genuinely has one more valid value Legacy must never gain.
 export type SandboxPreprocessOperationChoice = 'both' | 'background_removal' | 'upscale' | 'none'
 
+// Only real upscale factors — whether upscaling happens at all is decided
+// solely by `operation` ('both'/'upscale' include it; 'background_removal'
+// and 'none' don't), never by a "1×/None" factor value.
+export type SandboxUpscaleFactor = 2 | 4
+
 export interface SandboxPreprocessingConfig {
   operation: SandboxPreprocessOperationChoice
   // Meaningful only when operation is 'both' or 'upscale' — mirrors
   // Legacy's own "moot when operations excludes upscale" convention
   // (Preprocessing.tsx's handleStart).
-  upscaleFactor: UpscaleFactor
+  upscaleFactor: SandboxUpscaleFactor
   // The existing optional Trim/Rotate/Resize mini-configuration
   // (electron/services/workflowPreparation.ts's prepareForEditingHandoff),
-  // reused as-is for trim/resize; rotate uses the new shared RotationDegrees
-  // (Phase 15.1) instead of Legacy's EditingHandoffRotate — a genuinely
-  // different, wider value set (0/45/-45/135/-135 vs none/cw/ccw/180).
+  // reused as-is for trim/resize; rotate uses the shared RotationDegrees
+  // (0/90/180/270 clockwise) instead of Legacy's EditingHandoffRotate.
   trim: boolean
   rotate: RotationDegrees
   // null = no resize step, matching prepareForEditingHandoff's own
@@ -39,7 +42,7 @@ export interface SandboxPreprocessingConfig {
 }
 
 export function defaultPreprocessingConfig(): SandboxPreprocessingConfig {
-  return { operation: 'both', upscaleFactor: 1, trim: false, rotate: 0, resizeToHeight: null }
+  return { operation: 'both', upscaleFactor: 2, trim: false, rotate: 0, resizeToHeight: null }
 }
 
 // Per-product editing configuration. Deliberately minimal — Sandbox is

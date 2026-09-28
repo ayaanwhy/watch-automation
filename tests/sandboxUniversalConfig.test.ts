@@ -42,8 +42,17 @@ describe('sortSandboxProductTypes — canonical display order', () => {
 })
 
 describe('ROTATION_OPTIONS (Phase 15.1 shared rotation, reused here)', () => {
-  it('exposes exactly the five approved values, in order, 0deg first', () => {
-    expect(ROTATION_OPTIONS.map(o => o.value)).toEqual([0, 45, -45, 135, -135])
+  it('exposes exactly the four quarter-turn values, in order, 0deg first', () => {
+    expect(ROTATION_OPTIONS.map(o => o.value)).toEqual([0, 90, 180, 270])
+    expect(ROTATION_OPTIONS.map(o => o.label)).toEqual(['0°', '90°', '180°', '270°'])
+  })
+})
+
+describe('default preprocessing config', () => {
+  it('defaults to a real upscale factor (no "None"/1x factor exists) and no rotation', () => {
+    const config = defaultPreprocessingConfig()
+    expect([2, 4]).toContain(config.upscaleFactor)
+    expect(config.rotate).toBe(0)
   })
 })
 
@@ -65,12 +74,11 @@ describe('createInitialUniversalConfig — selected batch -> configuration initi
     expect(config.editingByProduct.ring).toEqual({ productType: 'ring', available: true })
   })
 
-  it('marks Necklace/Gemstone unavailable with a reason, not silently dropped', () => {
+  it('marks Necklace unavailable with a reason (not silently dropped) and Gemstone available', () => {
     const config = createInitialUniversalConfig(makeBatch({ productTypes: ['necklace', 'gemstone'] }))
     expect(config.editingByProduct.necklace?.available).toBe(false)
     expect(config.editingByProduct.necklace?.unavailableReason).toBeTruthy()
-    expect(config.editingByProduct.gemstone?.available).toBe(false)
-    expect(config.editingByProduct.gemstone?.unavailableReason).toBeTruthy()
+    expect(config.editingByProduct.gemstone).toEqual({ productType: 'gemstone', available: true })
   })
 
   it('builds one postProcessingByProduct default selection per product type present', () => {
@@ -95,8 +103,8 @@ describe('validateSandboxUniversalConfig', () => {
     expect(result.errors.some(e => e.toLowerCase().includes('product type'))).toBe(true)
   })
 
-  it('is invalid when every present product type is unavailable (Necklace + Gemstone only)', () => {
-    const batch = makeBatch({ productTypes: ['necklace', 'gemstone'] })
+  it('is invalid when every present product type is unavailable (Necklace only)', () => {
+    const batch = makeBatch({ productTypes: ['necklace'] })
     const config = createInitialUniversalConfig(batch)
     const result = validateSandboxUniversalConfig(config, batch)
     expect(result.ok).toBe(false)

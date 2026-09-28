@@ -1,0 +1,381 @@
+{
+  "schema_version": 1,
+  "inventory_id": "ring-v2-provenance-inventory-v1",
+  "datasets": [
+    {
+      "id": "legacy-retoucher-pairs-recovered",
+      "location": "repo",
+      "path": "product_validator/data/recovered_20260902/pairs",
+      "scanner": "pair_dirs",
+      "asset_type": "ring",
+      "provenance": "legacy_retoucher_pair",
+      "routing": "compatibility_audit_required",
+      "notes": "Original full/front cutouts recovered from Trash; canvases may differ."
+    },
+    {
+      "id": "legacy-retoucher-pairs-talla-recovered",
+      "location": "repo",
+      "path": "product_validator/data/recovered_20260902/pairs_talla",
+      "scanner": "pair_dirs",
+      "asset_type": "ring",
+      "provenance": "legacy_retoucher_pair",
+      "routing": "compatibility_audit_required",
+      "notes": "Second original editor-pair collection recovered from Trash."
+    },
+    {
+      "id": "legacy-retoucher-pairs-trash",
+      "location": "trash",
+      "path": "data/pairs",
+      "scanner": "pair_dirs",
+      "asset_type": "ring",
+      "provenance": "legacy_retoucher_pair",
+      "routing": "recovery_copy_only",
+      "mirror_of": "legacy-retoucher-pairs-recovered"
+    },
+    {
+      "id": "legacy-retoucher-pairs-talla-trash",
+      "location": "trash",
+      "path": "data/pairs_talla",
+      "scanner": "pair_dirs",
+      "asset_type": "ring",
+      "provenance": "legacy_retoucher_pair",
+      "routing": "recovery_copy_only",
+      "mirror_of": "legacy-retoucher-pairs-talla-recovered"
+    },
+    {
+      "id": "photoshop-editor-triples",
+      "location": "repo",
+      "path": "rings/edited",
+      "scanner": "editor_triples",
+      "asset_type": "ring",
+      "provenance": "legacy_retoucher_pair",
+      "routing": "compatibility_audit_required",
+      "notes": "Ten JPG/full/front triples; exported cutouts use independently trimmed canvases."
+    },
+    {
+      "id": "legacy-training-cache",
+      "location": "repo",
+      "path": "data/cache",
+      "scanner": "cache_dirs",
+      "asset_type": "mixed",
+      "provenance": "registered_jpg_legacy_or_cached_cutout",
+      "routing": "legacy_training_only"
+    },
+    {
+      "id": "recovered-training-cache-copy",
+      "location": "repo",
+      "path": "product_validator/data/recovered_cache_20260902",
+      "scanner": "cache_dirs",
+      "asset_type": "ring",
+      "provenance": "registered_jpg_legacy_or_cached_cutout",
+      "routing": "recovery_copy_only"
+    },
+    {
+      "id": "configurator-585-source",
+      "location": "repo",
+      "path": "rings/editor-batch-production-585/source",
+      "scanner": "source_images",
+      "recursive": false,
+      "asset_type": "ring",
+      "provenance": "unlabeled_configurator_source",
+      "routing": "awaiting_editor_native_v2"
+    },
+    {
+      "id": "configurator-585-editor-returned",
+      "location": "repo",
+      "path": "rings/editor-batch-production-585/returned",
+      "scanner": "source_images",
+      "recursive": true,
+      "asset_type": "ring",
+      "provenance": "editor_return_workspace",
+      "routing": "awaiting_editor_native_v2",
+      "notes": "Current return workspace is empty; retained in the inventory so the 585-label shortfall is explicit."
+    },
+    {
+      "id": "configurator-benchmark-snapshot-v5-1000",
+      "location": "repo",
+      "path": "benchmark/snapshots/buchroeders-ultimate-v1-20260827-v5-1000/manifest.json",
+      "scanner": "manifest_cases",
+      "asset_type": "ring",
+      "provenance": "benchmark_source_copy",
+      "routing": "contaminated_diagnostic_only"
+    },
+    {
+      "id": "configurator-benchmark-snapshot-v5",
+      "location": "repo",
+      "path": "benchmark/snapshots/buchroeders-ultimate-v1-20260827-v5/manifest.json",
+      "scanner": "manifest_cases",
+      "asset_type": "ring",
+      "provenance": "benchmark_source_copy",
+      "routing": "contaminated_diagnostic_only"
+    },
+    {
+      "id": "editor-agreement-source-copy",
+      "location": "repo",
+      "path": "rings/editor-agreement-40-v1/source",
+      "scanner": "source_images",
+      "recursive": false,
+      "asset_type": "ring",
+      "provenance": "unlabeled_agreement_source_copy",
+      "routing": "awaiting_two_independent_editors"
+    },
+    {
+      "id": "ownership-v3-correction-train",
+      "location": "repo",
+      "path": "data/corrections/ownership-v3/train",
+      "scanner": "cache_dirs",
+      "asset_type": "ring",
+      "provenance": "reviewed_model_correction",
+      "routing": "diagnostic_or_warm_start_only"
+    },
+    {
+      "id": "ownership-v3-correction-holdout",
+      "location": "repo",
+      "path": "data/corrections/ownership-v3/holdout",
+      "scanner": "cache_dirs",
+      "asset_type": "ring",
+      "provenance": "reviewed_model_correction",
+      "routing": "contaminated_diagnostic_only"
+    },
+    {
+      "id": "ownership-v4-correction-train",
+      "location": "repo",
+      "path": "data/corrections/ownership-v4/train",
+      "scanner": "cache_dirs",
+      "asset_type": "ring",
+      "provenance": "reviewed_model_correction",
+      "routing": "diagnostic_or_warm_start_only"
+    },
+    {
+      "id": "ownership-v4-correction-holdout",
+      "location": "repo",
+      "path": "data/corrections/ownership-v4/holdout",
+      "scanner": "cache_dirs",
+      "asset_type": "ring",
+      "provenance": "reviewed_model_correction",
+      "routing": "contaminated_diagnostic_only"
+    },
+    {
+      "id": "ownership-v4-sparse-cache",
+      "location": "repo",
+      "path": "data/corrections/ownership-v4-sparse",
+      "scanner": "cache_dirs",
+      "asset_type": "ring",
+      "provenance": "reviewed_model_correction",
+      "routing": "diagnostic_or_warm_start_only"
+    },
+    {
+      "id": "ownership-v4-pixel-edits",
+      "location": "repo",
+      "path": "data/corrections/ownership-v4-pixel-edits",
+      "scanner": "artifact_dirs",
+      "asset_type": "ring",
+      "provenance": "sparse_reviewed_model_edit",
+      "routing": "diagnostic_only"
+    },
+    {
+      "id": "final-student-v1",
+      "location": "repo",
+      "path": "data/final-student-v1",
+      "scanner": "cache_dirs",
+      "asset_type": "ring",
+      "provenance": "production_teacher_or_reviewed_correction",
+      "routing": "model_derived_not_ground_truth"
+    },
+    {
+      "id": "final-student-v2",
+      "location": "repo",
+      "path": "data/final-student-v2",
+      "scanner": "cache_dirs",
+      "asset_type": "ring",
+      "provenance": "production_teacher_or_reviewed_correction",
+      "routing": "model_derived_not_ground_truth"
+    },
+    {
+      "id": "final-student-v3",
+      "location": "repo",
+      "path": "data/final-student-v3",
+      "scanner": "cache_dirs",
+      "asset_type": "ring",
+      "provenance": "production_teacher_or_reviewed_correction",
+      "routing": "model_derived_not_ground_truth"
+    },
+    {
+      "id": "ownership-refiner-v1",
+      "location": "repo",
+      "path": "data/ownership-refiner-v1",
+      "scanner": "cache_dirs",
+      "asset_type": "ring",
+      "provenance": "production_residual_target",
+      "routing": "v1_refiner_only"
+    },
+    {
+      "id": "layer-refiner-v1",
+      "location": "repo",
+      "path": "data/layer-refiner-v1",
+      "scanner": "cache_dirs",
+      "asset_type": "ring",
+      "provenance": "reviewed_production_residual_target",
+      "routing": "v1_refiner_only"
+    },
+    {
+      "id": "benchmark-correction-v1-assets",
+      "location": "repo",
+      "path": "benchmark/corrections/ownership-v1-assets",
+      "scanner": "artifact_dirs",
+      "asset_type": "ring",
+      "provenance": "reviewed_model_correction",
+      "routing": "superseded_diagnostic_only"
+    },
+    {
+      "id": "benchmark-correction-v2-assets",
+      "location": "repo",
+      "path": "benchmark/corrections/ownership-v2-assets",
+      "scanner": "artifact_dirs",
+      "asset_type": "ring",
+      "provenance": "reviewed_model_correction",
+      "routing": "superseded_diagnostic_only"
+    },
+    {
+      "id": "benchmark-correction-v3-assets",
+      "location": "repo",
+      "path": "benchmark/corrections/ownership-v3-assets",
+      "scanner": "artifact_dirs",
+      "asset_type": "ring",
+      "provenance": "reviewed_model_correction",
+      "routing": "superseded_diagnostic_only"
+    },
+    {
+      "id": "benchmark-correction-v4-assets",
+      "location": "repo",
+      "path": "benchmark/corrections/ownership-v4-assets",
+      "scanner": "artifact_dirs",
+      "asset_type": "ring",
+      "provenance": "reviewed_model_correction",
+      "routing": "diagnostic_or_warm_start_only"
+    },
+    {
+      "id": "gemstone-raw",
+      "location": "repo",
+      "path": "rings/gems-raw",
+      "scanner": "source_images",
+      "recursive": false,
+      "asset_type": "gemstone",
+      "provenance": "merchant_source",
+      "routing": "exclude_from_ring_ownership"
+    },
+    {
+      "id": "gemstone-edited",
+      "location": "repo",
+      "path": "rings/gems-edited",
+      "scanner": "source_images",
+      "recursive": false,
+      "asset_type": "gemstone",
+      "provenance": "legacy_retoucher_matte",
+      "routing": "gemstone_only"
+    },
+    {
+      "id": "gemstone-loose-generated",
+      "location": "repo",
+      "path": "rings/gems",
+      "scanner": "source_images",
+      "recursive": false,
+      "asset_type": "gemstone",
+      "provenance": "generated_or_test_output",
+      "routing": "not_training_truth"
+    },
+    {
+      "id": "loose-ring-and-gem-files",
+      "location": "repo",
+      "path": "rings",
+      "scanner": "source_images",
+      "recursive": false,
+      "asset_type": "unknown",
+      "provenance": "loose_unclassified_source",
+      "routing": "manual_classification_required"
+    },
+    {
+      "id": "external-tanishq-ring-views",
+      "location": "repo",
+      "path": "product_validator/data/external/tanishq_rings",
+      "scanner": "source_images",
+      "recursive": true,
+      "asset_type": "ring",
+      "provenance": "external_merchant_source",
+      "routing": "validator_labels_only_no_segmentation_truth"
+    },
+    {
+      "id": "external-hf-jewelry-design",
+      "location": "repo",
+      "path": "product_validator/data/external/hf_jewelry_design/files",
+      "scanner": "source_images",
+      "recursive": true,
+      "asset_type": "mixed_jewelry",
+      "provenance": "licensed_external_source",
+      "routing": "validator_labels_only_no_segmentation_truth"
+    },
+    {
+      "id": "external-commons-gemstones",
+      "location": "repo",
+      "path": "product_validator/data/external/commons_gems",
+      "scanner": "source_images",
+      "recursive": true,
+      "asset_type": "gemstone",
+      "provenance": "external_commons_source",
+      "routing": "validator_labels_only_no_segmentation_truth"
+    }
+  ],
+  "production_lineage": [
+    {
+      "component": "base_pretraining",
+      "run": "v6_final",
+      "split": "vto/runs/v6_final/split.json"
+    },
+    {
+      "component": "base_finetune",
+      "run": "v13_ownership_v3_w12",
+      "split": "vto/runs/v13_ownership_v3_w12/split.json"
+    },
+    {
+      "component": "deployed_layer_refiner",
+      "run": "v15_layer_refiner_v8_exact_final",
+      "split": "vto/runs/v15_layer_refiner_v8_exact_final/split.json",
+      "final_fit_all": true
+    }
+  ],
+  "run_manifest_globs": [
+    "vto/runs/**/*.json",
+    "deploy/model.json",
+    "deploy/ownership_refiner.json",
+    "data/*/manifest.json",
+    "data/corrections/*/manifest.json",
+    "benchmark/candidates/**/*.json",
+    "benchmark/corrections/**/*.json",
+    "benchmark/results/**/*.json",
+    "benchmark/review_orders/*.json",
+    "benchmark/suites/*.json",
+    "benchmark/snapshots/*/manifest.json",
+    "rings/editor-agreement-40-v1/manifest.json",
+    "product_validator/data/*manifest.json",
+    "product_validator/data/external/*/provenance.json",
+    "product_validator/data/recovered_20260902/*.json"
+  ],
+  "correction_exports": [
+    {"location": "repo", "path": "new corrections.json"},
+    {"location": "repo", "path": "new corrections.final.json"},
+    {"location": "repo", "path": "product-validator-decisions.json"},
+    {"location": "trash", "path": "corrections.json"},
+    {"location": "trash", "path": "corrections.final.json"},
+    {"location": "trash", "path": "ownership-v3-corrections.json"},
+    {"location": "trash", "path": "ownership-v4-corrections.json"},
+    {"location": "trash", "path": "buchroeders-ultimate-v1-20260827-v5-1000-manual-decisions.json"}
+  ],
+  "archives": [
+    {"location": "repo", "path": "rings/rings.zip"},
+    {"location": "repo", "path": "rings/edited.zip"},
+    {"location": "repo", "path": "rings/gems-raw.zip"},
+    {"location": "repo", "path": "rings/gems-edited.zip"},
+    {"location": "repo", "path": "rings/editor-batch-production-585/editor-batch--585.zip"},
+    {"location": "repo", "path": "product_validator/data/external/tanishq_rings.zip"}
+  ]
+}

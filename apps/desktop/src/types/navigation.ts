@@ -20,6 +20,9 @@
 // Universal Configuration) lives in its own SandboxWorkflowContext
 // (src/sandbox/context/), never here — these two values exist only so the
 // one shared App.tsx router can reach Sandbox's screens at all.
+// 'sandboxFinalReview' (Phase 15.6) — reached only from SandboxRunPanel's
+// "Review Results" action once a run has a reviewable terminal status,
+// mirroring 'batchDetails''s own "no sidebar item of its own" pattern.
 export type AppView =
   | 'home'
   | 'preprocessing'
@@ -29,6 +32,7 @@ export type AppView =
   | 'batchDetails'
   | 'sandboxDashboard'
   | 'sandboxConfiguration'
+  | 'sandboxFinalReview'
 
 // Which product the shared Editing setup screen is currently configuring.
 // Sidebar shortcuts (Watches/Rings/Bracelets/Earrings) each preselect one;

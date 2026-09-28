@@ -1,0 +1,33 @@
+{
+  "version": "ownership-v1",
+  "description": "Human-reviewed front/back corrections from the 1000px Buchroeders configurator benchmark.",
+  "snapshot": "benchmark/snapshots/buchroeders-ultimate-v1-20260827-v5-1000",
+  "report": "benchmark/results/buchroeders-ultimate-v1-20260827-v5-1000/0b002e61c8b7dc9a/report.json",
+  "rules": [
+    {
+      "case_ids": [
+        "core-cushion-crown-contemporary"
+      ],
+      "design_id": "br-core-cushion-crown-contemporary",
+      "operation": {
+        "type": "mirror_secondary_back_component"
+      },
+      "note": "The raw back channel finds only the left hidden shoulder rail. Preserve it and add the source-supported mirror on the right."
+    },
+    {
+      "case_id_regex": "^side-(bead|channel)-(diamond|alt-sapphire|alt-emerald|alt-ruby)-(1-2|3-4)$",
+      "design_id_template": "br-{setting}-hidden-rails",
+      "operation": {
+        "type": "add_symmetric_polygons",
+        "left_polygon_normalized": [
+          [0.314, 0.499],
+          [0.391, 0.476],
+          [0.397, 0.503],
+          [0.349, 0.521],
+          [0.315, 0.521]
+        ]
+      },
+      "note": "Both narrow metal rails below the centre setting sit behind the finger and belong to the back layer."
+    }
+  ]
+}

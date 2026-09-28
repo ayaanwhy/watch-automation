@@ -1,0 +1,30 @@
+.git
+.gitignore
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+*.pt
+*.pth
+*.safetensors
+benchmark
+data
+rings
+tests
+vto/runs
+vto/configurator_benchmark.py
+vto/data.py
+vto/evaluate.py
+vto/export.py
+vto/fetch.py
+vto/fuse_ownership.py
+vto/gems.py
+vto/ingest.py
+vto/model.py
+vto/predict.py
+vto/prepare.py
+vto/refiner.py
+vto/train.py
+vto/train_refiner.py
+new corrections.json
+new corrections.final.json

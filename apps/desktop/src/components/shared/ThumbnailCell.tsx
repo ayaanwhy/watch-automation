@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react'
-import { Flag, AlertTriangle } from 'lucide-react'
+import { Flag, AlertTriangle, Check } from 'lucide-react'
 import styles from './ThumbnailCell.module.css'
 
 // Defined locally (not imported from PreprocessingJobContext) so this
@@ -22,6 +22,13 @@ interface ThumbnailCellProps {
   selected: boolean
   onClick: () => void
   style?: CSSProperties
+  // Multi-select (Phase 15.6, Sandbox Final Review) — omitted by every
+  // existing caller (Preprocessing/Ring & Bracelet run workspaces, Batch
+  // Details' review grid), which keeps this cell's rendering/behavior
+  // byte-identical to before. Only rendered when onToggleCheck is
+  // provided; checked defaults to false in that case.
+  checked?: boolean
+  onToggleCheck?: () => void
 }
 
 const STATUS_LABEL: Record<ThumbnailStatus, string> = {
@@ -42,7 +49,18 @@ const STATUS_LABEL: Record<ThumbnailStatus, string> = {
 // corner flag for Needs Fixing") — selection always wins the ring's color
 // when both apply, since "where am I in this grid" is the more important
 // signal at a glance.
-export function ThumbnailCell({ name, status, lowConfidence, needsFixing, src, selected, onClick, style }: ThumbnailCellProps) {
+export function ThumbnailCell({
+  name,
+  status,
+  lowConfidence,
+  needsFixing,
+  src,
+  selected,
+  onClick,
+  style,
+  checked,
+  onToggleCheck,
+}: ThumbnailCellProps) {
   const title = needsFixing
     ? `${name} — ${STATUS_LABEL[status]} — flagged: needs fixing`
     : lowConfidence
@@ -58,6 +76,20 @@ export function ThumbnailCell({ name, status, lowConfidence, needsFixing, src, s
     >
       {src !== null && (
         <img className={styles.image} src={src} alt="" loading="lazy" decoding="async" draggable={false} />
+      )}
+      {onToggleCheck && (
+        <span
+          role="checkbox"
+          aria-checked={checked ?? false}
+          aria-label={`Select ${name}`}
+          className={`${styles.checkbox} ${checked ? styles.checkboxChecked : ''}`}
+          onClick={e => {
+            e.stopPropagation()
+            onToggleCheck()
+          }}
+        >
+          {checked && <Check size={11} strokeWidth={2.5} aria-hidden="true" />}
+        </span>
       )}
       {status === 'processing' && (
         <div className={styles.sweepTrack}>

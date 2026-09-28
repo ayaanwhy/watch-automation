@@ -2,12 +2,13 @@
 // Phase 15 scope: Watch, Ring, Bracelet, Earring already have real
 // processing pipelines (Watch via Phase 14's AI annotation flow; Ring/
 // Bracelet/Earring via their existing subprocess runners — see
-// electron/sandbox/processingBackend.ts). Necklace and Gemstone are
-// deliberately modeled as real, listed product types with no backing
-// pipeline yet, rather than omitted — Sandbox UI (15.2+) can show them as
-// explicitly unavailable instead of the type system silently not knowing
-// they exist. No pipeline for either is invented here or anywhere else in
-// this phase.
+// electron/sandbox/processingBackend.ts). Gemstone (automation-engine
+// hardening pass) runs Upscale -> Background Removal -> Trim -> a
+// pass-through editing boundary -> resizeGems. Necklace is deliberately
+// modeled as a real, listed product type with no backing pipeline yet,
+// rather than omitted — Sandbox UI can show it as explicitly unavailable
+// instead of the type system silently not knowing it exists. No Necklace
+// pipeline is invented anywhere.
 export type SandboxProductType = 'watch' | 'ring' | 'bracelet' | 'earring' | 'necklace' | 'gemstone'
 
 export interface SandboxProductAvailability {
@@ -26,5 +27,8 @@ export const SANDBOX_PRODUCT_AVAILABILITY: Record<SandboxProductType, SandboxPro
   bracelet: { available: true },
   earring: { available: true },
   necklace: { available: false, reason: 'Necklace has no processing pipeline yet.' },
-  gemstone: { available: false, reason: 'Gemstone has no processing pipeline yet.' },
+  // The product TYPE is available; whether a given ITEM can run depends on
+  // its required metadata (width/height/Shape) — see
+  // validateSandboxProductData — never on this static flag.
+  gemstone: { available: true },
 }
