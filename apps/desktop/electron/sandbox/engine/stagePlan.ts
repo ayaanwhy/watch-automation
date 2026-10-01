@@ -17,6 +17,8 @@ export function preprocessingConfigFor(_productType: SandboxProductType, config:
   return config
 }
 
+export const RING_SEGMENTATION_STAGE_ID = 'ring_segmentation'
+
 export const EDITING_STAGE_LABELS: Record<SandboxProductType, string> = {
   watch: 'Watch Processing',
   ring: 'Ring Editing',
@@ -40,6 +42,9 @@ export function planItemStages(productType: SandboxProductType, universal: Sandb
   if (pre.resizeToHeight !== null) add('resize', 'Resize', 'preprocessing')
 
   if (productType === 'watch') add('ai_detection', 'AI Boundary Detection', 'editing')
+  // Rings segment (front vs. hidden rear band) with the PixelForge-derived
+  // model before the rest of Ring Editing; Bracelets keep their single CV step.
+  if (productType === 'ring') add(RING_SEGMENTATION_STAGE_ID, 'Ring Segmentation', 'editing')
   add('editing', EDITING_STAGE_LABELS[productType], 'editing')
 
   for (const script of resolveSelectedScripts(productType, universal.postProcessingByProduct[productType] ?? {})) {

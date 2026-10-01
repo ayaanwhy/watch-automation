@@ -35,14 +35,25 @@
 // Node's default strict verification (which the global fetch already
 // performs) is sufficient. No pinning, no bypass.
 import { readFile } from 'node:fs/promises'
+import { createHash } from 'node:crypto'
 import sharp from 'sharp'
 import { logger } from '../logger'
 import { MIN_GUIDE_SEPARATION } from '../../src/types/annotation'
-import type { BoundaryDetectResult, BoundaryPredictionPair } from '../../src/types/ipc'
+import type { BoundaryDetectResult, BoundaryPredictionPair, DetectionFailureReason } from '../../src/types/ipc'
 import { SingleFlightQueue } from './singleFlightQueue'
 
 const DEFAULT_ENDPOINT = 'https://watchdialcoord.clouddeploy.in'
-const REQUEST_TIMEOUT_MS = 10_000
+// 2026-09-30 diagnostic fix — a direct probe against this same endpoint
+// (sampledata/1688KM11.png, the real successful case below) measured ~6.6s
+// end-to-end. The previous 10s budget left only ~3.4s of margin above that
+// observed real latency for a SINGLE attempt, which is tight enough that an
+// ordinarily-slow-but-healthy response could be misclassified as a timeout.
+// 20s keeps roughly 3x headroom above the observed real latency while still
+// failing a genuinely hung connection (TLS handshake completes, then no
+// response at all — reproduced live 2026-09-29/30 during a real outage)
+// well within a user-tolerable wait, especially combined with the one
+// automatic retry below.
+const REQUEST_TIMEOUT_MS = 20_000
 
 // Phase 15.0 — the one authoritative arbiter for every boundary-detection
 // request in this app, module-level so it's shared by every caller
@@ -57,19 +68,12 @@ const detectionQueue = new SingleFlightQueue()
 
 // Structured failure classification for callers that need to react to WHY a
 // detection failed (the automation engine's error model) without ever
-// inspecting the free-text `error`/`message` strings. Kept as a side channel
-// keyed by the result object itself so BoundaryDetectResult's shape — which
-// Legacy's IPC/renderer and its tests depend on — is byte-for-byte
-// unchanged.
-export type DetectionFailureReason =
-  | 'image_unreadable'
-  | 'network'
-  | 'timeout'
-  | 'http_error'
-  | 'malformed_response'
-  | 'no_detection'
-  | 'implausible'
-
+// inspecting the free-text `error`/`message` strings. Originally (Phase
+// 15.0) a side channel keyed by the result object itself, kept unchanged for
+// Sandbox's existing consumer (sandboxEditingPipeline.ts's
+// watchDetectionFailure) — DetectionFailureReason itself now lives in
+// types/ipc.ts (see that file) since BoundaryDetectResult's `code` field
+// (2026-09-30) carries the same value directly, renderer-visible.
 export interface DetectionFailureInfo {
   reason: DetectionFailureReason
   httpStatus?: number
@@ -78,8 +82,39 @@ export interface DetectionFailureInfo {
 
 const failureInfo = new WeakMap<object, DetectionFailureInfo>()
 
-function failed(result: Extract<BoundaryDetectResult, { ok: false }>, info: DetectionFailureInfo): BoundaryDetectResult {
-  failureInfo.set(result, info)
+// Builds a fully-populated failure result (every field BoundaryDetectResult's
+// false branch declares) and records the same reason/httpStatus/attempts in
+// the WeakMap side channel by object identity, for Sandbox's unchanged
+// consumer. `technicalMessage` is the ONE place raw/internal detail belongs
+// (a stderr tail, the service's own free-text `message`, an HTTP body
+// excerpt, an exception's own message) — never `error`, which stays the
+// short, safe-to-show-by-default string it always was.
+function failed(p: {
+  reason: DetectionFailureReason
+  error: string
+  retryable: boolean
+  technicalMessage: string
+  httpStatus?: number
+  attempts?: number
+  endpoint?: string
+  durationMs?: number
+  cause?: string
+  requestId?: string
+}): Extract<BoundaryDetectResult, { ok: false }> {
+  const result: Extract<BoundaryDetectResult, { ok: false }> = {
+    ok: false,
+    error: p.error,
+    retryable: p.retryable,
+    code: p.reason,
+    technicalMessage: p.technicalMessage,
+    ...(p.httpStatus !== undefined ? { httpStatus: p.httpStatus } : {}),
+    ...(p.attempts !== undefined ? { attempts: p.attempts } : {}),
+    ...(p.endpoint !== undefined ? { endpoint: p.endpoint } : {}),
+    ...(p.durationMs !== undefined ? { durationMs: p.durationMs } : {}),
+    ...(p.cause !== undefined ? { cause: p.cause } : {}),
+    ...(p.requestId !== undefined ? { requestId: p.requestId } : {}),
+  }
+  failureInfo.set(result, { reason: p.reason, httpStatus: p.httpStatus, attempts: p.attempts })
   return result
 }
 
@@ -124,14 +159,28 @@ export function mapSegmentationResponse(
   measureBy: string,
 ): BoundaryDetectResult {
   if (!parsed.success || !isFiniteQuad(parsed.case_bbox)) {
-    return failed({ ok: false, error: 'No boundaries detected for this image.', retryable: false }, { reason: 'no_detection' })
+    // The API's own `message` is free text (sometimes a raw internal
+    // exception — see the module header) and is never shown as the primary
+    // `error`, but it's exactly the kind of detail technicalMessage exists
+    // for — visible in the UI's Details expander, not swallowed.
+    return failed({
+      reason: 'no_detection',
+      error: 'No boundaries detected for this image.',
+      retryable: false,
+      technicalMessage: `API response: success=${parsed.success}, case_bbox=${JSON.stringify(parsed.case_bbox)}${parsed.message ? ` — "${parsed.message}"` : ''}`,
+    })
   }
 
   const [caseX1, , caseX2] = parsed.case_bbox
   const caseBoundary = clampPair(caseX1, caseX2, imageWidth)
   if (caseBoundary === null) {
     logger.warn(`boundary-detection — rejected implausible case bbox [${caseX1},${caseX2}] for image width ${imageWidth}`)
-    return failed({ ok: false, error: 'Detected boundaries were implausible.', retryable: false }, { reason: 'implausible' })
+    return failed({
+      reason: 'implausible',
+      error: 'Detected boundaries were implausible.',
+      retryable: false,
+      technicalMessage: `Rejected case bbox [${caseX1}, ${caseX2}] for image width ${imageWidth} (clamped width below the minimum guide separation).`,
+    })
   }
 
   // Dial watches use dial_bbox for scaleBoundaries (extracted/clamped the
@@ -177,68 +226,179 @@ export function detectBoundaries(
   imagePath: string,
   measureBy: string,
   endpointOverride?: string | null,
+  // Caller-supplied correlation id (2026-09-30) — opaque here, just logged
+  // and echoed back on the result; see BoundaryDetectPayload's own comment.
+  // Optional and additive: Sandbox's existing callers pass nothing and are
+  // unaffected.
+  requestId?: string,
 ): Promise<BoundaryDetectResult> {
-  return detectionQueue.run(() => detectBoundariesOnce(imagePath, measureBy, endpointOverride))
+  return detectionQueue.run(() => detectBoundariesOnce(imagePath, measureBy, endpointOverride, requestId))
 }
 
-// One transparent retry on a network-level failure only (connection error,
-// timeout) — never on a well-formed success:false response, which is a
-// normal "no detection" outcome, not a fault. This is distinct from 14C's
-// later user-facing Retry button (a fresh, user-initiated call).
+// Two transparent retry rules, both inside the single-flight lane (so a retry
+// is always sequential — never concurrent with any other request):
+//   1. a network-level failure (connection error, timeout) is retried once,
+//      inside detectAttempt;
+//   2. an HTTP-200 `success:false` with no case_bbox ("no_detection") is
+//      retried once, here. Diagnosis (2026-09-30): the Watch API's backend
+//      returns exactly that shape — with a gRPC "UNAVAILABLE ... Connection
+//      timed out" message — for the first request after it has been idle
+//      ~6+ minutes (a stale API->model-service connection), and an immediate
+//      second request always succeeds. The message text is deliberately NOT
+//      inspected (free text, see the module header): a genuine non-detection
+//      simply repeats and costs one extra call. The retry is a full second
+//      attempt at the same request, so `attempts` on the final result counts
+//      every HTTP request made.
+// This is distinct from 14C's later user-facing Retry button (a fresh,
+// user-initiated call).
 async function detectBoundariesOnce(
   imagePath: string,
   measureBy: string,
   endpointOverride?: string | null,
+  requestId?: string,
+): Promise<BoundaryDetectResult> {
+  const t0 = Date.now()
+  const tag = requestId ? `[${requestId}] ` : ''
+  const first = await detectAttempt(imagePath, measureBy, endpointOverride, requestId)
+  if (first.ok || first.code !== 'no_detection') return first
+
+  logger.warn(`${tag}boundary-detection — success:false / no case_bbox on attempt ${first.attempts ?? 1}; retrying once (${first.technicalMessage})`)
+  const second = await detectAttempt(imagePath, measureBy, endpointOverride, requestId)
+  if (second.ok) {
+    logger.info(`${tag}boundary-detection — retry recovered the detection after ${Date.now() - t0}ms total`)
+    return second
+  }
+  const totalAttempts = (first.attempts ?? 1) + (second.attempts ?? 1)
+  second.attempts = totalAttempts
+  second.durationMs = Date.now() - t0
+  second.technicalMessage = `${second.technicalMessage} | first attempt: ${first.technicalMessage}`
+  failureInfo.set(second, { reason: second.code, httpStatus: second.httpStatus, attempts: totalAttempts })
+  logger.warn(`${tag}boundary-detection — both attempts failed (${totalAttempts} requests, ${second.durationMs}ms total)`)
+  return second
+}
+
+async function detectAttempt(
+  imagePath: string,
+  measureBy: string,
+  endpointOverride?: string | null,
+  requestId?: string,
 ): Promise<BoundaryDetectResult> {
   const endpoint = (endpointOverride?.trim() || DEFAULT_ENDPOINT).replace(/\/+$/, '')
+  const t0 = Date.now()
+  const elapsed = () => Date.now() - t0
+  const tag = requestId ? `[${requestId}] ` : ''
 
   let imageBuffer: Buffer
   let imageWidth: number
+  let imageInfo = ''
   try {
     imageBuffer = await readFile(imagePath)
     const metadata = await sharp(imageBuffer).metadata()
     if (!metadata.width) throw new Error('image has no readable width')
     imageWidth = metadata.width
+    imageInfo = `${imageBuffer.length} bytes, ${metadata.format} ${metadata.width}x${metadata.height}, sha256=${createHash('sha256').update(imageBuffer).digest('hex').slice(0, 16)}`
   } catch (err) {
-    logger.warn(`boundary-detection — failed to read image ${imagePath}`, err)
-    return failed({ ok: false, error: 'Could not read the image file for detection.', retryable: false }, { reason: 'image_unreadable' })
+    logger.warn(`${tag}boundary-detection — failed to read image ${imagePath}`, err)
+    return failed({
+      reason: 'image_unreadable',
+      error: 'Could not read the image file for detection.',
+      retryable: false,
+      technicalMessage: err instanceof Error ? err.message : String(err),
+      endpoint,
+      durationMs: elapsed(),
+      attempts: 0,
+      requestId,
+    })
   }
+
+  logger.info(`${tag}boundary-detection — POST ${endpoint}/bbox/predict (${imagePath.split(/[\\/]/).pop()}; ${imageInfo}; sent as multipart field 'image', no explicit MIME)`)
 
   let response: Response | null = null
   let lastNetworkError: unknown = null
-  for (let attempt = 0; attempt < 2 && response === null; attempt++) {
+  let attempts = 0
+  for (; attempts < 2 && response === null; attempts++) {
     try {
       response = await postPredict(endpoint, imageBuffer)
     } catch (err) {
       lastNetworkError = err
+      logger.warn(`${tag}boundary-detection — attempt ${attempts + 1}/2 to ${endpoint} failed after ${elapsed()}ms`, err)
     }
   }
 
   if (response === null) {
     const aborted = lastNetworkError instanceof Error && lastNetworkError.name === 'AbortError'
-    logger.warn(`boundary-detection — request failed after retry (${aborted ? 'timeout' : 'network'})`, lastNetworkError)
-    return failed(
-      {
-        ok: false,
-        error: aborted ? 'Detection request timed out.' : 'Could not reach the detection service.',
-        retryable: true,
-      },
-      { reason: aborted ? 'timeout' : 'network', attempts: 2 },
-    )
+    const cause = lastNetworkError instanceof Error ? `${lastNetworkError.name}: ${lastNetworkError.message}` : String(lastNetworkError)
+    logger.warn(`${tag}boundary-detection — request to ${endpoint} failed after ${attempts} attempt(s) in ${elapsed()}ms (${aborted ? 'timeout' : 'network'})`, lastNetworkError)
+    return failed({
+      reason: aborted ? 'timeout' : 'network',
+      error: aborted ? 'Detection request timed out.' : 'Could not reach the detection service.',
+      retryable: true,
+      technicalMessage: aborted
+        ? `No response within ${REQUEST_TIMEOUT_MS}ms per attempt (${attempts} attempt(s), ${elapsed()}ms total).`
+        : `Network request failed (${attempts} attempt(s), ${elapsed()}ms total).`,
+      endpoint,
+      durationMs: elapsed(),
+      attempts,
+      cause,
+      requestId,
+    })
   }
+
+  logger.info(`${tag}boundary-detection — HTTP ${response.status} from ${endpoint} in ${elapsed()}ms (attempt ${attempts}/2)`)
 
   if (!response.ok) {
-    logger.warn(`boundary-detection — HTTP ${response.status} from detection service`)
-    return failed({ ok: false, error: `Detection service returned an error (HTTP ${response.status}).`, retryable: true }, { reason: 'http_error', httpStatus: response.status })
+    let bodyExcerpt = ''
+    try {
+      bodyExcerpt = (await response.text()).slice(0, 500)
+    } catch {
+      // best-effort diagnostic only — the failure itself is reported either way
+    }
+    logger.warn(`${tag}boundary-detection — HTTP ${response.status} from ${endpoint}${bodyExcerpt ? `: ${bodyExcerpt}` : ''}`)
+    return failed({
+      reason: 'http_error',
+      error: `Detection service returned an error (HTTP ${response.status}).`,
+      retryable: true,
+      technicalMessage: `HTTP ${response.status} ${response.statusText}${bodyExcerpt ? ` — ${bodyExcerpt}` : ''}`,
+      httpStatus: response.status,
+      endpoint,
+      durationMs: elapsed(),
+      attempts,
+      requestId,
+    })
   }
 
+  let rawText = ''
   let parsed: SegmentationResponse
   try {
-    parsed = await response.json()
+    rawText = await response.clone().text()
+    parsed = JSON.parse(rawText)
   } catch (err) {
-    logger.warn('boundary-detection — response was not valid JSON', err)
-    return failed({ ok: false, error: 'Detection service returned an unreadable response.', retryable: true }, { reason: 'malformed_response' })
+    logger.warn(`${tag}boundary-detection — response from ${endpoint} was not valid JSON`, err, { rawText: rawText.slice(0, 500) })
+    return failed({
+      reason: 'malformed_response',
+      error: 'Detection service returned an unreadable response.',
+      retryable: true,
+      technicalMessage: `${err instanceof Error ? err.message : String(err)}${rawText ? ` — body: ${rawText.slice(0, 500)}` : ''}`,
+      endpoint,
+      durationMs: elapsed(),
+      attempts,
+      requestId,
+    })
   }
 
-  return mapSegmentationResponse(parsed, imageWidth, measureBy)
+  const mapped = mapSegmentationResponse(parsed, imageWidth, measureBy)
+  // mapSegmentationResponse is pure (no network context of its own) — fill
+  // in the request-level diagnostics it can't know about itself, mutating
+  // in place so the WeakMap entry `failed()` already attached (keyed by
+  // object identity, for Sandbox's getDetectionFailureInfo) stays valid.
+  if (!mapped.ok) {
+    mapped.endpoint = endpoint
+    mapped.durationMs = elapsed()
+    mapped.attempts = attempts
+    mapped.requestId = requestId
+  } else {
+    mapped.requestId = requestId
+  }
+  logger.info(`${tag}boundary-detection — resolved ${mapped.ok ? 'ok' : `failed (${mapped.code})`} in ${elapsed()}ms`)
+  return mapped
 }

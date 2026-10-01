@@ -98,6 +98,75 @@ describe("phase 0 processing pipeline", () => {
     expect(result.layout.dial.top).toBeCloseTo(-600, 5);
   });
 
+  // 2026-09-30 regression — a real, reproduced gap between the dial and the
+  // right strap in Watch output (left/dial always connects correctly; only
+  // dial/right could gap). Root cause: layout.right.left was
+  // `dialLeft + dialWidth` rounded as one exact sum, while the dial's OWN
+  // on-canvas geometry is `Math.round(dialLeft)` positioned with a
+  // `Math.round(dialWidth)`-wide rendered buffer — Math.round(a)+Math.round(b)
+  // is not always Math.round(a+b). widthMm 20.0 with this splice reproduces
+  // it precisely: dialLeft≈636.364, dialWidth≈727.273 round to 636/727 (dial
+  // visually occupies columns [636, 1363)), while the OLD right.left rounded
+  // to 1364 — leaving column 1363 fully transparent. Fixed in
+  // exportEngine.ts by deriving the right segment's position from the
+  // dial's own already-rounded left+width instead of re-rounding the exact
+  // sum independently (mirroring how the left/dial boundary was already
+  // gap-free, by reusing one shared expression for both sides of it).
+  it("never leaves a transparent column between the dial and the right strap, at a width that reproduces the gap", async () => {
+    const inputPath = join(tmpDir, "gap-watch.png");
+    const outputPath = join(tmpDir, "WT003;frontImage.png");
+
+    await createSyntheticWatch(inputPath);
+
+    const result = await processWatch({
+      inputPath,
+      outputPath,
+      widthMm: 20.0,
+      leftBoundary: 200,
+      rightBoundary: 600,
+      shadow: { opacity: 0 }
+    });
+
+    // The exact fractional values that reproduce the bug (documented above) —
+    // if compressionEngine.ts's math ever changes, this pins down that the
+    // regression case is still actually being exercised, not silently
+    // testing a now-integer, gap-safe combination instead.
+    expect(result.layout.dial.left).toBeCloseTo(636.3636363636363, 5);
+    expect(result.layout.dial.width).toBeCloseTo(727.2727272727274, 5);
+
+    const dialVisualEnd = Math.round(result.layout.dial.left) + Math.round(result.layout.dial.width);
+    expect(dialVisualEnd).toBe(1363);
+
+    const raw = await sharp(outputPath).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    const midRow = Math.floor(raw.info.height / 2);
+
+    // The dial's last real column and the right strap's first real column
+    // must be OPAQUE and adjacent — no transparent seam between them.
+    const dialLastColumn = pixel2(raw.data, raw.info.width, dialVisualEnd - 1, midRow);
+    const rightFirstColumn = pixel2(raw.data, raw.info.width, dialVisualEnd, midRow);
+    expect(dialLastColumn.a, "dial's last column must be opaque").toBeGreaterThan(0);
+    expect(rightFirstColumn.a, "the column immediately after the dial must already be the opaque right strap — no transparent gap column").toBeGreaterThan(0);
+    // It's genuinely the right (blue) strap, not a stray dial (green) pixel.
+    expect(rightFirstColumn.b).toBeGreaterThan(rightFirstColumn.g);
+
+    // General sweep: no fully-transparent column anywhere strictly between
+    // the dial's start and the canvas's right-hand content — catches a gap
+    // wherever it would fall, independent of the exact pixel math above.
+    const dialStart = Math.round(result.layout.dial.left);
+    let rightContentEnd = raw.info.width;
+    for (let x = raw.info.width - 1; x >= dialStart; x -= 1) {
+      if (pixel2(raw.data, raw.info.width, x, midRow).a > 0) {
+        rightContentEnd = x + 1;
+        break;
+      }
+    }
+    const transparentColumns: number[] = [];
+    for (let x = dialStart; x < rightContentEnd; x += 1) {
+      if (pixel2(raw.data, raw.info.width, x, midRow).a === 0) transparentColumns.push(x);
+    }
+    expect(transparentColumns, `transparent gap column(s) found: ${transparentColumns.join(", ")}`).toEqual([]);
+  });
+
   it("builds shadow from watch alpha only, then tints, offsets, and masks it", async () => {
     const assembled = await sharp({
       create: {
@@ -148,6 +217,22 @@ function pixel(
   y: number
 ): { r: number; g: number; b: number; a: number } {
   const index = (y * CANVAS_SIZE + x) * 4;
+
+  return {
+    r: raw[index],
+    g: raw[index + 1],
+    b: raw[index + 2],
+    a: raw[index + 3]
+  };
+}
+
+function pixel2(
+  raw: Buffer,
+  width: number,
+  x: number,
+  y: number
+): { r: number; g: number; b: number; a: number } {
+  const index = (y * width + x) * 4;
 
   return {
     r: raw[index],

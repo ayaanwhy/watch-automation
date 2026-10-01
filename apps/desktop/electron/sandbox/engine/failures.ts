@@ -1,7 +1,25 @@
 // Turns the runners' structured completion signals into AutomationErrors.
 // Only ever looks at structured fields (failureKind, counts, exception class
 // names) — never at free-text messages from external services.
-import { makeAutomationError, type AutomationError } from '../../../src/sandbox/types/automationError'
+import { makeAutomationError, type AutomationError, type AutomationErrorCode } from '../../../src/sandbox/types/automationError'
+
+// The Ring runner tags every ring-segmentation failure with a stable
+// `[RING_SEGMENTATION_<KIND>]` token at the START of its message (a contract
+// owned by our own runner, like a Python exception class name) — the only
+// thing parsed here; the rest of the text is kept as technical detail.
+const RING_SEGMENTATION_TOKEN = /^\[RING_SEGMENTATION_(MODEL_UNAVAILABLE|RUNTIME_ERROR|INFERENCE_FAILED|OUTPUT_MISSING|OUTPUT_INVALID)\]\s*/
+export const RING_SEGMENTATION_STAGE_LABEL = 'Ring Segmentation'
+
+export function ringSegmentationFailure(text: string | undefined | null, ctx: { sku?: string }): AutomationError | null {
+  const match = text ? RING_SEGMENTATION_TOKEN.exec(text) : null
+  if (!match || !text) return null
+  return makeAutomationError(`RING_SEGMENTATION_${match[1]}` as AutomationErrorCode, {
+    productType: 'ring',
+    sku: ctx.sku,
+    stageDetail: RING_SEGMENTATION_STAGE_LABEL,
+    technicalMessage: text.replace(RING_SEGMENTATION_TOKEN, ''),
+  })
+}
 
 export interface RunnerDoneLike {
   succeeded: number
@@ -31,6 +49,10 @@ export function failureFromRunnerDone(
   if (done.cancelledByUser) return null
 
   if (done.fatalError) {
+    if (isEditing && ctx.productType === 'ring') {
+      const ring = ringSegmentationFailure(done.fatalError, {})
+      if (ring) return ring
+    }
     // Python's own exception class — a stable contract, unlike free text.
     const missing = /ModuleNotFoundError: No module named '([^']+)'|No module named '([^']+)'/.exec(done.fatalError)
     if (missing) {

@@ -96,7 +96,7 @@ describe('Automation Engine — driven without any UI', () => {
       expect(planned!.status).toBe('draft')
       const plannedRing = planned!.items.find((i: any) => i.sku === 'R-1')
       expect(plannedRing.status).toBe('queued')
-      expect(plannedRing.stages.map((s: any) => s.label)).toEqual(['Ring Editing', 'imageResizeNew', 'compressorNew', 'makeCompareRB'])
+      expect(plannedRing.stages.map((s: any) => s.label)).toEqual(['Ring Segmentation', 'Ring Editing', 'imageResizeNew', 'compressorNew', 'makeCompareRB'])
       expect(planned!.items.find((i: any) => i.sku === 'N-1').status).toBe('unavailable')
       expect(events).toHaveLength(0) // nothing published, nothing running yet
 

@@ -14,7 +14,8 @@ import { localProcessingBackend } from './processingBackend'
 import { runner as earringRawRunner } from '../ipc/earringHandlers'
 import { writeShadowProfileSidecar } from '../services/shadowProfileDefinitions'
 import { observeJobEvents, waitForJobDone } from './waitForJobDone'
-import { failureFromRunnerDone } from './engine/failures'
+import { failureFromRunnerDone, ringSegmentationFailure } from './engine/failures'
+import { RING_SEGMENTATION_STAGE_ID } from './engine/stagePlan'
 import { safeSegment, assertWithinDir } from './sandboxWorkspace'
 import { getDetectionFailureInfo } from '../services/boundaryDetection'
 import { makeAutomationError, summarizeAutomationError, type AutomationError, type AutomationErrorCode } from '../../src/sandbox/types/automationError'
@@ -54,6 +55,9 @@ function editingFailure(failure: AutomationError): SandboxEditingStepResult {
 // Live per-image progress for the subprocess-backed editors (Ring/Bracelet/
 // Earring): their runners emit 'progress' (a stage starting), 'complete' and
 // 'error' per image on the same NDJSON stream Legacy's renderer consumes.
+// The Ring runner additionally announces its `ring_segmentation` stage (the
+// PixelForge-derived model) before the rest of Ring Editing ('shadow'), and
+// tags segmentation failures with a stable [RING_SEGMENTATION_*] token.
 function observeEditingRunner(
   channel: string,
   productType: SandboxProductType,
@@ -65,12 +69,20 @@ function observeEditingRunner(
     const sku = typeof file === 'string' ? (reporter?.skuForFile(file) ?? null) : null
     if (!sku) return
     if (event['type'] === 'progress' && event['status'] === 'start') {
-      reporter?.stage(sku, 'editing', 'running')
+      if (productType === 'ring' && event['stage'] === RING_SEGMENTATION_STAGE_ID) {
+        reporter?.stage(sku, RING_SEGMENTATION_STAGE_ID, 'running')
+      } else {
+        // Any later stage means segmentation (if this product has one) is finished.
+        if (productType === 'ring') reporter?.stagesDone(sku, [RING_SEGMENTATION_STAGE_ID], 'editing')
+        reporter?.stage(sku, 'editing', 'running')
+      }
     } else if (event['type'] === 'complete') {
       completed.add(sku)
-      reporter?.stagesDone(sku, ['editing'], 'editing')
+      reporter?.stagesDone(sku, productType === 'ring' ? [RING_SEGMENTATION_STAGE_ID, 'editing'] : ['editing'], 'editing')
     } else if (event['type'] === 'error') {
-      reporter?.fail(sku, makeAutomationError('EDITING_RUNNER_FAILED', { productType, sku, technicalMessage: String(event['error'] ?? '') }), 'editing')
+      const text = String(event['error'] ?? '')
+      const segmentation = productType === 'ring' ? ringSegmentationFailure(text, { sku }) : null
+      reporter?.fail(sku, segmentation ?? makeAutomationError('EDITING_RUNNER_FAILED', { productType, sku, technicalMessage: text }), segmentation ? RING_SEGMENTATION_STAGE_ID : 'editing')
     }
   })
 }

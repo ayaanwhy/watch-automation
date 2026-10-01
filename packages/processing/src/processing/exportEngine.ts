@@ -44,11 +44,36 @@ export async function exportAssembly(
     }
   });
 
+  // The right segment's canvas position is derived from the DIAL's own
+  // rounded position and rounded rendered width — not from `layout.right.left`
+  // (an exact float, `dialLeft + dialWidth`, computed upstream in
+  // compressionEngine.ts) rounded independently. Math.round(a) + Math.round(b)
+  // is not always equal to Math.round(a + b): e.g. dialLeft≈636.36 and
+  // dialWidth≈727.27 round to 636 and 727 (dial visually occupies columns
+  // [636, 1363)), but Math.round(636.36 + 727.27) = Math.round(1363.64) =
+  // 1364 — the OLD `layout.right.left` rounding — leaving column 1363
+  // transparent between the dial and the right strap (a real, reproduced
+  // 1px gap; see tests/processingPipeline.test.ts's regression case at
+  // widthMm 20.0). The left/dial boundary never has this problem because
+  // compressionEngine.ts already reuses the identical expression
+  // (`compressedLeftWidth`) for both the left segment's rendered width and
+  // the dial's start position, so the same Math.round() call is guaranteed
+  // to agree with itself. Rebuilding the dial->right edge from the DIAL's
+  // own already-rounded geometry (which renderSegment/createCanvasOverlay
+  // compute for the dial anyway) applies that same guarantee to the right
+  // boundary instead of re-deriving it from a separately-rounded exact sum.
+  // This only ever shifts the right segment's start by the same ≤1px a
+  // separately-rounded position could already differ by — scale, dial
+  // position/width, and left/right proportions are all unaffected.
+  const dialOverlayLeft = Math.round(layout.dial.left);
+  const dialRenderedWidth = Math.round(layout.dial.width);
+  const rightOverlayLeft = dialOverlayLeft + dialRenderedWidth;
+
   const composites = (
     await Promise.all([
       createCanvasOverlay(left, layout.left.left, layout.left.top),
       createCanvasOverlay(dial, layout.dial.left, layout.dial.top),
-      createCanvasOverlay(right, layout.right.left, layout.right.top)
+      createCanvasOverlay(right, rightOverlayLeft, layout.right.top)
     ])
   ).filter((item): item is sharp.OverlayOptions => item !== null);
 

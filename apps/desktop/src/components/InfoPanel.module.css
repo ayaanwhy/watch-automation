@@ -158,9 +158,36 @@
 /* AI Detection status row (Phase 14C). */
 .aiRow {
   display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.aiRowLine {
+  display: flex;
   align-items: center;
   gap: var(--space-2);
   flex-wrap: wrap;
+}
+
+/* Failure diagnostics (2026-09-30) — behind an expander, never the primary
+   message; mirrors AutomationErrorNotice.module.css's .details/.details pre. */
+.aiDetails summary {
+  cursor: pointer;
+  color: var(--text-3);
+  font-size: var(--text-caption);
+}
+
+.aiDetailsPre {
+  margin: var(--space-1) 0 0;
+  padding: var(--space-2);
+  max-height: 160px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--font-mono, monospace);
+  font-size: var(--text-caption);
+  background: var(--surface-2);
+  border-radius: var(--radius-6);
 }
 
 .retryButton {

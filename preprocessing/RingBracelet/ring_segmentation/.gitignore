@@ -1,0 +1,3 @@
+# Model weights are large binaries installed locally (same convention as
+# preprocessing/UBG/models). Run `python install_models.py` to (re)install them.
+models/

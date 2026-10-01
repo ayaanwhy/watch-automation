@@ -117,6 +117,131 @@ describe('SingleFlightQueue', () => {
     expect(order.filter(e => e === 'start:B').length).toBe(1)
   })
 
+  // 2026-09-30 diagnostic fix — the exact race behind "AI detection failed"
+  // persisting even though the real API had already answered successfully.
+  // De-dup previously checked ONLY the pending queue, never the key
+  // currently in flight, so a second request for a key already running
+  // (e.g. AnnotationContext's trigger effect firing for a sku whose
+  // prefetch is still outstanding, or a Retry click landing while the
+  // circuit-breaker auto-recovery's own retry for that exact sku is still
+  // in flight) got queued as a genuinely separate run — not deduped. Because
+  // the two runs are still serialized, they never overlap concurrently, but
+  // the SECOND (redundant) run's outcome always overwrites the first's in
+  // AnnotationContext's per-sku state — so a real success could be
+  // immediately followed by an unnecessary duplicate call that fails (real,
+  // observed, transient upstream flakiness makes this entirely possible),
+  // flipping the UI from success back to "Detection failed" for an image
+  // the API had already answered correctly.
+  describe('a key already in flight is authoritative — a further request for the SAME key never starts a second run', () => {
+    it('a non-forced request for a key already running is dropped, not queued — the runner is called exactly once', async () => {
+      const calls: string[] = []
+      const gate = deferred<void>()
+      const queue = new SingleFlightQueue<string>(
+        async key => {
+          calls.push(key)
+          await gate.promise
+        },
+        () => false,
+      )
+
+      queue.enqueue('A') // starts running immediately
+      await new Promise(r => setTimeout(r, 5))
+      expect(queue.currentlyInFlight).toBe('A')
+
+      queue.enqueue('A') // e.g. the trigger effect firing for 'A' while its own prefetch is still outstanding
+      queue.enqueue('A')
+      await new Promise(r => setTimeout(r, 5))
+
+      gate.resolve()
+      await new Promise(r => setTimeout(r, 20))
+
+      expect(calls).toEqual(['A']) // never re-run — the in-flight call was the only one
+    })
+
+    it("a FORCED request for a key already running is also dropped — the in-flight call's own result stands, nothing overwrites it afterward", async () => {
+      const calls: string[] = []
+      const gate = deferred<'ok' | 'fail'>()
+      // Simulates AnnotationContext's per-sku state: only ever set by the runner.
+      let lastOutcome: 'ok' | 'fail' | null = null
+      const queue = new SingleFlightQueue<string>(
+        async (key, force) => {
+          calls.push(`${key}:${force}`)
+          lastOutcome = await gate.promise
+        },
+        () => false,
+      )
+
+      queue.enqueue('A') // e.g. the normal trigger-effect detection for the current sku
+      await new Promise(r => setTimeout(r, 5))
+      expect(queue.currentlyInFlight).toBe('A')
+
+      // e.g. a Retry click, or the circuit-breaker auto-recovery loop's own
+      // next tick, landing on the SAME sku while the first call is still
+      // outstanding — this must NOT start a second, overlapping-in-intent run.
+      queue.enqueue('A', true)
+      await new Promise(r => setTimeout(r, 5))
+
+      // The one real call now resolves successfully.
+      gate.resolve('ok')
+      await new Promise(r => setTimeout(r, 20))
+
+      expect(calls).toEqual(['A:false']) // the forced duplicate never ran at all
+      expect(lastOutcome).toBe('ok') // nothing ran afterward to flip it back to 'fail'
+      expect(queue.currentlyInFlight).toBeNull()
+    })
+
+    it('once the in-flight run finishes, a FRESH request for that same key (forced or not) runs normally again', async () => {
+      const calls: string[] = []
+      const gate1 = deferred<void>()
+      let secondGate: ReturnType<typeof deferred<void>> | null = null
+      const queue = new SingleFlightQueue<string>(
+        async key => {
+          calls.push(key)
+          if (calls.length === 1) await gate1.promise
+          else {
+            secondGate = deferred<void>()
+            await secondGate.promise
+          }
+        },
+        () => false,
+      )
+
+      queue.enqueue('A')
+      await new Promise(r => setTimeout(r, 5))
+      gate1.resolve()
+      await new Promise(r => setTimeout(r, 10))
+      expect(queue.currentlyInFlight).toBeNull() // truly finished, not just queued
+
+      queue.enqueue('A', true) // a genuinely NEW request, after the first is done — must run
+      await new Promise(r => setTimeout(r, 5))
+      expect(queue.currentlyInFlight).toBe('A')
+      secondGate!.resolve()
+      await new Promise(r => setTimeout(r, 10))
+
+      expect(calls).toEqual(['A', 'A'])
+    })
+
+    it('a DIFFERENT key is completely unaffected — only same-key requests are coalesced', async () => {
+      const calls: string[] = []
+      const gate = deferred<void>()
+      const queue = new SingleFlightQueue<string>(
+        async key => {
+          calls.push(key)
+          if (key === 'A') await gate.promise
+        },
+        () => false,
+      )
+
+      queue.enqueue('A')
+      await new Promise(r => setTimeout(r, 5))
+      queue.enqueue('B') // a different sku's prefetch — must still queue normally
+      gate.resolve()
+      await new Promise(r => setTimeout(r, 20))
+
+      expect(calls).toEqual(['A', 'B'])
+    })
+  })
+
   it('currentlyInFlight reflects the key actively running, and null when idle', async () => {
     const gate = deferred<void>()
     const queue = new SingleFlightQueue<string>(

@@ -1,0 +1,8 @@
+# Runtime dependencies of the Ring segmentation model (in addition to the
+# Pillow/NumPy the Ring & Bracelet runner already needs). No PyTorch: the
+# graphs are exported ONNX. The PixelForge service pins onnxruntime==1.29.0 /
+# numpy==1.26.4 / opencv-python-headless==4.11.0.86; this integration was
+# validated with onnxruntime 1.30.0 + numpy 2.x + opencv 4.10, so ranges are used.
+onnxruntime>=1.17
+numpy>=1.26
+opencv-python-headless>=4.8

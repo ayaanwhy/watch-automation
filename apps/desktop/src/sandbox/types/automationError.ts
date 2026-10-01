@@ -77,6 +77,12 @@ export type AutomationErrorCode =
   | 'EDITING_OUTPUT_MISSING'
   | 'EDITING_OUTPUT_INVALID'
   | 'EDITING_TRIM_FAILED'
+  // ring segmentation (PixelForge-derived model; runs inside Ring Editing)
+  | 'RING_SEGMENTATION_MODEL_UNAVAILABLE'
+  | 'RING_SEGMENTATION_RUNTIME_ERROR'
+  | 'RING_SEGMENTATION_INFERENCE_FAILED'
+  | 'RING_SEGMENTATION_OUTPUT_MISSING'
+  | 'RING_SEGMENTATION_OUTPUT_INVALID'
   // post-processing
   | 'POSTPROCESSING_PYTHON_UNAVAILABLE'
   | 'POSTPROCESSING_DEPENDENCY_MISSING'
@@ -186,6 +192,11 @@ export const AUTOMATION_ERROR_CATALOG: Record<AutomationErrorCode, CatalogEntry>
   EDITING_MALFORMED_RESULT: { stage: 'editing', message: () => 'The editing process returned an unreadable result.', action: 'Retry the run.', retryable: true },
   EDITING_OUTPUT_MISSING: { stage: 'editing', message: c => `Editing finished but produced no output${forSku(c)}.`, action: 'Retry the run.', retryable: true },
   EDITING_TRIM_FAILED: { stage: 'editing', message: c => `Trimming to the edges failed${forSku(c)} (the image has no visible content).`, action: 'Check that background removal left a visible subject, then retry.', retryable: true },
+  RING_SEGMENTATION_MODEL_UNAVAILABLE: { stage: 'editing', message: c => `The Ring segmentation model is unavailable${forSku(c)}.`, action: 'Install the Ring segmentation model (run preprocessing/RingBracelet/ring_segmentation/install_models.py, or point RING_SEGMENTATION_MODEL_DIR at the model files), then retry the image.', retryable: true },
+  RING_SEGMENTATION_RUNTIME_ERROR: { stage: 'editing', message: c => `Ring segmentation could not run${forSku(c)}: its Python runtime is not usable.`, action: 'Install onnxruntime (see preprocessing/RingBracelet/ring_segmentation/requirements.txt) in the Python environment, then retry the image.', retryable: true },
+  RING_SEGMENTATION_INFERENCE_FAILED: { stage: 'editing', message: c => `The Ring segmentation model failed while processing${forSku(c)}.`, action: 'Retry the image; expand the details for the technical reason.', retryable: true },
+  RING_SEGMENTATION_OUTPUT_MISSING: { stage: 'editing', message: c => `Ring segmentation found no ring in the image${forSku(c)}.`, action: 'Check that background removal left a clearly visible ring on the image, then start a new run.', retryable: false },
+  RING_SEGMENTATION_OUTPUT_INVALID: { stage: 'editing', message: c => `Ring segmentation produced an invalid result${forSku(c)}.`, action: 'Retry the image; if it keeps failing, check the source image.', retryable: true },
   EDITING_OUTPUT_INVALID: { stage: 'editing', message: c => `Editing produced an invalid output${forSku(c)}.`, action: 'Retry the run.', retryable: true },
 
   POSTPROCESSING_PYTHON_UNAVAILABLE: { stage: 'post_processing', message: c => `${script(c)} could not run: the Python runtime is unavailable.`, action: 'Install or configure the required Python runtime and retry.', retryable: true },

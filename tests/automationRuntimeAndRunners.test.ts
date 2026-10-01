@@ -195,7 +195,7 @@ describe('runner events -> per-image progress and structured failures', () => {
     expect(result.failure).toMatchObject({ code: 'PREPROCESSING_START_FAILED', technicalMessage: 'A preprocessing job is already running' })
   })
 
-  async function edit(events: (emit: (e: Record<string, unknown>) => void) => void, done: Record<string, unknown>) {
+  async function edit(events: (emit: (e: Record<string, unknown>) => void) => void, done: Record<string, unknown>, productType: 'ring' | 'bracelet' = 'ring') {
     const { notifyAllWindows } = await import('../apps/desktop/electron/services/subprocessRunner')
     const { SingleFlightQueue } = await import('../apps/desktop/electron/services/singleFlightQueue')
     const { runSandboxRingOrBraceletEditing } = await import('../apps/desktop/electron/sandbox/sandboxEditingPipeline')
@@ -205,27 +205,72 @@ describe('runner events -> per-image progress and structured failures', () => {
       setTimeout(() => notifyAllWindows('ring-bracelet:done', { jobId: 'j', exitCode: 0, succeeded: 0, failed: 0, totalDurationMs: 1, cancelledByUser: false, ...done }), 5)
       return { ok: true, jobId: 'j' }
     })
-    const result = await runSandboxRingOrBraceletEditing({ productType: 'ring', inputDir: 'i', outputDir: 'o', batchId: 'b', dispatchQueue: new SingleFlightQueue(), reporter: reporter as any })
+    const result = await runSandboxRingOrBraceletEditing({ productType, inputDir: 'i', outputDir: 'o', batchId: 'b', dispatchQueue: new SingleFlightQueue(), reporter: reporter as any })
     return { result, calls }
   }
 
-  it('Ring/Bracelet editing events: per-image editing progress, per-image errors, and the SKUs the runner positively reported', async () => {
+  it('Ring editing events: Ring Segmentation runs first, then the rest of Ring Editing; per-image errors are attributed to the stage that failed', async () => {
+    const { result, calls } = await edit(
+      emit => {
+        emit({ type: 'progress', image: 'A.png', stage: 'ring_segmentation', status: 'start' })
+        emit({ type: 'progress', image: 'A.png', stage: 'shadow', status: 'start' })
+        emit({ type: 'complete', image: 'A.png' })
+        emit({ type: 'progress', image: 'B.png', stage: 'ring_segmentation', status: 'start' })
+        emit({ type: 'error', image: 'B.png', error: '[RING_SEGMENTATION_INFERENCE_FAILED] InvalidArgument: bad tensor' })
+        emit({ type: 'progress', image: 'C.png', stage: 'ring_segmentation', status: 'start' })
+        emit({ type: 'progress', image: 'C.png', stage: 'shadow', status: 'start' })
+        emit({ type: 'error', image: 'C.png', error: 'shadow blew up' })
+      },
+      { succeeded: 1, failed: 2 },
+    )
+    expect(result).toMatchObject({ ok: true, completedSkus: ['A'] })
+    expect(calls).toEqual([
+      ['stage', 'A', 'ring_segmentation', 'running'],
+      ['done', 'A', 'ring_segmentation'],
+      ['stage', 'A', 'editing', 'running'],
+      ['done', 'A', 'ring_segmentation,editing'],
+      ['stage', 'B', 'ring_segmentation', 'running'],
+      ['fail', 'B', 'RING_SEGMENTATION_INFERENCE_FAILED', 'ring_segmentation', 'InvalidArgument: bad tensor'],
+      ['stage', 'C', 'ring_segmentation', 'running'],
+      ['done', 'C', 'ring_segmentation'],
+      ['stage', 'C', 'editing', 'running'],
+      ['fail', 'C', 'EDITING_RUNNER_FAILED', 'editing', 'shadow blew up'],
+    ])
+  })
+
+  it('Bracelet editing events are unchanged: one CV stage (shank_mask) maps to the single editing stage — no Ring Segmentation involvement', async () => {
     const { result, calls } = await edit(
       emit => {
         emit({ type: 'progress', image: 'A.png', stage: 'shank_mask', status: 'start' })
         emit({ type: 'complete', image: 'A.png' })
         emit({ type: 'progress', image: 'B.png', stage: 'shank_mask', status: 'start' })
-        emit({ type: 'error', image: 'B.png', error: 'no ring found' })
+        emit({ type: 'error', image: 'B.png', error: '[RING_SEGMENTATION_INFERENCE_FAILED] must not be interpreted for a bracelet' })
       },
       { succeeded: 1, failed: 1 },
+      'bracelet',
     )
     expect(result).toMatchObject({ ok: true, completedSkus: ['A'] })
     expect(calls).toEqual([
       ['stage', 'A', 'editing', 'running'],
       ['done', 'A', 'editing'],
       ['stage', 'B', 'editing', 'running'],
-      ['fail', 'B', 'EDITING_RUNNER_FAILED', 'editing', 'no ring found'],
+      ['fail', 'B', 'EDITING_RUNNER_FAILED', 'editing', '[RING_SEGMENTATION_INFERENCE_FAILED] must not be interpreted for a bracelet'],
     ])
+  })
+
+  it.each([
+    ['MODEL_UNAVAILABLE', 'RING_SEGMENTATION_MODEL_UNAVAILABLE', true],
+    ['RUNTIME_ERROR', 'RING_SEGMENTATION_RUNTIME_ERROR', true],
+    ['INFERENCE_FAILED', 'RING_SEGMENTATION_INFERENCE_FAILED', true],
+    ['OUTPUT_MISSING', 'RING_SEGMENTATION_OUTPUT_MISSING', false],
+    ['OUTPUT_INVALID', 'RING_SEGMENTATION_OUTPUT_INVALID', true],
+  ] as const)('a per-image [RING_SEGMENTATION_%s] error and a job-level fatal with that token both become the structured %s', async (kind, code, retryable) => {
+    const text = `[RING_SEGMENTATION_${kind}] onnxruntime says: ${'x'.repeat(30)}`
+    const perImage = await edit(emit => emit({ type: 'error', image: 'A.png', error: text }), { succeeded: 0, failed: 1 })
+    expect(perImage.calls).toEqual([['fail', 'A', code, 'ring_segmentation', `onnxruntime says: ${'x'.repeat(30)}`]])
+    const fatal = await edit(() => {}, { fatalError: text })
+    expect(fatal.result).toMatchObject({ ok: false, failure: { code, retryable, stage: 'editing', stageDetail: 'Ring Segmentation', productType: 'ring', technicalMessage: `onnxruntime says: ${'x'.repeat(30)}` } })
+    expect(fatal.result.failure!.message).not.toContain('onnxruntime') // raw text is never the primary message
   })
 
   it.each([

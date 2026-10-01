@@ -1,15 +1,17 @@
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useReducer, useRef, useState, type ReactNode } from 'react'
 import { MIN_GUIDE_SEPARATION, resolveProvenance } from '../types/annotation'
 import type { AnnotationStatus, BatchState, BoundaryData, BoundaryPrediction, GuideMode, WatchAnnotation } from '../types/annotation'
-import type { BoundaryPredictionPair, SpreadsheetRowData } from '../types/ipc'
+import type { BoundaryDetectResult, BoundaryPredictionPair, SpreadsheetRowData } from '../types/ipc'
 import type { SessionFile } from '../types/session'
+import { DetectionController, nextCircuitRetryDelayMs, type DetectionFailure, type DetectionStatus } from './detectionController'
+
+// The detection state machine (queue, per-sku maps, request ids, circuit
+// breaker) lives in detectionController.ts so it is testable without React;
+// these re-exports keep every existing import path working.
+export { SingleFlightQueue, shouldTripCircuitBreaker, nextCircuitRetryDelayMs } from './detectionController'
+export type { DetectionFailure, DetectionStatus } from './detectionController'
 
 type SimpleBoundary = { leftBoundary: number; rightBoundary: number }
-
-// Per-SKU AI detection lifecycle (Phase 14C). 'idle' is never stored in the
-// map (absence of an entry means idle) — it exists only as the value
-// consumers see for a SKU that hasn't been touched yet.
-export type DetectionStatus = 'idle' | 'pending' | 'success' | 'failed'
 
 // No Node.js path module in the renderer — mirrors AnnotationWorkspace.tsx's
 // own local copy exactly (see that file's comment: kept local rather than
@@ -56,6 +58,11 @@ interface AnnotationContextValue {
   // numbers, so this satisfies them directly with no wrapper object.
   currentSplicePrediction: BoundaryPredictionPair | null
   currentScalePrediction: BoundaryPredictionPair | null
+  // The structured failure for the CURRENT sku's most recent detection
+  // attempt — null while idle/pending/succeeded. Distinct from
+  // currentDetectionStatus === 'failed': that's the UI-facing boolean-ish
+  // state; this is WHY, for a Details/debug path (2026-09-30).
+  currentDetectionError: DetectionFailure | null
   circuitBroken: boolean
   // Re-requests a detection for the current SKU, ignoring any cached
   // failure — the one user-initiated retry path, distinct from
@@ -90,63 +97,6 @@ export function clampBoundary(b: SimpleBoundary, prediction: BoundaryPrediction 
   const safeRight = Math.round(Math.max(b.rightBoundary, b.leftBoundary + MIN_GUIDE_SEPARATION))
   const { source, confidence } = resolveProvenance({ leftBoundary: safeLeft, rightBoundary: safeRight }, prediction)
   return { leftBoundary: safeLeft, rightBoundary: safeRight, source, confidence }
-}
-
-// Circuit breaker threshold (Phase 14C) — 3 consecutive detection failures
-// anywhere in the batch stop further auto-detection for its remainder;
-// per-SKU manual Retry still works and resets this on success.
-const CIRCUIT_BREAKER_THRESHOLD = 3
-
-// Absolute single-flight guarantee (2026-09-18) — a minimal, dependency-free
-// FIFO that runs at most one async job at a time, queuing (de-duped by key)
-// anything requested while busy rather than dropping or overlapping it.
-// isPrefetchEligible below keeps the trigger and prefetch effects from
-// overlapping in the common case, but doesn't cover every caller — a forced
-// manual Retry, or a direct jump to an arbitrary SKU while an unrelated
-// SKU's prefetch is still in flight, could otherwise still start a second
-// concurrent boundary:detect call. Every caller (trigger, prefetch, and
-// retry alike) now goes through one instance of this queue instead, so
-// there is exactly one place, not three, responsible for "never two at
-// once." Extracted as a standalone class (not left inline in the provider)
-// so this specific guarantee is directly unit-testable with a fake runner —
-// this test setup has no jsdom/testing-library to render the real effect
-// tree and observe actual network overlap.
-export class SingleFlightQueue<K> {
-  private inFlightKey: K | null = null
-  private queue: { key: K; force: boolean }[] = []
-
-  constructor(
-    private readonly runner: (key: K, force: boolean) => Promise<void>,
-    private readonly hasResult: (key: K) => boolean,
-  ) {}
-
-  get currentlyInFlight(): K | null {
-    return this.inFlightKey
-  }
-
-  enqueue(key: K, force = false): void {
-    if (!force && this.hasResult(key)) return
-    const existing = this.queue.find(q => q.key === key)
-    if (existing) {
-      existing.force = existing.force || force
-    } else {
-      this.queue.push({ key, force })
-    }
-    void this.drain()
-  }
-
-  private async drain(): Promise<void> {
-    if (this.inFlightKey !== null) return // something's already running — it drains the next entry itself when it finishes
-    const next = this.queue.shift()
-    if (!next) return
-    this.inFlightKey = next.key
-    try {
-      await this.runner(next.key, next.force)
-    } finally {
-      this.inFlightKey = null
-    }
-    void this.drain()
-  }
 }
 
 // Serialization guard (2026-09-18 diagnostic fix) — true once there is
@@ -211,65 +161,33 @@ export function AnnotationProvider({ batch, initialSession, children }: Annotati
   const annotatedCount = annotations.filter(a => a.status === 'annotated').length
 
   // ── AI boundary detection (Phase 14C) ─────────────────────────────────
+  // All detection state lives in one DetectionController (see
+  // detectionController.ts for the queue/request-id/circuit-breaker rules);
+  // this provider only mirrors it into React (re-render on change) and feeds
+  // it the current batch through `invokeRef` — a ref refreshed every render,
+  // so the controller never holds a stale render's `batch`.
   const aiDetectionEnabled = batch.processingMode === 'automatic'
-  const [predictions, setPredictions] = useState<Map<string, { spliceBoundaries: BoundaryPredictionPair | null; scaleBoundaries: BoundaryPredictionPair | null; confidence: number | null }>>(new Map())
-  const [detectionStatusMap, setDetectionStatusMap] = useState<Map<string, DetectionStatus>>(new Map())
-  const [circuitBroken, setCircuitBroken] = useState(false)
-  // predictedRef mirrors the "do we already have a result" state
-  // synchronously, since enqueueDetection is called from effects that fire
-  // in quick succession and a closure over stale React state would
-  // needlessly re-queue a SKU that's already resolved.
-  const predictedRef = useRef<Set<string>>(new Set())
-  const consecutiveFailuresRef = useRef(0)
-  // One SingleFlightQueue instance per provider, stable across renders —
-  // its runner closure below still reaches current component state via the
-  // normal render-scoped closures (batch, setDetectionStatusMap, etc.),
-  // same as the rest of this file; only the "run one at a time, queue the
-  // rest" bookkeeping is factored out.
-  const detectionQueueRef = useRef<SingleFlightQueue<string> | null>(null)
-  if (detectionQueueRef.current === null) {
-    detectionQueueRef.current = new SingleFlightQueue<string>(
-      (sku, force) => runDetectionOnce(sku, force),
-      sku => predictedRef.current.has(sku),
-    )
-  }
-
-  function enqueueDetection(sku: string, force = false) {
-    detectionQueueRef.current!.enqueue(sku, force)
-  }
-
-  async function runDetectionOnce(sku: string, force: boolean) {
-    if (!force && predictedRef.current.has(sku)) return
+  const [, rerender] = useReducer((n: number) => n + 1, 0)
+  const invokeRef = useRef<(sku: string, requestId: string) => Promise<BoundaryDetectResult | null>>(async () => null)
+  invokeRef.current = async (sku, requestId) => {
     const row = batch.match.rows[sku]
-    if (!row) return
-
-    setDetectionStatusMap(prev => new Map(prev).set(sku, 'pending'))
-
+    if (!row) return null
     const imagePath = joinPath(batch.inputFolder, `${sku}.png`)
-    const result = await window.api.invoke('boundary:detect', { imagePath, measureBy: row.measureBy })
-
-    predictedRef.current.add(sku)
-
-    if (result.ok) {
-      consecutiveFailuresRef.current = 0
-      setCircuitBroken(false)
-      setPredictions(prev =>
-        new Map(prev).set(sku, {
-          spliceBoundaries: result.spliceBoundaries,
-          scaleBoundaries: result.scaleBoundaries,
-          confidence: result.confidence,
-        }),
-      )
-      setDetectionStatusMap(prev => new Map(prev).set(sku, 'success'))
-    } else {
-      consecutiveFailuresRef.current += 1
-      if (consecutiveFailuresRef.current >= CIRCUIT_BREAKER_THRESHOLD) setCircuitBroken(true)
-      setDetectionStatusMap(prev => new Map(prev).set(sku, 'failed'))
-    }
+    return window.api.invoke('boundary:detect', { imagePath, measureBy: row.measureBy, requestId })
   }
+  const controllerRef = useRef<DetectionController | null>(null)
+  if (controllerRef.current === null) {
+    controllerRef.current = new DetectionController({
+      invoke: (sku, requestId) => invokeRef.current(sku, requestId),
+      onChange: () => rerender(),
+    })
+  }
+  const detection = controllerRef.current
+  const circuitBroken = detection.circuitBroken
 
-  const currentPrediction = predictions.get(currentAnnotation.sku) ?? null
-  const currentDetectionStatus: DetectionStatus = detectionStatusMap.get(currentAnnotation.sku) ?? 'idle'
+  const currentPrediction = detection.predictionOf(currentAnnotation.sku)
+  const currentDetectionStatus: DetectionStatus = detection.statusOf(currentAnnotation.sku)
+  const currentDetectionError = detection.errorOf(currentAnnotation.sku)
   const currentDetectionSettledOrNotNeeded = isPrefetchEligible({
     aiDetectionEnabled,
     currentStatus: currentAnnotation.status,
@@ -282,9 +200,12 @@ export function AnnotationProvider({ batch, initialSession, children }: Annotati
   // "Manual mode makes ZERO API calls" and "only for unannotated SKUs"
   // rules exactly.
   useEffect(() => {
-    if (!aiDetectionEnabled || circuitBroken) return
+    if (!aiDetectionEnabled) return
     if (currentAnnotation.status !== 'unannotated' || currentAnnotation.spliceBoundaries !== null) return
-    enqueueDetection(currentAnnotation.sku)
+    // Selection ALWAYS reaches the controller, even with the breaker open:
+    // the controller decides (probe vs. queue) — a tripped breaker must not
+    // silently swallow every later sku.
+    detection.select(currentAnnotation.sku)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aiDetectionEnabled, circuitBroken, currentAnnotation.sku])
 
@@ -310,9 +231,43 @@ export function AnnotationProvider({ batch, initialSession, children }: Annotati
     if (!currentDetectionSettledOrNotNeeded) return
     const next = annotations[currentIndex + 1]
     if (!next || next.status !== 'unannotated' || next.spliceBoundaries !== null) return
-    enqueueDetection(next.sku)
+    detection.prefetch(next.sku)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aiDetectionEnabled, circuitBroken, currentIndex, currentDetectionSettledOrNotNeeded])
+
+  // Kept in sync so the auto-recovery loop below always retries whichever
+  // sku is CURRENTLY on screen, not whichever one was current when the
+  // breaker first tripped.
+  const currentSkuRef = useRef(currentAnnotation.sku)
+  useEffect(() => {
+    currentSkuRef.current = currentAnnotation.sku
+  }, [currentAnnotation.sku])
+
+  // Circuit-breaker auto-recovery (2026-09-30) — see nextCircuitRetryDelayMs's
+  // own comment for why this exists. A plain `useEffect` keyed on
+  // `circuitBroken` alone would only fire once (true stays true across a
+  // failed auto-retry, so the effect's own dependency never changes again);
+  // this schedules its own recurring timer instead, stopping itself once the
+  // breaker clears (checked at each tick, not just at effect-start) or the
+  // provider unmounts/batch changes.
+  useEffect(() => {
+    if (!aiDetectionEnabled || !circuitBroken) return
+    let cancelled = false
+    let attempt = 0
+    let timer: ReturnType<typeof setTimeout>
+    const tick = () => {
+      if (cancelled) return
+      detection.retry(currentSkuRef.current)
+      attempt += 1
+      timer = setTimeout(tick, nextCircuitRetryDelayMs(attempt))
+    }
+    timer = setTimeout(tick, nextCircuitRetryDelayMs(0))
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiDetectionEnabled, circuitBroken])
 
   // force:true — re-requests even though predictedRef already has a
   // (failed) result for this SKU. Still goes through the same queue as
@@ -321,7 +276,7 @@ export function AnnotationProvider({ batch, initialSession, children }: Annotati
   // alongside it — the absolute never-concurrent guarantee applies to
   // Retry too, not just the trigger/prefetch pair.
   function retryDetection() {
-    enqueueDetection(currentAnnotation.sku, true)
+    detection.retry(currentAnnotation.sku)
   }
   // Held exactly while a prediction for the CURRENT sku could still arrive
   // and change the guides' initial position — i.e. the same gate the
@@ -386,6 +341,7 @@ export function AnnotationProvider({ batch, initialSession, children }: Annotati
     currentDetectionStatus,
     currentSplicePrediction: currentPrediction?.spliceBoundaries ?? null,
     currentScalePrediction: currentPrediction?.scaleBoundaries ?? null,
+    currentDetectionError,
     circuitBroken,
     retryDetection,
   }

@@ -19,8 +19,16 @@ function item(overrides: Partial<SandboxRunItemState> & { sku: string }, stages 
 describe('planItemStages — derived from the real configuration, never invented', () => {
   it('default (Background Removal + Upscaling) Ring: Upscaling -> Background Removal -> editing -> compulsory scripts, in canonical order', () => {
     const stages = planItemStages('ring', createInitialUniversalConfig(batch(['ring'])))
-    expect(stages.map(s => s.label)).toEqual(['Upscaling', 'Background Removal', 'Ring Editing', 'imageResizeNew', 'compressorNew', 'makeCompareRB'])
+    expect(stages.map(s => s.label)).toEqual(['Upscaling', 'Background Removal', 'Ring Segmentation', 'Ring Editing', 'imageResizeNew', 'compressorNew', 'makeCompareRB'])
     expect(stages.filter(s => s.phase === 'post_processing').every(s => s.batchGlobal)).toBe(true)
+  })
+
+  it('Ring Segmentation is a Ring-only stage (editing phase, before Ring Editing); Bracelet keeps its single editing stage', () => {
+    const ring = planItemStages('ring', createInitialUniversalConfig(batch(['ring'])))
+    expect(stageIdsOfPhase(ring, 'editing')).toEqual(['ring_segmentation', 'editing'])
+    const bracelet = planItemStages('bracelet', createInitialUniversalConfig(batch(['bracelet'])))
+    expect(stageIdsOfPhase(bracelet, 'editing')).toEqual(['editing'])
+    expect(bracelet.some(s => s.id === 'ring_segmentation')).toBe(false)
   })
 
   it('only configured preprocessing steps appear; the "None" operation has no Python steps', () => {

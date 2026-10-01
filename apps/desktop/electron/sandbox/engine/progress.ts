@@ -62,7 +62,9 @@ export function finishStages(item: SandboxRunItemState, stageIds: string[] | 'al
 export function failItem(item: SandboxRunItemState, failure: AutomationError, now: string, stageId?: string): void {
   if (isItemTerminal(item)) return
   const stages = item.stages ?? []
-  const target = stageId ? stages.find(s => s.id === stageId) : stages.find(s => s.status === 'running')
+  // A Ring segmentation failure belongs to its own stage, wherever it was reported from.
+  const failingId = failure.code.startsWith('RING_SEGMENTATION_') ? 'ring_segmentation' : stageId
+  const target = failingId ? stages.find(s => s.id === failingId) : stages.find(s => s.status === 'running')
   if (target) target.status = 'failed'
   item.status = 'failed'
   item.stage = null

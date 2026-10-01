@@ -639,6 +639,14 @@ export type ThumbnailGetResult =
 export interface BoundaryDetectPayload {
   imagePath: string
   measureBy: string
+  // Caller-supplied correlation id (2026-09-30 diagnostic fix) — opaque to
+  // this layer, threaded through boundaryDetection.ts's logging and echoed
+  // back on the result so one prediction can be followed end to end (UI ->
+  // IPC -> HTTP request -> response -> renderer state) and so the renderer
+  // can recognize and discard a response that arrives after a NEWER request
+  // for the same image has already superseded it. Optional: Sandbox's
+  // direct, non-IPC caller of detectBoundaries() doesn't set one.
+  requestId?: string
 }
 
 export interface BoundaryPredictionPair {
@@ -646,6 +654,45 @@ export interface BoundaryPredictionPair {
   rightBoundary: number
 }
 
+// Stable, machine-readable WHY a detection call failed — never derived from
+// free-text (the API's own `message` field is an unstructured, sometimes
+// internal string; see boundaryDetection.ts's header comment). Canonical
+// home is here (not electron/services/boundaryDetection.ts, which imports
+// Node-only modules like `sharp`/`node:fs`) so the renderer can import this
+// type directly without pulling in main-process-only code.
+export type DetectionFailureReason =
+  | 'image_unreadable'
+  | 'network'
+  | 'timeout'
+  | 'http_error'
+  | 'malformed_response'
+  | 'no_detection'
+  | 'implausible'
+
+// 2026-09-30 diagnostic fix — a detection failure used to collapse into a
+// single free-text `error` string, with everything else (HTTP status,
+// duration, endpoint, attempt count, the underlying exception) discarded
+// before it ever reached the renderer. That made a real, reproduced outage
+// indistinguishable from a config/integration bug from the UI's point of
+// view. `error`/`retryable` are unchanged (existing callers keep working);
+// everything else is additive. `code`/`technicalMessage` are always
+// populated by detectBoundaries(); `httpStatus`/`durationMs`/`endpoint`/
+// `attempts`/`cause` are populated whenever they're meaningful for that
+// failure (e.g. `httpStatus` only applies to `http_error`) — optional here
+// so mapSegmentationResponse (pure, no network) can still be unit-tested
+// without asserting a full network-shaped object.
 export type BoundaryDetectResult =
-  | { ok: true; spliceBoundaries: BoundaryPredictionPair | null; scaleBoundaries: BoundaryPredictionPair | null; confidence: null }
-  | { ok: false; error: string; retryable: boolean }
+  | { ok: true; spliceBoundaries: BoundaryPredictionPair | null; scaleBoundaries: BoundaryPredictionPair | null; confidence: null; requestId?: string }
+  | {
+      ok: false
+      error: string
+      retryable: boolean
+      code: DetectionFailureReason
+      technicalMessage: string
+      httpStatus?: number
+      durationMs?: number
+      endpoint?: string
+      attempts?: number
+      cause?: string
+      requestId?: string
+    }

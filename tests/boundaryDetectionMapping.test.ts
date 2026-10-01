@@ -2,7 +2,8 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { mapSegmentationResponse, detectBoundaries } from '../apps/desktop/electron/services/boundaryDetection'
+import { mapSegmentationResponse, detectBoundaries, getDetectionFailureInfo } from '../apps/desktop/electron/services/boundaryDetection'
+import { nextCircuitRetryDelayMs, shouldTripCircuitBreaker } from '../apps/desktop/src/context/AnnotationContext'
 
 // boundaryDetection.ts's logger import needs app.getPath — same pattern as
 // workflowPreparation.test.ts/batchRegistryRecovery.test.ts (vi.mock calls
@@ -135,12 +136,12 @@ describe('detectBoundaries — network behavior (mocked fetch, real image file)'
     globalThis.fetch = originalFetch
   })
 
-  it('does not retry a well-formed success:false response (not a network failure)', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ success: false, message: 'x', case_bbox: null }), { status: 200 }))
+  it('retries a well-formed success:false / null case_bbox response exactly once (then reports it non-retryable, as before)', async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ success: false, message: 'x', case_bbox: null }), { status: 200 }))
     globalThis.fetch = fetchMock as unknown as typeof fetch
 
     const result = await detectBoundaries(REAL_WATCH_IMAGE, 'Case')
-    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.retryable).toBe(false)
   })
@@ -244,5 +245,300 @@ describe('detectBoundaries — network behavior (mocked fetch, real image file)'
     expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(resultA.ok).toBe(true)
     expect(resultB.ok).toBe(true)
+  })
+})
+
+// 2026-09-30 — Core/Legacy Watch AI detection diagnostic fix. Every failure
+// path now carries a full, IPC-serializable structured shape (code,
+// technicalMessage, httpStatus, durationMs, endpoint, attempts, cause), not
+// just the pre-existing free-text `error`/`retryable` pair — this is what
+// lets InfoPanel show a real Details/debug path instead of a single
+// collapsed "AI detection unavailable" string. getDetectionFailureInfo
+// (Sandbox's existing consumer, unchanged) must keep working identically —
+// asserted directly against the same result object here.
+describe('detectBoundaries — structured failure diagnostics (endpoint, duration, HTTP status, attempts, cause)', () => {
+  const originalFetch = globalThis.fetch
+  afterEach(() => {
+    globalThis.fetch = originalFetch
+  })
+
+  it('a successful response carries no failure fields at all', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ success: true, message: 'ok', case_bbox: [10, 0, 90, 100] }), { status: 200 }))
+    globalThis.fetch = fetchMock as unknown as typeof fetch
+    const result = await detectBoundaries(REAL_WATCH_IMAGE, 'Case')
+    expect(result.ok).toBe(true)
+    expect(getDetectionFailureInfo(result)).toBeNull()
+  })
+
+  it('timeout: every request aborts -> code "timeout", retryable, 2 attempts, endpoint + duration + cause populated', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(Object.assign(new Error('The operation was aborted'), { name: 'AbortError' }))
+    globalThis.fetch = fetchMock as unknown as typeof fetch
+
+    const result = await detectBoundaries(REAL_WATCH_IMAGE, 'Case')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result).toMatchObject({ code: 'timeout', retryable: true, attempts: 2, endpoint: 'https://watchdialcoord.clouddeploy.in' })
+    expect(result.durationMs).toBeGreaterThanOrEqual(0)
+    expect(result.cause).toContain('AbortError')
+    expect(result.technicalMessage).toMatch(/attempt/i)
+    // The concise error string stays short and generic — the diagnostic detail lives in technicalMessage/cause, not error.
+    expect(result.error).toBe('Detection request timed out.')
+    expect(getDetectionFailureInfo(result)).toEqual({ reason: 'timeout', httpStatus: undefined, attempts: 2 })
+  })
+
+  it('network failure (non-abort): code "network", cause carries the underlying error, retries once then gives up', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError('fetch failed: ECONNREFUSED'))
+    globalThis.fetch = fetchMock as unknown as typeof fetch
+
+    const result = await detectBoundaries(REAL_WATCH_IMAGE, 'Case')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result).toMatchObject({ code: 'network', retryable: true, attempts: 2 })
+    expect(result.cause).toContain('ECONNREFUSED')
+    expect(result.error).toBe('Could not reach the detection service.')
+  })
+
+  it('HTTP error: code "http_error", httpStatus set, response body excerpt kept in technicalMessage (never in error)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('upstream model server unavailable', { status: 503, statusText: 'Service Unavailable' }))
+    globalThis.fetch = fetchMock as unknown as typeof fetch
+
+    const result = await detectBoundaries(REAL_WATCH_IMAGE, 'Case')
+    expect(fetchMock).toHaveBeenCalledTimes(1) // a well-formed HTTP response is never retried
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result).toMatchObject({ code: 'http_error', retryable: true, httpStatus: 503, attempts: 1 })
+    expect(result.technicalMessage).toContain('503')
+    expect(result.technicalMessage).toContain('upstream model server unavailable')
+    expect(result.error).not.toContain('upstream model server unavailable')
+    expect(getDetectionFailureInfo(result)).toEqual({ reason: 'http_error', httpStatus: 503, attempts: 1 })
+  })
+
+  it('malformed/invalid JSON response: code "malformed_response", the raw body is kept in technicalMessage', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('<html>502 Bad Gateway</html>', { status: 200 }))
+    globalThis.fetch = fetchMock as unknown as typeof fetch
+
+    const result = await detectBoundaries(REAL_WATCH_IMAGE, 'Case')
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.code).toBe('malformed_response')
+    expect(result.technicalMessage).toContain('502 Bad Gateway')
+  })
+
+  it('success:false (API "no boundaries" outcome): code "no_detection", the API\'s own free-text message reaches technicalMessage but never `error`', async () => {
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify({ success: false, message: 'attempt to get argmax of an empty sequence', case_bbox: null, dial_bbox: null }), { status: 200 }),
+    )
+    globalThis.fetch = fetchMock as unknown as typeof fetch
+
+    const result = await detectBoundaries(REAL_WATCH_IMAGE, 'Case')
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.code).toBe('no_detection')
+    expect(result.retryable).toBe(false)
+    expect(result.error).not.toContain('argmax')
+    expect(result.technicalMessage).toContain('argmax')
+    // mapSegmentationResponse-derived failures are still enriched with the request-level fields.
+    expect(result.endpoint).toBe('https://watchdialcoord.clouddeploy.in')
+    expect(result.durationMs).toBeGreaterThanOrEqual(0)
+    expect(result.attempts).toBe(2) // the original request + the single automatic retry
+    expect(getDetectionFailureInfo(result)).toEqual({ reason: 'no_detection', httpStatus: undefined, attempts: 2 })
+  })
+
+  it('implausible bbox: code "implausible", the rejected coordinates are in technicalMessage', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ success: true, message: 'ok', case_bbox: [500, 5, 503, 100], dial_bbox: null }), { status: 200 }),
+    )
+    globalThis.fetch = fetchMock as unknown as typeof fetch
+
+    const result = await detectBoundaries(join(__dirname, '..', 'sampledata', '1688KM11.png'), 'Case')
+    // sampledata/1688KM11.png is 1696px wide — [500,503] is a 3px span, well under MIN_GUIDE_SEPARATION.
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.code).toBe('implausible')
+    expect(result.technicalMessage).toContain('500')
+    expect(result.technicalMessage).toContain('503')
+  })
+
+  it('threads a configured endpoint override into every diagnostic field, not just the request URL', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError('fetch failed'))
+    globalThis.fetch = fetchMock as unknown as typeof fetch
+
+    const result = await detectBoundaries(REAL_WATCH_IMAGE, 'Case', 'https://custom-watch-api.example.com/')
+    expect(fetchMock).toHaveBeenCalledWith('https://custom-watch-api.example.com/bbox/predict', expect.anything())
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.endpoint).toBe('https://custom-watch-api.example.com')
+  })
+
+  // 2026-09-30 — single automatic retry of an HTTP-200 success:false /
+  // null case_bbox response. The Watch API's backend returns exactly that shape
+  // (message "[StatusCode.UNAVAILABLE] recvmsg:Connection timed out") for the
+  // first request after ~6+ min idle, and an immediate second request
+  // succeeds. The message is never inspected — only the shape is.
+  describe('single automatic retry of success:false / null case_bbox', () => {
+    const stale = () => new Response(JSON.stringify({ success: false, message: '[StatusCode.UNAVAILABLE] recvmsg:Connection timed out', case_bbox: null, dial_bbox: null }), { status: 200 })
+    const good = () => new Response(JSON.stringify({ success: true, message: 'ok', case_bbox: [10, 0, 90, 100], dial_bbox: [20, 10, 80, 90] }), { status: 200 })
+
+    it('first attempt fails, retry succeeds -> a normal success (same request sent twice, sequentially)', async () => {
+      let inFlight = 0
+      let maxInFlight = 0
+      const fetchMock = vi.fn()
+        .mockImplementationOnce(async () => { inFlight++; maxInFlight = Math.max(maxInFlight, inFlight); await new Promise(r => setTimeout(r, 5)); inFlight--; return stale() })
+        .mockImplementationOnce(async () => { inFlight++; maxInFlight = Math.max(maxInFlight, inFlight); await new Promise(r => setTimeout(r, 5)); inFlight--; return good() })
+      globalThis.fetch = fetchMock as unknown as typeof fetch
+
+      const result = await detectBoundaries(REAL_WATCH_IMAGE, 'Dial', undefined, 'W-1#1')
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+      expect(maxInFlight).toBe(1)
+      expect(result).toMatchObject({ ok: true, spliceBoundaries: { leftBoundary: 10, rightBoundary: 90 }, scaleBoundaries: { leftBoundary: 20, rightBoundary: 80 }, requestId: 'W-1#1' })
+      // Identical payload both times: same endpoint, same multipart field, same bytes.
+      const bodies = await Promise.all(fetchMock.mock.calls.map(async c => Buffer.from(await (c[1].body as FormData).get('image')!.valueOf().arrayBuffer())))
+      expect(bodies[0].equals(bodies[1])).toBe(true)
+      expect(fetchMock.mock.calls[0][0]).toBe(fetchMock.mock.calls[1][0])
+    })
+
+    it('both attempts fail -> the rich error is preserved and reports attempts: 2 (with the first attempt noted)', async () => {
+      const fetchMock = vi.fn(async () => stale())
+      globalThis.fetch = fetchMock as unknown as typeof fetch
+
+      const result = await detectBoundaries(REAL_WATCH_IMAGE, 'Case', undefined, 'W-2#1')
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+      expect(result.ok).toBe(false)
+      if (result.ok) return
+      expect(result).toMatchObject({ code: 'no_detection', attempts: 2, retryable: false, endpoint: 'https://watchdialcoord.clouddeploy.in', requestId: 'W-2#1' })
+      expect(result.durationMs).toBeGreaterThanOrEqual(0)
+      expect(result.technicalMessage).toContain('UNAVAILABLE') // API text preserved for Details, never parsed
+      expect(result.technicalMessage).toContain('first attempt:')
+      expect(result.error).not.toContain('UNAVAILABLE')
+      expect(getDetectionFailureInfo(result)).toMatchObject({ reason: 'no_detection', attempts: 2 })
+    })
+
+    it('a network error on the retry itself is reported truthfully (network, attempts adds up)', async () => {
+      const fetchMock = vi.fn().mockImplementationOnce(async () => stale()).mockRejectedValue(new TypeError('fetch failed: ECONNRESET'))
+      globalThis.fetch = fetchMock as unknown as typeof fetch
+      const result = await detectBoundaries(REAL_WATCH_IMAGE, 'Case')
+      expect(result.ok).toBe(false)
+      if (result.ok) return
+      expect(result.code).toBe('network')
+      expect(result.attempts).toBe(3) // 1 (stale) + 2 (network attempt + its own transport retry)
+    })
+
+    it('does NOT retry other failures: implausible bbox, HTTP 5xx, malformed JSON (each stays a single request)', async () => {
+      for (const make of [
+        () => new Response(JSON.stringify({ success: true, message: 'ok', case_bbox: [500, 5, 503, 100] }), { status: 200 }),
+        () => new Response('boom', { status: 502 }),
+        () => new Response('<html>', { status: 200 }),
+      ]) {
+        const fetchMock = vi.fn(async () => make())
+        globalThis.fetch = fetchMock as unknown as typeof fetch
+        const result = await detectBoundaries(REAL_WATCH_IMAGE, 'Case')
+        expect(result.ok).toBe(false)
+        expect(fetchMock).toHaveBeenCalledTimes(1)
+      }
+    })
+  })
+
+  // 2026-09-30 — end-to-end correlation id (UI -> IPC -> boundaryDetection ->
+  // HTTP -> response -> back to the renderer). Echoed on BOTH success and
+  // failure, on every failure path, so one prediction can be followed
+  // through the whole pipeline and the renderer can recognize (and discard)
+  // a response that arrives after a newer request for the same image has
+  // already superseded it.
+  it('echoes the caller-supplied requestId back on success and on every failure path', async () => {
+    const ok = vi.fn().mockResolvedValue(new Response(JSON.stringify({ success: true, message: 'ok', case_bbox: [10, 0, 90, 100] }), { status: 200 }))
+    globalThis.fetch = ok as unknown as typeof fetch
+    const okResult = await detectBoundaries(REAL_WATCH_IMAGE, 'Case', undefined, 'W-1#7')
+    expect(okResult.requestId).toBe('W-1#7')
+
+    const httpErr = vi.fn().mockResolvedValue(new Response('nope', { status: 500 }))
+    globalThis.fetch = httpErr as unknown as typeof fetch
+    const httpResult = await detectBoundaries(REAL_WATCH_IMAGE, 'Case', undefined, 'W-1#8')
+    expect(httpResult.ok).toBe(false)
+    if (!httpResult.ok) expect(httpResult.requestId).toBe('W-1#8')
+
+    const netErr = vi.fn().mockRejectedValue(new TypeError('fetch failed'))
+    globalThis.fetch = netErr as unknown as typeof fetch
+    const netResult = await detectBoundaries(REAL_WATCH_IMAGE, 'Case', undefined, 'W-1#9')
+    expect(netResult.ok).toBe(false)
+    if (!netResult.ok) expect(netResult.requestId).toBe('W-1#9')
+
+    const noDetection = vi.fn().mockResolvedValue(new Response(JSON.stringify({ success: false, message: 'x', case_bbox: null }), { status: 200 }))
+    globalThis.fetch = noDetection as unknown as typeof fetch
+    const noDetResult = await detectBoundaries(REAL_WATCH_IMAGE, 'Case', undefined, 'W-1#10')
+    expect(noDetResult.ok).toBe(false)
+    if (!noDetResult.ok) expect(noDetResult.requestId).toBe('W-1#10')
+
+    // Omitting it (Sandbox's own direct caller never sets one) is still valid — no crash, just absent.
+    globalThis.fetch = ok as unknown as typeof fetch
+    const noId = await detectBoundaries(REAL_WATCH_IMAGE, 'Case')
+    expect(noId.requestId).toBeUndefined()
+  })
+
+  it('a missing/unreadable source image fails before any network call, with 0 attempts and no httpStatus', async () => {
+    const fetchMock = vi.fn()
+    globalThis.fetch = fetchMock as unknown as typeof fetch
+
+    const result = await detectBoundaries(join(tmpdir(), 'does-not-exist-12345.png'), 'Case')
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result).toMatchObject({ code: 'image_unreadable', retryable: false, attempts: 0 })
+    expect(result.httpStatus).toBeUndefined()
+  })
+})
+
+// Circuit breaker trip threshold (Phase 14C, extracted 2026-09-30 for direct
+// testability) — AnnotationContext.tsx trips after 3 CONSECUTIVE detection
+// failures (any real detectBoundaries() failure: timeout, network, HTTP
+// error, malformed response, no_detection, implausible — every reason above
+// trips it the same way, since the counter only cares that the call
+// resolved `ok: false`) and resets the counter to 0 on the very next
+// success. This is that exact 3-strike contract, isolated from React state.
+describe('shouldTripCircuitBreaker — 3 consecutive failures trip it, a success resets the count to 0', () => {
+  it('does not trip below the threshold', () => {
+    expect(shouldTripCircuitBreaker(0)).toBe(false)
+    expect(shouldTripCircuitBreaker(1)).toBe(false)
+    expect(shouldTripCircuitBreaker(2)).toBe(false)
+  })
+
+  it('trips at exactly 3 consecutive failures, and stays tripped past it', () => {
+    expect(shouldTripCircuitBreaker(3)).toBe(true)
+    expect(shouldTripCircuitBreaker(4)).toBe(true)
+    expect(shouldTripCircuitBreaker(100)).toBe(true)
+  })
+
+  it('models the real sequence: 2 failures (not tripped), a success (AnnotationContext resets the counter to 0), then 2 more failures still is not tripped', () => {
+    let consecutive = 0
+    const fail = () => { consecutive += 1; return shouldTripCircuitBreaker(consecutive) }
+    const succeed = () => { consecutive = 0 } // mirrors runDetectionOnce's `consecutiveFailuresRef.current = 0` on ok:true
+
+    expect(fail()).toBe(false) // 1
+    expect(fail()).toBe(false) // 2
+    succeed()
+    expect(fail()).toBe(false) // 1 again, not 3 — the reset actually took effect
+    expect(fail()).toBe(false) // 2
+    expect(fail()).toBe(true) // 3 — now it trips
+  })
+})
+
+// Circuit-breaker auto-recovery backoff (2026-09-30) — pure schedule
+// function, unit-tested directly per this file's existing convention (no
+// jsdom/testing-library available to render AnnotationProvider itself; see
+// isPrefetchEligible in AnnotationContext.tsx for the same pattern).
+describe('nextCircuitRetryDelayMs — circuit-breaker auto-recovery backoff', () => {
+  it('starts at the base delay and doubles each attempt, capped at the max', () => {
+    expect(nextCircuitRetryDelayMs(0)).toBe(15_000)
+    expect(nextCircuitRetryDelayMs(1)).toBe(30_000)
+    expect(nextCircuitRetryDelayMs(2)).toBe(60_000)
+    expect(nextCircuitRetryDelayMs(3)).toBe(120_000) // would be 120_000 uncapped too
+    expect(nextCircuitRetryDelayMs(4)).toBe(120_000) // capped — never grows unbounded on a long outage
+    expect(nextCircuitRetryDelayMs(10)).toBe(120_000)
+  })
+
+  it('never returns a delay below the base for a non-positive attempt', () => {
+    expect(nextCircuitRetryDelayMs(0)).toBe(15_000)
+    expect(nextCircuitRetryDelayMs(-1)).toBe(15_000)
   })
 })

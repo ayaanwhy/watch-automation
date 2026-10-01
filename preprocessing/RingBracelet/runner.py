@@ -36,13 +36,17 @@ how each is verified/unverified. SKU is the input filename's stem — there
 is no spreadsheet/SKU-matching mechanism for Ring & Bracelet yet (that
 remains Watch-specific).
 
-Status (temporary, Phase 10E): ring_mask.py's dedicated rear-shank algorithm
-is currently NOT wired in — both --product values run shank_mask.py's
-proven bracelet implementation. This is an intentional, temporary rollback
-of behavior, not an architectural one: the --product dispatch itself stays
-in place in _process_one below, specifically so the dedicated ring
-implementation can be re-enabled later by changing that one branch back to
-generate_ring_mask(alpha).
+Segmentation routing (explicit, per product):
+  --product ring     -> ring_segmentation/ (PixelForge-derived ONNX ring model:
+                        the front/rear-band ownership decision — see
+                        ring_segmentation/front_ownership.py). The input is
+                        already background-removed; no second background
+                        removal runs, and the model is never loaded for bracelets.
+  --product bracelet -> shank_mask.generate_wrap_mask (the original CV
+                        implementation, unchanged).
+ring_mask.py's earlier experimental ring algorithm stays unused (as before).
+Only the mask step differs by product; frontFullImage, the alpha subtraction
+and the shadow step are shared and unchanged.
 
 No heartbeat: unlike BiRefNet/SAM2, nothing here runs long enough per image
 to need one. No GPU work here to protect from cancellation either, but the
@@ -68,10 +72,19 @@ if str(_HERE) not in sys.path:
 if str(_HERE.parent) not in sys.path:
     sys.path.insert(0, str(_HERE.parent))
 
+# ring_segmentation/ holds the PixelForge-derived Ring model. Its onnxruntime /
+# model files are only touched when --product ring runs the automatic masking
+# step (front_ownership imports the model lazily), so bracelets and manual mode
+# never load it.
+_RING_SEGMENTATION_DIR = _HERE / "ring_segmentation"
+if str(_RING_SEGMENTATION_DIR) not in sys.path:
+    sys.path.insert(0, str(_RING_SEGMENTATION_DIR))
+
 from shank_mask import generate_wrap_mask  # noqa: E402
-# Imported but not currently called — see the temporary-rollback note on the
-# --product dispatch in _process_one below and ring_mask.py's own docstring.
+# Imported but not currently called — ring_mask.py's own experimental ring
+# algorithm; Rings now use the model-based ownership below instead.
 from ring_mask import generate_ring_mask  # noqa: E402,F401
+import front_ownership  # noqa: E402
 from shadow import composite_with_shadow, RING_BRACELET_SHADOW  # noqa: E402
 import runner_base as rb  # noqa: E402
 
@@ -142,6 +155,7 @@ def _process_one_image(
     split_y: float,
     processing_mode: str,
     shadow_settings: dict,
+    on_stage=None,
 ) -> dict:
     """Returns the fields to merge into a 'complete' event. Raises on failure."""
     img = Image.open(input_path).convert("RGBA")
@@ -158,19 +172,17 @@ def _process_one_image(
         detected = True
     else:
         # The only product-dispatched step in the whole pipeline — see
-        # module docstring. Both functions share the same (mask, detected)
+        # module docstring. Both branches share the same (mask, detected)
         # contract, so nothing below this line needs to know which product
         # it is.
         if product == "ring":
-            # Temporary rollback (Phase 10E): ring_mask.generate_ring_mask is
-            # experimental and not yet validated broadly enough to run in
-            # production — see ring_mask.py's module docstring for status.
-            # Both branches currently call the proven bracelet
-            # implementation; the --product dispatch itself stays in place
-            # so re-enabling the dedicated ring algorithm later is a
-            # one-line change, right here:
-            #     mask, detected = generate_ring_mask(alpha)
-            mask, detected = generate_wrap_mask(alpha, split_y=split_y)
+            # PixelForge-derived ring model: receives the already-background-
+            # removed image (composited on flat white for the model), returns
+            # the rear-band ownership mask. Raises RingSegmentationError with
+            # a stable [RING_SEGMENTATION_*] token on failure.
+            mask, detected = front_ownership.generate_ring_model_mask(arr)
+            if on_stage is not None:
+                on_stage("shadow")  # segmentation done; the shadow step starts
         else:
             mask, detected = generate_wrap_mask(alpha, split_y=split_y)
 
@@ -214,6 +226,15 @@ def main() -> int:
     if images is None:
         return 1
 
+    # Ring automatic mode needs the model: fail the whole job up front, with a
+    # stable [RING_SEGMENTATION_*] token, rather than once per image.
+    if args.product == "ring" and args.processing_mode == "automatic":
+        try:
+            front_ownership.preflight()
+        except front_ownership.RingSegmentationError as exc:
+            rb.emit({"type": "fatal", "error": str(exc)})
+            return 1
+
     output_dir.mkdir(parents=True, exist_ok=True)
     rb.emit_start(images)
 
@@ -251,11 +272,21 @@ def main() -> int:
             })
             return
 
-        stage = "shank_mask" if args.processing_mode == "automatic" else "shadow"
-        rb.emit({"type": "progress", "index": index, "total": total,
-                  "image": input_path.name, "stage": stage, "status": "start"})
+        def emit_stage(stage: str) -> None:
+            rb.emit({"type": "progress", "index": index, "total": total,
+                      "image": input_path.name, "stage": stage, "status": "start"})
+
+        if args.processing_mode != "automatic":
+            emit_stage("shadow")
+        elif args.product == "ring":
+            emit_stage("ring_segmentation")
+        else:
+            emit_stage("shank_mask")
         result = _process_one_image(
-            input_path, output_dir, args.product, args.split_y, args.processing_mode, ring_bracelet_settings
+            input_path, output_dir, args.product, args.split_y, args.processing_mode, ring_bracelet_settings,
+            # Ring only: announces the shadow step once its mask exists, so
+            # progress can tell segmentation and editing apart.
+            on_stage=emit_stage,
         )
         duration_ms = int((time.perf_counter() - t0) * 1000)
         rb.emit({

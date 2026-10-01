@@ -1,4 +1,5 @@
-import { useAnnotation } from '../context/AnnotationContext'
+import { useAnnotation, type DetectionFailure } from '../context/AnnotationContext'
+import { detectionBadge } from '../context/detectionController'
 import { useQueue } from '../context/QueueContext'
 import { Badge, type BadgeTone } from './ui/Badge'
 import type { BoundaryData } from '../types/annotation'
@@ -49,6 +50,7 @@ export function InfoPanel({ onSubmit, onBack, onShowDashboard, onCompleteBatch }
     aiDetectionEnabled,
     currentDetectionStatus,
     currentScalePrediction,
+    currentDetectionError,
     circuitBroken,
     retryDetection,
   } = useAnnotation()
@@ -108,6 +110,7 @@ export function InfoPanel({ onSubmit, onBack, onShowDashboard, onCompleteBatch }
           <AiDetectionStatusRow
             status={currentDetectionStatus}
             circuitBroken={circuitBroken}
+            error={currentDetectionError}
             hasScalePrediction={currentScalePrediction !== null}
             measureBy={currentRow?.measureBy ?? 'Case'}
             onRetry={retryDetection}
@@ -206,29 +209,62 @@ export function InfoPanel({ onSubmit, onBack, onShowDashboard, onCompleteBatch }
 interface AiDetectionStatusRowProps {
   status: 'idle' | 'pending' | 'success' | 'failed'
   circuitBroken: boolean
+  error: DetectionFailure | null
   hasScalePrediction: boolean
   measureBy: string
   onRetry(): void
 }
 
-function AiDetectionStatusRow({ status, circuitBroken, hasScalePrediction, measureBy, onRetry }: AiDetectionStatusRowProps) {
-  if (circuitBroken) {
+// The concise badge text stays a single short phrase (never the raw
+// technicalMessage/cause) — WHY is one click away behind Details, never the
+// default view. Mirrors the sandbox AutomationErrorNotice "Technical
+// details" convention (apps/desktop/src/sandbox/components/
+// AutomationErrorNotice.tsx), kept local rather than shared since that
+// component's AutomationError shape is Sandbox-specific.
+function DetectionErrorDetails({ error }: { error: DetectionFailure | null }) {
+  if (!error) return null
+  const lines = [
+    `code: ${error.code}`,
+    error.httpStatus !== undefined ? `httpStatus: ${error.httpStatus}` : null,
+    error.durationMs !== undefined ? `duration: ${error.durationMs}ms` : null,
+    error.endpoint ? `endpoint: ${error.endpoint}` : null,
+    error.attempts !== undefined ? `attempts: ${error.attempts}` : null,
+    error.cause ? `cause: ${error.cause}` : null,
+    error.technicalMessage,
+  ].filter((line): line is string => Boolean(line))
+  return (
+    <details className={styles.aiDetails}>
+      <summary>Details</summary>
+      <pre className={styles.aiDetailsPre}>{lines.join('\n')}</pre>
+    </details>
+  )
+}
+
+function AiDetectionStatusRow({ status, circuitBroken, error, hasScalePrediction, measureBy, onRetry }: AiDetectionStatusRowProps) {
+  const badge = detectionBadge(status, circuitBroken)
+  if (badge === 'unavailable') {
     return (
       <div className={styles.aiRow}>
-        <Badge tone="warning">AI detection unavailable — continuing manually</Badge>
-        <button className={styles.retryButton} onClick={onRetry}>Retry</button>
+        <div className={styles.aiRowLine}>
+          <Badge tone="warning">AI detection unavailable — continuing manually</Badge>
+          <button className={styles.retryButton} onClick={onRetry}>Retry</button>
+        </div>
+        <DetectionErrorDetails error={error} />
       </div>
     )
   }
-  if (status === 'failed') {
+  if (badge === 'failed') {
     return (
       <div className={styles.aiRow}>
-        <Badge tone="warning">Detection failed — using default guides</Badge>
-        <button className={styles.retryButton} onClick={onRetry}>Retry</button>
+        <div className={styles.aiRowLine}>
+          <Badge tone="warning">Detection failed — using default guides</Badge>
+          <button className={styles.retryButton} onClick={onRetry}>Retry</button>
+        </div>
+        <DetectionErrorDetails error={error} />
       </div>
     )
   }
-  if (status === 'success') {
+  if (badge === 'success') {
     // Dial watches can partially succeed — case_bbox detected (splice
     // populated) but dial_bbox missing/invalid (scale still needs manual
     // placement). Case watches always succeed-or-fail together (scale

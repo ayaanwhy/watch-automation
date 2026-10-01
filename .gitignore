@@ -31,6 +31,7 @@ __pycache__/
 
 #Extras
 .idea/
+*.png
 
 #Docs
 CLAUDE.md
